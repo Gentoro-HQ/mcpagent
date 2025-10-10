@@ -1,5 +1,5 @@
 # Base image with JRE 21, Node, OpenAPI Generator CLI wrapper, OTel Collector, and supervisord
-FROM debian:bookworm AS base
+FROM debian:trixie AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -13,7 +13,7 @@ RUN npm i -g @openapitools/openapi-generator-cli@2.13.7
 # Copy otelcol binary from official image
 FROM otel/opentelemetry-collector:latest as otel
 
-FROM debian:bookworm
+FROM debian:trixie
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates gnupg unzip supervisor \
@@ -25,7 +25,6 @@ RUN npm i -g @openapitools/openapi-generator-cli@2.13.7
 
 # Bring in otelcol
 COPY --from=otel /otelcol /usr/local/bin/otelcol
-COPY --from=otel /etc/otelcol-contrib/config.yaml /etc/otel-collector-config.yaml
 
 # Entrypoint helpers
 RUN mkdir -p /opt/bin /var/log/supervisor
