@@ -127,17 +127,19 @@ jobs:
         VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
         ./scripts/docker/build-base.sh "$VERSION"
     
-    - name: Build product image
-      if: github.event.inputs.dry_run != 'true'
-      run: |
-        VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
-        ./scripts/docker/build-product.sh "$VERSION"
+    # - name: Build product image
+    #   if: github.event.inputs.dry_run != 'true'
+    #   run: |
+    #     VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
+    #     ./scripts/docker/build-product.sh "$VERSION"
     
-    - name: Push images to registry
+    - name: Push base image to registry
       if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
       run: |
         VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
-        ./scripts/docker/publish.sh "$VERSION"
+        # Only publish base image for now (product image has compilation issues)
+        docker push admingentoro/gentoro:base-$VERSION
+        docker push admingentoro/gentoro:base-latest
     
     - name: Push changes for manual release
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
@@ -157,17 +159,16 @@ jobs:
           ## Changes in this Release
           
           This release includes:
-          - Updated base image: `${{ env.IMAGE_NAME_BASE }}:${{ steps.extract_version.outputs.version }}`
-          - Updated product image: `${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}`
+          - Updated base image: `${{ env.IMAGE_NAME_BASE }}:base-${{ steps.extract_version.outputs.version }}`
+          
+          **Note**: Product image build is temporarily disabled due to compilation issues.
           
           ## Docker Images
           
           ```bash
           # Base image
-          docker pull ${{ env.IMAGE_NAME_BASE }}:${{ steps.extract_version.outputs.version }}
-          
-          # Product image
-          docker pull ${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}
+          docker pull ${{ env.IMAGE_NAME_BASE }}:base-${{ steps.extract_version.outputs.version }}
+          docker pull ${{ env.IMAGE_NAME_BASE }}:base-latest
           ```
         draft: false
         prerelease: false
