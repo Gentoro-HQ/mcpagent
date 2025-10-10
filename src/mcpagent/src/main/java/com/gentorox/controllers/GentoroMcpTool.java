@@ -2,51 +2,51 @@ package com.gentorox.controllers;
 
 import com.gentorox.core.model.InferenceResponse;
 import com.gentorox.orchestrator.Orchestrator;
-import io.modelcontextprotocol.core.Tool;
-import io.modelcontextprotocol.core.ToolHandler;
-import io.modelcontextprotocol.core.types.StructuredValue;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 
 @Component
-public class GentoroMcpTool implements ToolHandler {
+public class GentoroMcpTool {
   private final Orchestrator orchestrator;
   public GentoroMcpTool(Orchestrator orchestrator) { this.orchestrator = orchestrator; }
 
-  @Override
-  public Tool tool() {
-    return Tool.builder().name("gentoro.run")
+  public McpSchema.Tool tool() {
+    return McpSchema.Tool.builder()
+        .name("gentoro.run")
         .description("Run an instruction using the Gentoro Agent. {provider, model, messages, options}")
-        .inputSchema(Map.of(
-            "type","object",
-            "required", List.of("provider","model","messages"),
-            "properties", Map.of(
-                "provider", Map.of("type","string","description","one of: openai|gemini|anthropic"),
-                "model", Map.of("type","string"),
-                "messages", Map.of("type","array"),
-                "options", Map.of("type","object")
-            )
-        )).build();
+        .inputSchema(new McpSchema.JsonSchema(
+            "object",
+            Map.of(
+                "provider", Map.of("type", "string", "description", "one of: openai|gemini|anthropic"),
+                "model", Map.of("type", "string"),
+                "messages", Map.of("type", "array"),
+                "options", Map.of("type", "object")
+            ),
+            List.of("provider","model","messages"),
+            null, // additionalProperties
+            null, // defs
+            null  // definitions
+        ))
+        .build();
   }
 
-  @Override
-  public StructuredValue handle(StructuredValue input) {
-    var map = input.asMap();
-    String provider = (String) map.get("provider");
-    String model = (String) map.get("model");
+  public Map<String, Object> handle(Map<String, Object> input) {
+    String provider = (String) input.get("provider");
+    String model = (String) input.get("model");
     @SuppressWarnings("unchecked")
-    List<Map<String,Object>> raw = (List<Map<String,Object>>) map.get("messages");
+    List<Map<String,Object>> raw = (List<Map<String,Object>>) input.get("messages");
     var messages = raw.stream().map(m -> new com.gentorox.core.model.InferenceRequest.Message(
         (String) m.get("role"), m.get("content"))).toList();
     @SuppressWarnings("unchecked")
-    Map<String,Object> opts = (Map<String,Object>) map.getOrDefault("options", Map.of());
+    Map<String,Object> opts = (Map<String,Object>) input.getOrDefault("options", Map.of());
     InferenceResponse resp = orchestrator.run(provider, model, messages, opts);
-    return StructuredValue.fromMap(Map.of(
+    return Map.of(
         "content", resp.content(),
         "toolCall", resp.toolCall().map(tc -> Map.of("name", tc.toolName(), "args", tc.jsonArguments())).orElse(null),
         "traceId", resp.providerTraceId()
-    ));
+    );
   }
 }

@@ -1,20 +1,16 @@
 package com.gentorox.services.models.anthropic;
 
-import com.anthropic.types.Tool;
 import com.gentorox.core.api.ToolSpec;
 import com.gentorox.services.models.ToolTranslator;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
-public class AnthropicToolTranslator implements ToolTranslator<Tool> {
+import java.util.List;
+
+public class AnthropicToolTranslator implements ToolTranslator<Object> {
+  
+  // TODO: Update this class to work with Anthropic Java SDK 2.8.1
+  
   @Override
-  public List<Tool> translate(List<ToolSpec> tools) {
-    List<Tool> out = new ArrayList<>();
-    for (ToolSpec t : tools) {
-      Map<String, Object> schema = com.gentorox.services.models.JsonSchemaBuilder.from(t);
-      out.add(Tool.builder().name(t.name()).description(t.description()).inputSchema(schema).build());
-    }
-    return out;
+  public List<Object> translate(List<ToolSpec> toolSpecs) {
+    throw new UnsupportedOperationException("Anthropic tool translation not implemented for SDK 2.8.1");
   }
 }
