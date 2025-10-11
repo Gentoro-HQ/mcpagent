@@ -1,13 +1,17 @@
 package com.gentorox.controllers;
 
-import io.modelcontextprotocol.spring.server.McpServerConfigurer;
-import io.modelcontextprotocol.spring.server.McpServerRegistry;
-import io.modelcontextprotocol.core.transport.httpstream.HttpStreamServerTransport;
+// MCP dependencies are temporarily disabled due to dependency issues
+// import io.modelcontextprotocol.spring.server.McpServerConfigurer;
+// import io.modelcontextprotocol.spring.server.McpServerRegistry;
+// import io.modelcontextprotocol.core.transport.httpstream.HttpStreamServerTransport;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
+// Temporarily disabled due to MCP dependency issues
+// @Configuration
 public class McpServerConfig {
+  // Temporarily disabled due to MCP dependency issues
+  /*
   @Bean
   McpServerConfigurer serverConfigurer() {
     return new McpServerConfigurer() {
@@ -17,4 +21,5 @@ public class McpServerConfig {
       }
     };
   }
+  */
 }

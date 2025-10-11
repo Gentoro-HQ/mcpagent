@@ -25,7 +25,8 @@ public final class TestSuiteRunner {
       Suite suite = om.readValue(suiteFile, Suite.class);
       ApplicationContext ctx = new AnnotationConfigApplicationContext("com.gentorox");
       Orchestrator orchestrator = ctx.getBean(Orchestrator.class);
-      String provider = System.getenv().getOrDefault("TEST_PROVIDER", "openai");
+      String provider = System.getenv().getOrDefault("TEST_PROVIDER", 
+          System.getenv().getOrDefault("INFERENCE_DEFAULT_PROVIDER", "openai"));
       String model = System.getenv().getOrDefault("TEST_MODEL", "gpt-4o-mini");
       int passed = 0;
       for (Case c : suite.suite) {

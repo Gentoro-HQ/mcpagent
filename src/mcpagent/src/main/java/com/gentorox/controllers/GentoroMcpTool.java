@@ -2,19 +2,23 @@ package com.gentorox.controllers;
 
 import com.gentorox.core.model.InferenceResponse;
 import com.gentorox.orchestrator.Orchestrator;
-import io.modelcontextprotocol.core.Tool;
-import io.modelcontextprotocol.core.ToolHandler;
-import io.modelcontextprotocol.core.types.StructuredValue;
+// MCP dependencies are temporarily disabled due to dependency issues
+// import io.modelcontextprotocol.core.Tool;
+// import io.modelcontextprotocol.core.ToolHandler;
+// import io.modelcontextprotocol.core.types.StructuredValue;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 
-@Component
-public class GentoroMcpTool implements ToolHandler {
+// Temporarily disabled due to MCP dependency issues
+// @Component
+public class GentoroMcpTool /* implements ToolHandler */ {
   private final Orchestrator orchestrator;
   public GentoroMcpTool(Orchestrator orchestrator) { this.orchestrator = orchestrator; }
 
+  // Temporarily disabled due to MCP dependency issues
+  /*
   @Override
   public Tool tool() {
     return Tool.builder().name("gentoro.run")
@@ -23,7 +27,7 @@ public class GentoroMcpTool implements ToolHandler {
             "type","object",
             "required", List.of("provider","model","messages"),
             "properties", Map.of(
-                "provider", Map.of("type","string","description","one of: openai|gemini|anthropic"),
+                "provider", Map.of("type","string","description","AI model provider (e.g., openai, anthropic, gemini)"),
                 "model", Map.of("type","string"),
                 "messages", Map.of("type","array"),
                 "options", Map.of("type","object")
@@ -49,4 +53,5 @@ public class GentoroMcpTool implements ToolHandler {
         "traceId", resp.providerTraceId()
     ));
   }
+  */
 }
