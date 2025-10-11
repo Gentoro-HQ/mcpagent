@@ -6,15 +6,20 @@ mcp:
     path: /mcp
 
 providers:
-  openai:
-    apiKey: ${OPENAI_API_KEY:}
-    baseUrl: ${OPENAI_BASE_URL:}
-  gemini:
-    apiKey: ${GEMINI_API_KEY:}
-    endpoint: ${GEMINI_ENDPOINT:}
-  anthropic:
-    apiKey: ${ANTHROPIC_API_KEY:}
-    baseUrl: ${ANTHROPIC_BASE_URL:}
+  providers:
+    openai:
+      apiKey: ${OPENAI_API_KEY:}
+      baseUrl: ${OPENAI_BASE_URL:}
+      modelName: ${OPENAI_MODEL_NAME:gpt-4}
+    gemini:
+      apiKey: ${GEMINI_API_KEY:}
+      endpoint: ${GEMINI_ENDPOINT:}
+      modelName: ${GEMINI_MODEL_NAME:gemini-2.0-flash}
+    anthropic:
+      apiKey: ${ANTHROPIC_API_KEY:}
+      baseUrl: ${ANTHROPIC_BASE_URL:}
+      modelName: ${ANTHROPIC_MODEL_NAME:claude-3-sonnet-20240229}
+  default-provider: ${INFERENCE_DEFAULT_PROVIDER:openai}
 
 typescript:
   runtimeUrl: ${TS_RUNTIME_URL:http://localhost:7070}

@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b390be1e-fc2e-4a30-afc2-3b930c1e002d" name="Changes" comment="" />
+    <list default="true" id="b390be1e-fc2e-4a30-afc2-3b930c1e002d" name="Changes" comment="improving docs" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -13,33 +13,84 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;gentoro-GT&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/gentoro-GT/mcpagent.git&quot;,
+    &quot;accountId&quot;: &quot;58006c78-1c9f-4776-853e-3e6d793ab084&quot;
+  }
+}</component>
   <component name="ProjectCodeStyleSettingsMigration">
     <option name="version" value="2" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 6
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 6
+}</component>
   <component name="ProjectId" id="33qGJNZsO0H5a7vzr1UGO3uVzfV" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/Users/altamirosantos/IdeaProjects/mcpagent-product",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "to.speed.mode.migration.done": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;as__dev&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/altamirosantos/IdeaProjects/mcpagent-product/src/typescript-runtime&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;npm.dev.executor&quot;: &quot;Debug&quot;,
+    &quot;npm.format.executor&quot;: &quot;Run&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Users/altamirosantos/IdeaProjects/mcpagent-product/src/typescript-runtime/node_modules/typescript/lib&quot;
   }
-}]]></component>
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/typescript-runtime" />
+      <recent name="$PROJECT_DIR$/src/mock-interprise-server" />
+    </key>
+  </component>
+  <component name="RunManager" selected="npm.format">
+    <configuration name="dev" type="js.build_tools.npm" nameIsGenerated="true">
+      <package-json value="$PROJECT_DIR$/src/typescript-runtime/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="dev" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+    <configuration name="format" type="js.build_tools.npm" temporary="true" nameIsGenerated="true">
+      <package-json value="$PROJECT_DIR$/src/typescript-runtime/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="format" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="npm.format" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -55,11 +106,185 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1725897215934</updated>
-      <workItem from="1760037117403" duration="2826000" />
+      <workItem from="1760037117403" duration="11185000" />
     </task>
+    <task id="LOCAL-00001" summary="Initial commit">
+      <option name="closed" value="true" />
+      <created>1760047195109</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1760047195110</updated>
+    </task>
+    <task id="LOCAL-00002" summary="additional structure for typescript and mock server">
+      <option name="closed" value="true" />
+      <created>1760050460482</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1760050460482</updated>
+    </task>
+    <task id="LOCAL-00003" summary="typescript runtime implementation">
+      <option name="closed" value="true" />
+      <created>1760113436579</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1760113436579</updated>
+    </task>
+    <task id="LOCAL-00004" summary="code formatting">
+      <option name="closed" value="true" />
+      <created>1760113473115</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1760113473115</updated>
+    </task>
+    <task id="LOCAL-00005" summary="safety checks for cleanup and concurrently sdk">
+      <option name="closed" value="true" />
+      <created>1760114314544</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1760114314544</updated>
+    </task>
+    <task id="LOCAL-00006" summary="bridge axios to isolated-vm">
+      <option name="closed" value="true" />
+      <created>1760129847985</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1760129847985</updated>
+    </task>
+    <task id="LOCAL-00007" summary="tests">
+      <option name="closed" value="true" />
+      <created>1760130815406</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1760130815406</updated>
+    </task>
+    <task id="LOCAL-00008" summary="tests">
+      <option name="closed" value="true" />
+      <created>1760130829600</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1760130829600</updated>
+    </task>
+    <task id="LOCAL-00009" summary="tests">
+      <option name="closed" value="true" />
+      <created>1760131062515</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1760131062515</updated>
+    </task>
+    <task id="LOCAL-00010" summary="documentation">
+      <option name="closed" value="true" />
+      <created>1760131344651</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1760131344651</updated>
+    </task>
+    <task id="LOCAL-00011" summary="adjust gitignore">
+      <option name="closed" value="true" />
+      <created>1760131395311</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1760131395311</updated>
+    </task>
+    <task id="LOCAL-00012" summary="refactor on http-bridge.ts">
+      <option name="closed" value="true" />
+      <created>1760132116692</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1760132116692</updated>
+    </task>
+    <task id="LOCAL-00013" summary="improving docs">
+      <option name="closed" value="true" />
+      <created>1760132524113</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1760132524113</updated>
+    </task>
+    <task id="LOCAL-00014" summary="improving docs">
+      <option name="closed" value="true" />
+      <created>1760132677954</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1760132677954</updated>
+    </task>
+    <task id="LOCAL-00015" summary="improving docs">
+      <option name="closed" value="true" />
+      <created>1760132963548</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1760132963548</updated>
+    </task>
+    <task id="LOCAL-00016" summary="improving docs">
+      <option name="closed" value="true" />
+      <created>1760133126288</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1760133126288</updated>
+    </task>
+    <task id="LOCAL-00017" summary="improving docs">
+      <option name="closed" value="true" />
+      <created>1760133233812</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1760133233812</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Initial commit" />
+    <MESSAGE value="additional structure for typescript and mock server" />
+    <MESSAGE value="typescript runtime implementation" />
+    <MESSAGE value="code formatting" />
+    <MESSAGE value="safety checks for cleanup and concurrently sdk" />
+    <MESSAGE value="bridge axios to isolated-vm" />
+    <MESSAGE value="tests" />
+    <MESSAGE value="documentation" />
+    <MESSAGE value="adjust gitignore" />
+    <MESSAGE value="refactor on http-bridge.ts" />
+    <MESSAGE value="improving docs" />
+    <option name="LAST_COMMIT_MESSAGE" value="improving docs" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="javascript">
+          <url>file://$PROJECT_DIR$/src/typescript-runtime/src/shims/axios.ts</url>
+          <line>108</line>
+          <properties lambdaOrdinal="-1" />
+          <option name="timeStamp" value="21" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

@@ -15,14 +15,17 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
-public class TelemetryConfig implements InitializingBean {
+// Temporarily disabled due to OpenTelemetry dependency issues
+// @Configuration
+public class TelemetryConfig /* implements InitializingBean */ {
   @Value("${otel.service.name:mcpagent}")
   String serviceName;
 
   @Value("${OTEL_EXPORTER_OTLP_ENDPOINT:}")
   String otlpEndpoint;
 
+  // Temporarily disabled due to OpenTelemetry dependency issues
+  /*
   @Override
   public void afterPropertiesSet() {
     var resource = Resource.getDefault().merge(Resource.create(
@@ -52,4 +55,5 @@ public class TelemetryConfig implements InitializingBean {
 
     GlobalOpenTelemetry.set(otel);
   }
+  */
 }
