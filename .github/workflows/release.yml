@@ -127,19 +127,22 @@ jobs:
         VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
         ./scripts/docker/build-base.sh "$VERSION"
     
-    # - name: Build product image
-    #   if: github.event.inputs.dry_run != 'true'
-    #   run: |
-    #     VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
-    #     ./scripts/docker/build-product.sh "$VERSION"
+    - name: Build product image
+      if: github.event.inputs.dry_run != 'true'
+      run: |
+        VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
+        ./scripts/docker/build-product.sh "$VERSION"
     
-    - name: Push base image to registry
+    - name: Push images to registry
       if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
       run: |
         VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
-        # Only publish base image for now (product image has compilation issues)
+        # Push base image
         docker push admingentoro/gentoro:base-$VERSION
         docker push admingentoro/gentoro:base-latest
+        # Push product image
+        docker push admingentoro/gentoro:$VERSION
+        docker push admingentoro/gentoro:latest
     
     - name: Push changes for manual release
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
@@ -160,8 +163,7 @@ jobs:
           
           This release includes:
           - Updated base image: `${{ env.IMAGE_NAME_BASE }}:base-${{ steps.extract_version.outputs.version }}`
-          
-          **Note**: Product image build is temporarily disabled due to compilation issues.
+          - Updated product image: `${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}`
           
           ## Docker Images
           
@@ -169,6 +171,10 @@ jobs:
           # Base image
           docker pull ${{ env.IMAGE_NAME_BASE }}:base-${{ steps.extract_version.outputs.version }}
           docker pull ${{ env.IMAGE_NAME_BASE }}:base-latest
+          
+          # Product image
+          docker pull ${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}
+          docker pull ${{ env.IMAGE_NAME_PRODUCT }}:latest
           ```
         draft: false
         prerelease: false
@@ -183,5 +189,5 @@ jobs:
         echo "This would have:"
         echo "- Updated POM version to ${{ steps.calculate_version.outputs.new_snapshot }}"
         echo "- Created tag ${{ steps.calculate_version.outputs.version }}"
-        echo "- Built and pushed Docker images"
+        echo "- Built and pushed base and product Docker images"
         echo "- Created GitHub release"
