@@ -1,0 +1,13 @@
+# CODEOWNERS
+# Each line is a file pattern followed by one or more owners.
+# Owners are automatically requested for review when someone opens a pull request
+# that modifies code they own.
+
+# Global maintainers
+*           @Gentoro-HQ/core-team
+
+# Documentation
+/docs/      @Gentoro-HQ/docs-team
+
+# GitHub workflows
+.github/    @Gentoro-HQ/devops-team
