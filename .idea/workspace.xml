@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b390be1e-fc2e-4a30-afc2-3b930c1e002d" name="Changes" comment="improving docs" />
+    <list default="true" id="b390be1e-fc2e-4a30-afc2-3b930c1e002d" name="Changes" comment="added tests">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -19,6 +21,16 @@
     &quot;assignee&quot;: &quot;gentoro-GT&quot;
   }
 }</component>
+  <component name="GitRewordedCommitMessages">
+    <option name="commitMessagesMapping">
+      <RewordedCommitMessageMapping>
+        <option name="originalMessage" value="feat(mcp): add MCP HTTP Streamable transport, async tool, and SDK-backed tests&#10;&#10;#### What’s new&#10;- Introduce full MCP server wiring via Spring WebFlux&#10;  - `McpServerConfig` provides:&#10;    - `McpJsonMapper` for protocol JSON&#10;    - `WebFluxStreamableServerTransportProvider` (HTTP Streamable) and exported `RouterFunction`&#10;    - `McpAsyncServer` with declared capabilities (`tools` enabled)&#10;    - `AsyncToolSpecification` bridging MCP tool calls to `Orchestrator.run`&#10;- Expose configuration via application properties&#10;  - `agentProtocol.mcp.config.messageEndpoint` (default: `/mcp`)&#10;  - `agentProtocol.mcp.config.disallowDelete` (default: `false`)&#10;  - URL is derived from `server.port` and optional `server.servlet.context-path`&#10;- Add async tool `gentoro.run`&#10;  - Description: run an instruction with the Gentoro Agent&#10;  - Input schema: requires `prompt` (string); optional `options` (object)&#10;  - On success, returns JSON with `content` and `traceId`; validation and error paths covered&#10;&#10;#### Dependencies&#10;- Add official MCP Java SDK modules to `pom.xml`:&#10;  - `io.modelcontextprotocol.sdk:mcp`&#10;  - `io.modelcontextprotocol.sdk:mcp-core`&#10;  - `io.modelcontextprotocol.sdk:mcp-json-jackson2`&#10;  - `io.modelcontextprotocol.sdk:mcp-spring-webflux`&#10;&#10;#### Tests&#10;- Unit: `McpServerConfigTest`&#10;  - Verifies Spring beans exist: transport provider, router, async tool&#10;  - Asserts tool name/description (`gentoro.run`, mentions &quot;Gentoro Agent&quot;)&#10;  - Ensures DELETE is disallowed on the endpoint when configured (4xx)&#10;- Integration: `McpHttpStreamableClientIntegrationTest`&#10;  - Uses the official MCP Java SDK client (`HttpClientStreamableHttpTransport`) against a random-port server&#10;  - Completes MCP initialize handshake and validates capabilities&#10;  - Lists tools and asserts `gentoro.run` is present&#10;  - Invokes the tool with minimal valid args; any returned result (success or error) counts as success for protocol wiring&#10;  - `Orchestrator` is mocked to return a deterministic `InferenceResponse`&#10;&#10;#### Configuration defaults&#10;- `application.yaml` provides sensible defaults for port, MCP endpoint path, and related agent/provider settings&#10;&#10;#### Notes&#10;- No breaking changes for existing non-MCP functionality&#10;- Logs output the derived MCP URL at startup for easier discovery" />
+        <option name="rewordedMessage" value="feat(mcp): add MCP HTTP Streamable transport, async tool, and SDK-backed tests&#10;&#10;#### What’s new&#10;- Introduce full MCP server wiring via Spring WebFlux&#10;  - `McpServerConfig` provides:&#10;    - `McpJsonMapper` for protocol JSON&#10;    - `WebFluxStreamableServerTransportProvider` (HTTP Streamable) and exported `RouterFunction`&#10;    - `McpAsyncServer` with declared capabilities (`tools` enabled)&#10;    - `AsyncToolSpecification` bridging MCP tool calls to `Orchestrator.run`&#10;- Expose configuration via application properties&#10;  - `agentProtocol.mcp.config.messageEndpoint` (default: `/mcp`)&#10;  - `agentProtocol.mcp.config.disallowDelete` (default: `false`)&#10;  - URL is derived from `server.port` and optional `server.servlet.context-path`&#10;- Add async tool `gentoro.run`&#10;  - Description: run an instruction with the Gentoro Agent&#10;  - Input schema: requires `prompt` (string); optional `options` (object)&#10;  - On success, returns JSON with `content` and `traceId`; validation and error paths covered&#10;&#10;#### Dependencies&#10;- Add official MCP Java SDK modules to `pom.xml`:&#10;  - `io.modelcontextprotocol.sdk:mcp`&#10;  - `io.modelcontextprotocol.sdk:mcp-core`&#10;  - `io.modelcontextprotocol.sdk:mcp-json-jackson2`&#10;  - `io.modelcontextprotocol.sdk:mcp-spring-webflux`&#10;&#10;#### Tests&#10;- Unit: `McpServerConfigTest`&#10;  - Verifies Spring beans exist: transport provider, router, async tool&#10;  - Asserts tool name/description (`gentoro.run`, mentions &quot;Gentoro Agent&quot;)&#10;  - Ensures DELETE is disallowed on the endpoint when configured (4xx)&#10;- Integration: `McpHttpStreamableClientIntegrationTest`&#10;  - Uses the official MCP Java SDK client (`HttpClientStreamableHttpTransport`) against a random-port server&#10;  - Completes MCP initialize handshake and validates capabilities&#10;  - Lists tools and asserts `gentoro.run` is present&#10;  - Invokes the tool with minimal valid args; any returned result (success or error) counts as success for protocol wiring&#10;  - `Orchestrator` is mocked to return a deterministic `InferenceResponse`&#10;&#10;#### Configuration defaults&#10;- `application.yaml` provides sensible defaults for port, MCP endpoint path, and related agent/provider settings&#10;&#10;#### Notes&#10;- No breaking changes for existing non-MCP functionality&#10;- Logs output the derived MCP URL at startup for easier discovery" />
+      </RewordedCommitMessageMapping>
+    </option>
+    <option name="currentCommit" value="1" />
+    <option name="onto" value="fb0213993a72e012ef0f639e518fd5e24b329211" />
+  </component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/gentoro-GT/mcpagent.git&quot;,
@@ -36,35 +48,55 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;as__dev&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/altamirosantos/IdeaProjects/mcpagent-product/src/typescript-runtime&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;npm.dev.executor&quot;: &quot;Debug&quot;,
-    &quot;npm.format.executor&quot;: &quot;Run&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;/Users/altamirosantos/IdeaProjects/mcpagent-product/src/typescript-runtime/node_modules/typescript/lib&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "JUnit.McpHttpStreamableClientIntegrationTest.executor": "Run",
+    "JUnit.McpServerConfigTest.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "Spring Boot.Application.executor": "Debug",
+    "git-widget-placeholder": "feature/14-enable-mcp-endpoints",
+    "junie.onboarding.icon.badge.shown": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/altamirosantos/IdeaProjects/mcpagent-product/src/typescript-runtime",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "npm.dev.executor": "Debug",
+    "npm.format.executor": "Run",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
+    "to.speed.mode.migration.done": "true",
+    "ts.external.directory.path": "/Users/altamirosantos/IdeaProjects/mcpagent-product/src/typescript-runtime/node_modules/typescript/lib"
   }
-}</component>
+}]]></component>
+  <component name="ReactorSettings">
+    <option name="notificationShown" value="true" />
+  </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/src/typescript-runtime" />
       <recent name="$PROJECT_DIR$/src/mock-interprise-server" />
     </key>
   </component>
-  <component name="RunManager" selected="npm.format">
+  <component name="RunManager" selected="Spring Boot.Application">
+    <configuration name="Application" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="mcpagent" />
+      <selectedOptions>
+        <option name="environmentVariables" />
+      </selectedOptions>
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.gentorox.Application" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <configuration name="dev" type="js.build_tools.npm" nameIsGenerated="true">
       <package-json value="$PROJECT_DIR$/src/typescript-runtime/package.json" />
       <command value="run" />
@@ -85,6 +117,11 @@
       <envs />
       <method v="2" />
     </configuration>
+    <list>
+      <item itemvalue="npm.dev" />
+      <item itemvalue="npm.format" />
+      <item itemvalue="Spring Boot.Application" />
+    </list>
     <recent_temporary>
       <list>
         <item itemvalue="npm.format" />
@@ -244,7 +281,39 @@
       <option name="project" value="LOCAL" />
       <updated>1760133233812</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="initial dev or feature">
+      <option name="closed" value="true" />
+      <created>1760394730656</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1760394730656</updated>
+    </task>
+    <task id="LOCAL-00019" summary="additional context and docs for the implementation">
+      <option name="closed" value="true" />
+      <created>1760394980958</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1760394980958</updated>
+    </task>
+    <task id="LOCAL-00020" summary="added tests">
+      <option name="closed" value="true" />
+      <created>1760396186535</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1760396186535</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Remove secrets from code">
+      <option name="closed" value="true" />
+      <created>1760396385090</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1760396385090</updated>
+    </task>
+    <option name="localTasksCounter" value="22" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -273,7 +342,13 @@
     <MESSAGE value="adjust gitignore" />
     <MESSAGE value="refactor on http-bridge.ts" />
     <MESSAGE value="improving docs" />
-    <option name="LAST_COMMIT_MESSAGE" value="improving docs" />
+    <MESSAGE value="initial dev or feature" />
+    <MESSAGE value="additional context and docs for the implementation" />
+    <MESSAGE value="added tests" />
+    <MESSAGE value="added tests&#10;additional context and docs for the implementation&#10;initial dev or feature" />
+    <MESSAGE value="Remove secrets from code" />
+    <MESSAGE value="feat(mcp): add MCP HTTP Streamable transport, async tool, and SDK-backed tests&#10;&#10;#### What’s new&#10;- Introduce full MCP server wiring via Spring WebFlux&#10;  - `McpServerConfig` provides:&#10;    - `McpJsonMapper` for protocol JSON&#10;    - `WebFluxStreamableServerTransportProvider` (HTTP Streamable) and exported `RouterFunction`&#10;    - `McpAsyncServer` with declared capabilities (`tools` enabled)&#10;    - `AsyncToolSpecification` bridging MCP tool calls to `Orchestrator.run`&#10;- Expose configuration via application properties&#10;  - `agentProtocol.mcp.config.messageEndpoint` (default: `/mcp`)&#10;  - `agentProtocol.mcp.config.disallowDelete` (default: `false`)&#10;  - URL is derived from `server.port` and optional `server.servlet.context-path`&#10;- Add async tool `gentoro.run`&#10;  - Description: run an instruction with the Gentoro Agent&#10;  - Input schema: requires `prompt` (string); optional `options` (object)&#10;  - On success, returns JSON with `content` and `traceId`; validation and error paths covered&#10;&#10;#### Dependencies&#10;- Add official MCP Java SDK modules to `pom.xml`:&#10;  - `io.modelcontextprotocol.sdk:mcp`&#10;  - `io.modelcontextprotocol.sdk:mcp-core`&#10;  - `io.modelcontextprotocol.sdk:mcp-json-jackson2`&#10;  - `io.modelcontextprotocol.sdk:mcp-spring-webflux`&#10;&#10;#### Tests&#10;- Unit: `McpServerConfigTest`&#10;  - Verifies Spring beans exist: transport provider, router, async tool&#10;  - Asserts tool name/description (`gentoro.run`, mentions &quot;Gentoro Agent&quot;)&#10;  - Ensures DELETE is disallowed on the endpoint when configured (4xx)&#10;- Integration: `McpHttpStreamableClientIntegrationTest`&#10;  - Uses the official MCP Java SDK client (`HttpClientStreamableHttpTransport`) against a random-port server&#10;  - Completes MCP initialize handshake and validates capabilities&#10;  - Lists tools and asserts `gentoro.run` is present&#10;  - Invokes the tool with minimal valid args; any returned result (success or error) counts as success for protocol wiring&#10;  - `Orchestrator` is mocked to return a deterministic `InferenceResponse`&#10;&#10;#### Configuration defaults&#10;- `application.yaml` provides sensible defaults for port, MCP endpoint path, and related agent/provider settings&#10;&#10;#### Notes&#10;- No breaking changes for existing non-MCP functionality&#10;- Logs output the derived MCP URL at startup for easier discovery" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(mcp): add MCP HTTP Streamable transport, async tool, and SDK-backed tests&#10;&#10;#### What’s new&#10;- Introduce full MCP server wiring via Spring WebFlux&#10;  - `McpServerConfig` provides:&#10;    - `McpJsonMapper` for protocol JSON&#10;    - `WebFluxStreamableServerTransportProvider` (HTTP Streamable) and exported `RouterFunction`&#10;    - `McpAsyncServer` with declared capabilities (`tools` enabled)&#10;    - `AsyncToolSpecification` bridging MCP tool calls to `Orchestrator.run`&#10;- Expose configuration via application properties&#10;  - `agentProtocol.mcp.config.messageEndpoint` (default: `/mcp`)&#10;  - `agentProtocol.mcp.config.disallowDelete` (default: `false`)&#10;  - URL is derived from `server.port` and optional `server.servlet.context-path`&#10;- Add async tool `gentoro.run`&#10;  - Description: run an instruction with the Gentoro Agent&#10;  - Input schema: requires `prompt` (string); optional `options` (object)&#10;  - On success, returns JSON with `content` and `traceId`; validation and error paths covered&#10;&#10;#### Dependencies&#10;- Add official MCP Java SDK modules to `pom.xml`:&#10;  - `io.modelcontextprotocol.sdk:mcp`&#10;  - `io.modelcontextprotocol.sdk:mcp-core`&#10;  - `io.modelcontextprotocol.sdk:mcp-json-jackson2`&#10;  - `io.modelcontextprotocol.sdk:mcp-spring-webflux`&#10;&#10;#### Tests&#10;- Unit: `McpServerConfigTest`&#10;  - Verifies Spring beans exist: transport provider, router, async tool&#10;  - Asserts tool name/description (`gentoro.run`, mentions &quot;Gentoro Agent&quot;)&#10;  - Ensures DELETE is disallowed on the endpoint when configured (4xx)&#10;- Integration: `McpHttpStreamableClientIntegrationTest`&#10;  - Uses the official MCP Java SDK client (`HttpClientStreamableHttpTransport`) against a random-port server&#10;  - Completes MCP initialize handshake and validates capabilities&#10;  - Lists tools and asserts `gentoro.run` is present&#10;  - Invokes the tool with minimal valid args; any returned result (success or error) counts as success for protocol wiring&#10;  - `Orchestrator` is mocked to return a deterministic `InferenceResponse`&#10;&#10;#### Configuration defaults&#10;- `application.yaml` provides sensible defaults for port, MCP endpoint path, and related agent/provider settings&#10;&#10;#### Notes&#10;- No breaking changes for existing non-MCP functionality&#10;- Logs output the derived MCP URL at startup for easier discovery" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -281,8 +356,12 @@
         <line-breakpoint enabled="true" type="javascript">
           <url>file://$PROJECT_DIR$/src/typescript-runtime/src/shims/axios.ts</url>
           <line>108</line>
-          <properties lambdaOrdinal="-1" />
           <option name="timeStamp" value="21" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/mcpagent/src/main/java/com/gentorox/protocols/McpServerConfig.java</url>
+          <line>175</line>
+          <option name="timeStamp" value="24" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

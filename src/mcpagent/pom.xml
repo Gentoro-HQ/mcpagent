@@ -78,24 +78,28 @@
       <version>${langchain4j.version}</version>
     </dependency>
 
-    <!-- MCP Java SDK - temporarily disabled due to dependency issues -->
-    <!--
+      <dependency>
+          <groupId>io.modelcontextprotocol.sdk</groupId>
+          <artifactId>mcp</artifactId>
+          <version>${mcp.version}</version>
+      </dependency>
+
+      <dependency>
+          <groupId>io.modelcontextprotocol.sdk</groupId>
+          <artifactId>mcp-core</artifactId>
+          <version>${mcp.version}</version>
+      </dependency>
     <dependency>
-      <groupId>io.modelcontextprotocol</groupId>
-      <artifactId>mcp-core</artifactId>
+        <groupId>io.modelcontextprotocol.sdk</groupId>
+        <artifactId>mcp-json-jackson2</artifactId>
       <version>${mcp.version}</version>
     </dependency>
-    <dependency>
-      <groupId>io.modelcontextprotocol</groupId>
-      <artifactId>mcp-json-jackson2</artifactId>
-      <version>${mcp.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.modelcontextprotocol</groupId>
-      <artifactId>mcp-spring</artifactId>
-      <version>${mcp.version}</version>
-    </dependency>
-    -->
+
+      <dependency>
+          <groupId>io.modelcontextprotocol.sdk</groupId>
+          <artifactId>mcp-spring-webflux</artifactId>
+          <version>${mcp.version}</version>
+      </dependency>
 
     <!-- OpenTelemetry -->
     <dependency>

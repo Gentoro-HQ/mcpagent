@@ -14,6 +14,7 @@ import com.gentorox.tools.NativeToolsRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -26,25 +27,32 @@ public class Orchestrator {
   private final TelemetryService telemetry;
   private final int autoContextTopK;
   private final boolean autoContextEnabled;
+  private final String providerId;
+  private final String model;
 
   public Orchestrator(
       java.util.List<ModelProvider> providers, NativeToolsRegistry tools, Retriever retriever, ContextBuilder contextBuilder,
       TelemetryService telemetry,
+      @Value("${inference.provider:openai}") String providerId,
+      @Value("${inference.model:gpt-5-mini}") String model,
       @Value("${kb.autoContext.enabled:true}") boolean autoContextEnabled,
       @Value("${kb.autoContext.topK:4}") int autoContextTopK
   ) {
     this.providers = providers.stream().collect(java.util.stream.Collectors.toMap(ModelProvider::id, p -> p));
     this.tools = tools; this.retriever = retriever; this.contextBuilder = contextBuilder; this.telemetry = telemetry;
     this.autoContextEnabled = autoContextEnabled; this.autoContextTopK = autoContextTopK;
+    this.providerId = providerId; this.model = model;
   }
 
-  public InferenceResponse run(String providerId, String model, java.util.List<InferenceRequest.Message> messages, java.util.Map<String,Object> opts) {
+  public InferenceResponse run(List<InferenceRequest.Message> messages, java.util.Map<String,Object> opts) {
     var session = TelemetrySession.create();
     try (var mdc = new LogContext(session)) {
       return telemetry.runRoot(session, "orchestrator.run",
-          java.util.Map.of(TelemetryConstants.ATTR_PROVIDER, providerId, TelemetryConstants.ATTR_MODEL, model), () -> {
-            telemetry.countPrompt(session, providerId, model);
+          java.util.Map.of(
+              TelemetryConstants.ATTR_PROVIDER, providerId,
+              TelemetryConstants.ATTR_MODEL, model), () -> {
 
+        telemetry.countPrompt(session, providerId, model);
             List<InferenceRequest.Message> finalMessages = messages;
             if (autoContextEnabled && !messages.isEmpty()) {
               String lastUser = messages.get(messages.size()-1).content().toString();
