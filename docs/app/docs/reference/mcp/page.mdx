@@ -1,0 +1,16 @@
+---
+description: HTTP stream endpoint and primary tool.
+---
+
+# MCP Endpoint
+
+- Path: `/mcp` (HTTP stream)
+- Example: `http://localhost:8082/mcp`
+
+Primary tool:
+
+- `gentoro.run`
+  - Input: `{ provider, model, messages, options }`
+  - Output: `{ content, toolCall, traceId }`
+
+See the Model Context Protocol spec for streaming details.

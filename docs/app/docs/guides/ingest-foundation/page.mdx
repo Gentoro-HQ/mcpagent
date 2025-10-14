@@ -1,0 +1,44 @@
+---
+description: Minimal checklist to prepare Agent.md, docs, and API specs for the agent.
+---
+import { FileTree } from 'nextra/components'
+
+# Creating a Foundation Folder
+
+Use a local folder as the agent’s source of truth. The agent indexes these files to ground planning and execution.
+
+## Minimal Checklist
+
+- Agent.md — Your high-level agent/system prompt and operating principles
+- docs/ — Markdown docs with domain knowledge (optional but recommended)
+- apis/ — OpenAPI specs (YAML/JSON) for the services you want the agent to call
+- rules/ — Any business rules or constraints (freeform MD/YAML)
+
+## Directory Example
+<FileTree>
+  <FileTree.Folder name="foundation" defaultOpen>
+    <FileTree.File name="Agent.md" />
+    <FileTree.Folder name="docs">
+      <FileTree.File name="Overview.md" />
+    </FileTree.Folder>
+    <FileTree.Folder name="apis">
+      <FileTree.File name="service.openapi.yaml" />
+    </FileTree.Folder>
+    <FileTree.Folder name="rules">
+      <FileTree.File name="policies.md" />
+    </FileTree.Folder>  </FileTree.Folder>
+</FileTree>
+
+## Run With Your Foundation
+
+Mount your folder at `/var/foundation` so it replaces mocked content:
+
+```bash
+docker run --rm \
+	-p 8082:8082 \
+	-v "${PWD}:/var/foundation" \
+	-e APP_ARGS="--process=mock-server --tcp-port=8082" \
+	admingentoro/mcpagent:latest
+```
+
+The agent will index these files on startup and use them during planning, retrieval, and tool execution.

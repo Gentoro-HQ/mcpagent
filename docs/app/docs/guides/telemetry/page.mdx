@@ -1,0 +1,13 @@
+---
+description: Observe runs with OpenTelemetry traces, logs, and metrics.
+---
+
+# Telemetry
+
+The agent emits OpenTelemetry data:
+
+- Traces for plan/generate/execute/evaluate
+- Logs via Logback and the OTEL appender
+- Metrics for high-level counters and timings
+
+Configure OTLP via `OTEL_EXPORTER_OTLP_ENDPOINT` (default `http://localhost:4317`).

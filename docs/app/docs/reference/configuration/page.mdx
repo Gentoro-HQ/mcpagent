@@ -1,0 +1,36 @@
+---
+description: Application settings and exposed routes.
+---
+
+# Configuration & Endpoints
+
+Minimal settings to run locally or in Docker. Values shown reflect defaults in the image and `application.yaml`.
+
+## Environment Variables
+
+- OPENAI_API_KEY — API key for OpenAI (optional if using other providers)
+- GEMINI_API_KEY — API key for Gemini (optional)
+- ANTHROPIC_API_KEY — API key for Anthropic (optional)
+- OTEL_EXPORTER_OTLP_ENDPOINT — OTLP collector endpoint (default: `http://localhost:4317`)
+- TS_RUNTIME_URL — TypeScript runtime URL (default: `http://localhost:7070`) — optional/placeholder
+- FOUNDATION_DIR — Foundation directory (default: `/var/foundation`)
+
+## Process Arguments
+
+- --process=mock-server — start a mock server for quick testing
+- --tcp-port=8082 — port for the mock server (map with `-p 8082:8082`)
+
+These can be passed via `APP_ARGS` in Docker:
+
+```bash
+docker run --rm -p 8082:8082 \
+	-e APP_ARGS="--process=mock-server --tcp-port=8082" \
+	admingentoro/mcpagent:latest
+```
+
+## MCP Endpoint
+
+- Path: `/mcp` (HTTP stream)
+- Example URL when running mock server: `http://localhost:8082/mcp`
+
+Client connections must speak the Model Context Protocol over HTTP streaming.
