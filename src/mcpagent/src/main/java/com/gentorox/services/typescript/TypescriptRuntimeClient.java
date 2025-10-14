@@ -80,6 +80,73 @@ public class TypescriptRuntimeClient {
   }
 
   /**
+   * Fetches the Markdown documentation collection for a generated SDK namespace.
+   *
+   * <p>This method calls the server endpoint
+   * <code>GET /sdk/docs/{namespace}?cleanup={cleanup}</code>
+   * and returns the parsed {@link DocsResponse} emitted as a {@link reactor.core.publisher.Mono}.
+   * The endpoint triggers documentation generation (if not already present)
+   * and returns a structured list of Markdown files representing the SDK reference.</p>
+   *
+   * <p>Usage example:</p>
+   *
+   * <pre>{@code
+   * docsService.fetchDocs("calendry", false)
+   *     .doOnNext(resp -> System.out.println("Files: " + resp.count()))
+   *     .flatMapMany(resp -> Flux.fromIterable(resp.files()))
+   *     .subscribe(file -> System.out.println(file.path()));
+   * }</pre>
+   *
+   * <h3>Behavior</h3>
+   * <ul>
+   *   <li>Performs an HTTP GET request using {@link WebClient}.</li>
+   *   <li>Sets the <code>cleanup</code> query parameter — when true, the server will remove
+   *       any previously generated docs before regenerating them.</li>
+   *   <li>Accepts <code>application/json</code> and expects the response body to conform
+   *       to {@link DocsResponse}.</li>
+   *   <li>Non-2xx responses are mapped to an {@link IllegalStateException}
+   *       containing the HTTP status and response body.</li>
+   *   <li>The call automatically times out after 30 seconds.</li>
+   * </ul>
+   *
+   * <h3>Parameters</h3>
+   * <ul>
+   *   <li><b>namespace</b> — The SDK namespace (folder name) whose docs should be retrieved.
+   *       This corresponds to the directory name generated during SDK upload.</li>
+   *   <li><b>cleanup</b> — Whether to force a regeneration of the Markdown docs
+   *       (<code>true</code>) or use existing cached output (<code>false</code>).</li>
+   * </ul>
+   *
+   * <h3>Returns</h3>
+   * <p>A {@link Mono} emitting one {@link DocsResponse} object on success,
+   * or an error signal if the request fails or times out.</p>
+   *
+   * <h3>Errors</h3>
+   * <ul>
+   *   <li>{@link IllegalStateException} — when the server responds with a non-2xx status.</li>
+   *   <li>{@link java.util.concurrent.TimeoutException} — if the request exceeds 30 seconds.</li>
+   * </ul>
+   *
+   * @param namespace the SDK namespace to fetch documentation for
+   * @param cleanup whether to force regeneration of the docs before returning
+   * @return a {@link Mono} emitting the resulting {@link DocsResponse}
+   */
+  public Mono<DocsResponse> fetchDocs(String namespace, boolean cleanup) {
+    return web.get()
+        .uri(uri -> uri
+            .path("/sdk/docs/{ns}")
+            .queryParam("cleanup", cleanup)
+            .build(namespace))
+        .accept(MediaType.APPLICATION_JSON)
+        .retrieve()
+        .onStatus(s -> !s.is2xxSuccessful(),
+        resp -> resp.bodyToMono(String.class).map(body ->
+            new IllegalStateException("Docs request failed: " + resp.statusCode() + " - " + body)))
+        .bodyToMono(DocsResponse.class)
+        .timeout(java.time.Duration.ofSeconds(30));
+  }
+
+  /**
    * Represents the JSON response shape returned by the `/run` endpoint.
    *
    * <p>This endpoint executes a code snippet and returns structured logs,
@@ -185,5 +252,71 @@ public class TypescriptRuntimeClient {
       String namespace,
       String location,
       String entry
+  ) {}
+
+
+  /**
+   * Represents a single Markdown documentation file returned by the SDK docs endpoint.
+   *
+   * <p>Each {@code DocFile} corresponds to one generated .md file, such as
+   * "ActivityLogApi.md" or "DefaultApi.md".</p>
+   *
+   * <ul>
+   *   <li><b>path</b> — relative path of the file inside the docs directory.</li>
+   *   <li><b>markdown</b> — full Markdown content of the file.</li>
+   * </ul>
+   *
+   * Example JSON:
+   * <pre>{@code
+   * {
+   *   "path": "ActivityLogApi.md",
+   *   "markdown": "# ActivityLogApi\n\nAll URIs are relative to *https://api.calendly.com*\n..."
+   * }
+   * }</pre>
+   */
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record DocFile(String path, String markdown) {}
+
+  /**
+   * Represents the JSON response returned by {@code GET /sdk/docs/{namespace}}.
+   *
+   * <p>The server builds Markdown documentation from a generated SDK or OpenAPI spec
+   * and returns a structured collection of files. The response may also include
+   * information about where the files were written on disk.</p>
+   *
+   * <ul>
+   *   <li><b>ok</b> — {@code true} if the documentation was successfully generated.</li>
+   *   <li><b>namespace</b> — logical namespace (SDK folder name) for which the docs were created.</li>
+   *   <li><b>count</b> — total number of Markdown files included.</li>
+   *   <li><b>files</b> — list of {@link DocFile} entries, each containing path + Markdown text.</li>
+   *   <li><b>diskLocation</b> — absolute filesystem path of the generated docs (optional).</li>
+   *   <li><b>message</b> — human-readable status or description (optional).</li>
+   * </ul>
+   *
+   * Example JSON:
+   * <pre>{@code
+   * {
+   *   "ok": true,
+   *   "namespace": "calendry",
+   *   "count": 194,
+   *   "files": [
+   *     {
+   *       "path": "ActivityLogApi.md",
+   *       "markdown": "# ActivityLogApi\\n..."
+   *     }
+   *   ],
+   *   "diskLocation": "/tmp/external-sdks/calendry/docs.openapi-generator.markdown",
+   *   "message": "Documentation generated via OpenAPI Generator (markdown)."
+   * }
+   * }</pre>
+   */
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record DocsResponse(
+      boolean ok,
+      String namespace,
+      int count,
+      List<DocFile> files,
+      String diskLocation,
+      String message
   ) {}
 }
