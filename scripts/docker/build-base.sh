@@ -2,8 +2,12 @@
 set -euo pipefail
 
 VERSION="${1:-latest}"
+PUSH_FLAG="${2:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DOCKERFILE="$ROOT_DIR/Dockerfile.base"
+
+# Default platforms for multi-arch builds
+PLATFORMS="${DOCKER_PLATFORMS:-linux/amd64,linux/arm64}"
 
 # Validate Dockerfile exists
 if [[ ! -f "$DOCKERFILE" ]]; then
@@ -13,11 +17,37 @@ fi
 
 echo "Building base image with version: $VERSION"
 echo "Dockerfile: $DOCKERFILE"
+echo "Platforms: $PLATFORMS"
+
+# Determine build command based on whether we're pushing
+BUILD_CMD="docker buildx build"
+BUILD_ARGS=(
+  -f "$DOCKERFILE"
+  --platform "$PLATFORMS"
+  -t "admingentoro/gentoro:base-$VERSION"
+  -t "admingentoro/gentoro:base-latest"
+)
+
+if [[ "$PUSH_FLAG" == "--push" ]]; then
+  echo "Will push images to registry"
+  BUILD_ARGS+=(--push)
+else
+  echo "Building for local use (load to docker)"
+  # For local builds, we can only load one platform
+  PLATFORMS="linux/amd64"
+  BUILD_ARGS=(
+    -f "$DOCKERFILE"
+    --platform "$PLATFORMS"
+    -t "admingentoro/gentoro:base-$VERSION"
+    -t "admingentoro/gentoro:base-latest"
+    --load
+  )
+fi
 
 # Build Docker image
-if ! docker build -f "$DOCKERFILE" -t "admingentoro/gentoro:base-$VERSION" -t "admingentoro/gentoro:base-latest" "$ROOT_DIR"; then
+if ! $BUILD_CMD "${BUILD_ARGS[@]}" "$ROOT_DIR"; then
   echo "Failed to build base image"
   exit 1
 fi
 
-echo "Successfully built admingentoro/gentoro:base-$VERSION"
+echo "Successfully built admingentoro/gentoro:base-$VERSION for platforms: $PLATFORMS"
