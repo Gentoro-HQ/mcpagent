@@ -19,6 +19,22 @@ java -jar target/mcpagent-0.1.0-SNAPSHOT.jar --process=test_suite
 java -jar target/mcpagent-0.1.0-SNAPSHOT.jar --process=mock-server --tcp-port=8082
 ```
 
+## Docker
+
+Docker images are available for multiple platforms (amd64, arm64):
+
+```bash
+# Pull and run the latest image
+docker pull admingentoro/gentoro:latest
+docker run -p 8080:8080 -e OPENAI_API_KEY=your-key admingentoro/gentoro:latest
+
+# Build locally
+./scripts/docker/build-base.sh latest
+./scripts/docker/build-product.sh latest
+```
+
+See [docs/DOCKER_MULTIPLATFORM.md](docs/DOCKER_MULTIPLATFORM.md) for detailed multi-platform build instructions.
+
 ## Environment
 
 - `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`

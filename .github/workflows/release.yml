@@ -50,12 +50,25 @@ jobs:
       with:
         node-version: '20'
     
+    - name: Install xmllint
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libxml2-utils
+    
     - name: Cache Maven dependencies
       uses: actions/cache@v4
       with:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
+    
+    - name: Set up QEMU
+      if: github.event.inputs.dry_run != 'true'
+      uses: docker/setup-qemu-action@v3
+    
+    - name: Set up Docker Buildx
+      if: github.event.inputs.dry_run != 'true'
+      uses: docker/setup-buildx-action@v3
     
     - name: Log in to Docker Hub
       if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
@@ -121,28 +134,25 @@ jobs:
         TAG="${{ steps.calculate_version.outputs.version }}"
         git tag -a "$TAG" -m "Release $TAG"
     
-    - name: Build base image
+    - name: Build and push base image
       if: github.event.inputs.dry_run != 'true'
       run: |
         VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
-        ./scripts/docker/build-base.sh "$VERSION"
+        ./scripts/docker/build-base.sh "$VERSION" --push
     
-    - name: Build product image
+    - name: Build product JAR
+      if: github.event.inputs.dry_run != 'true'
+      run: |
+        cd src/mcpagent
+        ./mvnw -q -DskipTests package || mvn -q -DskipTests package
+    
+    - name: Build and push product image
       if: github.event.inputs.dry_run != 'true'
       run: |
         VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
-        ./scripts/docker/build-product.sh "$VERSION"
-    
-    - name: Push images to registry
-      if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
-      run: |
-        VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
-        # Push base image
-        docker push admingentoro/gentoro:base-$VERSION
-        docker push admingentoro/gentoro:base-latest
-        # Push product image
-        docker push admingentoro/gentoro:$VERSION
-        docker push admingentoro/gentoro:latest
+        POM_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" src/mcpagent/pom.xml)
+        JAR_NAME="mcpagent-$POM_VERSION.jar"
+        ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" --push
     
     - name: Push changes for manual release
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
