@@ -247,7 +247,6 @@ components:
       required:
         - field
         - operator
-        - value
       properties:
         field:
           type: string
@@ -263,7 +262,6 @@ components:
             - "sale.shipping_cost"
             - "sale.payment_method"
             - "sale.status"
-            
             # Product fields
             - "product.id"
             - "product.name"
@@ -276,7 +274,6 @@ components:
             - "product.rating"
             - "product.weight"
             - "product.dimensions"
-            
             # Customer fields
             - "customer.id"
             - "customer.name"
@@ -292,13 +289,11 @@ components:
             - "customer.loyalty_tier"
             - "customer.total_spent"
             - "customer.total_orders"
-            
             # Regional fields
             - "region.name"
             - "region.country"
             - "region.timezone"
             - "region.population"
-            
             # Time fields
             - "date.year"
             - "date.month"
@@ -325,12 +320,21 @@ components:
             - "is_null"
             - "is_not_null"
         value:
+          description: |
+            Value(s) to compare against. Optional for `is_null` and `is_not_null`.
+            For `between`, provide an array with exactly two values.
+          nullable: true
           oneOf:
             - type: string
             - type: number
             - type: boolean
             - type: array
-          description: Value(s) to compare against. For 'between' operator, use array with two values.
+              minItems: 1
+              items:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
 
     AggregateFunction:
       type: object
@@ -370,6 +374,7 @@ components:
           items:
             type: object
             description: Flexible object structure based on requested fields
+            additionalProperties: true
         metadata:
           type: object
           properties:

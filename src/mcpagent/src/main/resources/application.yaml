@@ -58,3 +58,17 @@ kb:
 otel:
   service:
     name: mcpagent
+
+
+knowledgeBase:
+  # Root Foundation directory containing docs/, tests/, feedback/, and openapi/ subfolders.
+  # Override with env var FOUNDATION_DIR or set knowledgeBase.foundation.dir
+  foundation:
+    dir: ${FOUNDATION_DIR:/var/foundation}
+  # Hint generation settings for KB entries
+  hint:
+    # Max characters used when generating hints (also caps AI output)
+    size: 500
+    # If true, uses the configured InferenceService to generate a concise hint for each entry.
+    # Otherwise, falls back to the first N characters of the content.
+    useAi: false
