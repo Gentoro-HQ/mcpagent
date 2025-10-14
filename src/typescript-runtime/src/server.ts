@@ -11,7 +11,7 @@ import { z } from "zod";
 import multipart from "@fastify/multipart";
 import * as fs from "node:fs";
 import path from "node:path";
-import { generate } from "openapi-typescript-codegen";
+import { runOpenApiGenerator } from "./lib/openapi-gen";
 import { runSnippetTS } from "./runner.js";
 import { EXTERNAL_SDKS_ROOT } from "./config.js";
 import { invalidateExternalSDKCache } from "./sdk-registry.js";
@@ -20,6 +20,21 @@ import { createUniqueSdkFolder } from "./names.js";
 
 // Cleanup the external SDKs root on startup
 cleanExternalSDKsRoot();
+
+function readAllMarkdownFiles(dir: string, baseDir: string) {
+    const out: Array<{ path: string; markdown: string }> = [];
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) out.push(...readAllMarkdownFiles(full, baseDir));
+        else if (e.isFile() && e.name.toLowerCase().endsWith(".md")) {
+            out.push({
+                path: path.relative(baseDir, full).replaceAll(path.sep, "/"),
+                markdown: fs.readFileSync(full, "utf8")
+            });
+        }
+    }
+    return out;
+}
 
 // -----------------------------
 // Fastify server
@@ -120,35 +135,42 @@ export async function createServer(): Promise<FastifyInstance> {
     const tmpSpecPath = path.resolve(absPath, "openapi.upload.yaml");
     fs.writeFileSync(tmpSpecPath, yamlString, "utf8");
 
-    // 4) Generate the client into absOutDir
-    try {
-      await generate({
-        input: tmpSpecPath,
-        output: absPath,
-        httpClient: "axios",
-      });
-    } catch (e: any) {
-      req.log.error(e, "openapi-typescript-codegen failed");
-      return reply
-        .code(400)
-        .send({ ok: false, error: `Codegen failed: ${String(e.message || e)}` });
-    }
+      // 4) Generate the client into absPath (Axios plugin replaces httpClient: "axios")
+      // --- OpenAPI Generator: generate typescript-axios client ---
+      // Docs for generator + options: https://openapi-generator.tech/docs/generators/typescript-axios/
+      try {
+          const args = [
+              "-i", tmpSpecPath,
+              "-g", "typescript-axios",
+              "-o", absPath,
+              // a few useful flags; add/remove as you prefer
+              "--additional-properties",
+              [
+                  "supportsES6=true",
+                  "withSeparateModelsAndApi=false",
+                  "useSingleRequestParameter=true"
+              ].join(",")
+          ];
+          const { stdout, stderr } = await runOpenApiGenerator(args);
+          req.log.info({ stdout, stderr }, "openapi-generator: typescript-axios");
+      } catch (e: any) {
+          req.log.error(e, "openapi-generator failed (typescript-axios)");
+          return reply.code(400).send({ ok: false, error: `Codegen failed: ${String(e?.message ?? e)}` });
+      }
 
-    // 4b) Ensure index.ts exists (fallback re-exports)
-    const indexPath = path.join(absPath, "index.ts");
-    if (!fs.existsSync(indexPath)) {
-      const indexContent = `
-// Auto-generated fallback index.ts
-// Re-export common generated modules so the snippet runner can "import * as sdk from ..."
-export * from "./apis";
-export * from "./models";
-export * from "./client";
+      // Optional: fallback index.ts for easy imports (OAG’s output uses Api+Model files)
+      const indexPath = path.join(absPath, "index.ts");
+      if (!fs.existsSync(indexPath)) {
+          const indexContent = `
+// Auto-generated fallback index.ts (OpenAPI Generator)
+// Re-export everything so consumers can do: import * as sdk from "<namespace>"
+export * from "./api";     // exported APIs live here (e.g., DefaultApi)
+export * from "./model";   // exported models live here
 `.trimStart();
-      fs.writeFileSync(indexPath, indexContent, "utf8");
-      req.log.info("index.ts was missing, created a fallback one with exports.");
-    }
+          fs.writeFileSync(indexPath, indexContent, "utf8");
+      }
 
-    req.log.info(
+      req.log.info(
       { outDir: absPath, entry: indexPath },
       "SDK generated and registered",
     );
@@ -167,6 +189,21 @@ export * from "./client";
         "SDK generated and will be auto-loaded on /run under sdk.<namespace>",
     });
   });
+
+    app.get("/sdk/docs/:namespace", async (req, reply) => {
+        const namespace = (req.params as any)?.namespace;
+        if (!namespace) return reply.code(400).send({ ok: false, error: "Missing :namespace" });
+
+        const absPath = path.resolve(EXTERNAL_SDKS_ROOT, namespace);
+        if (!fs.existsSync(absPath)) {
+            return reply.code(404).send({ ok: false, error: `Unknown namespace: ${namespace}` });
+        }
+
+        const docsDir = path.join(absPath, "docs");
+        const files = readAllMarkdownFiles(docsDir, docsDir);
+        return reply.send({ ok: true, namespace, count: files.length, files, diskLocation: docsDir });
+
+    });
 
   return app;
 }
