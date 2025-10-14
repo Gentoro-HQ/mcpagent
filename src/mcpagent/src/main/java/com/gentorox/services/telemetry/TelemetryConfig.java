@@ -1,6 +1,5 @@
 package com.gentorox.services.telemetry;
 
-import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
@@ -11,49 +10,96 @@ import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-// Temporarily disabled due to OpenTelemetry dependency issues
-// @Configuration
-public class TelemetryConfig /* implements InitializingBean */ {
-  @Value("${otel.service.name:mcpagent}")
-  String serviceName;
+/**
+ * OpenTelemetry configuration.
+ *
+ * <p>This configuration creates and wires an {@link OpenTelemetry} instance backed by
+ * OTLP gRPC exporters for both traces and metrics. It follows current OpenTelemetry
+ * recommendations for resource attributes and provides sane defaults for local
+ * development.
+ *
+ * <p>Configuration precedence for the OTLP endpoint (first non-blank wins):
+ * <ol>
+ *   <li>Spring property: {@code otel.exporter.otlp.endpoint}</li>
+ *   <li>Environment variable: {@code OTEL_EXPORTER_OTLP_ENDPOINT}</li>
+ *   <li>Default: {@code http://localhost:4317}</li>
+ * </ol>
+ *
+ * <p>Service identity is propagated using semantic resource attributes
+ * {@code service.name} and {@code service.version}.
+ */
+@Configuration
+public class TelemetryConfig {
 
-  @Value("${OTEL_EXPORTER_OTLP_ENDPOINT:}")
-  String otlpEndpoint;
-
-  // Temporarily disabled due to OpenTelemetry dependency issues
-  /*
-  @Override
-  public void afterPropertiesSet() {
-    var resource = Resource.getDefault().merge(Resource.create(
+  /**
+   * Creates the Resource describing this service (name and version), merged with the
+   * default SDK resource (host, OS, etc.).
+   */
+  @Bean
+  public Resource otelResource(@Value("${otel.service.name:mcpagent}") String serviceName) {
+    return Resource.getDefault().merge(Resource.create(
         Attributes.builder()
             .put("service.name", serviceName)
             .put("service.version", System.getenv().getOrDefault("BUILD_VERSION", "dev"))
             .build()));
+  }
 
-    var endpoint = (otlpEndpoint == null || otlpEndpoint.isBlank()) ? "http://localhost:4317" : otlpEndpoint;
+  /**
+   * Constructs a {@link SdkTracerProvider} with a batch span processor exporting via OTLP gRPC.
+   * The bean is managed by Spring and will be closed automatically on context shutdown.
+   */
+  @Bean(destroyMethod = "close")
+  public SdkTracerProvider sdkTracerProvider(
+      Resource otelResource,
+      @Value("${otel.exporter.otlp.endpoint:}") String otlpEndpointProp,
+      @Value("${OTEL_EXPORTER_OTLP_ENDPOINT:}") String otlpEndpointEnv) {
+
+    String endpoint = resolveEndpoint(otlpEndpointProp, otlpEndpointEnv);
 
     var spanExporter = OtlpGrpcSpanExporter.builder().setEndpoint(endpoint).build();
-    var tracerProvider = SdkTracerProvider.builder()
+    return SdkTracerProvider.builder()
         .addSpanProcessor(BatchSpanProcessor.builder(spanExporter).build())
-        .setResource(resource)
+        .setResource(otelResource)
         .build();
+  }
+
+  /**
+   * Constructs a {@link SdkMeterProvider} with a periodic reader exporting via OTLP gRPC.
+   * The bean is managed by Spring and will be closed automatically on context shutdown.
+   */
+  @Bean(destroyMethod = "close")
+  public SdkMeterProvider sdkMeterProvider(
+      Resource otelResource,
+      @Value("${otel.exporter.otlp.endpoint:}") String otlpEndpointProp,
+      @Value("${OTEL_EXPORTER_OTLP_ENDPOINT:}") String otlpEndpointEnv) {
+
+    String endpoint = resolveEndpoint(otlpEndpointProp, otlpEndpointEnv);
 
     var metricExporter = OtlpGrpcMetricExporter.builder().setEndpoint(endpoint).build();
-    var meterProvider = SdkMeterProvider.builder()
-        .setResource(resource)
+    return SdkMeterProvider.builder()
+        .setResource(otelResource)
         .registerMetricReader(PeriodicMetricReader.builder(metricExporter).build())
         .build();
-
-    OpenTelemetry otel = OpenTelemetrySdk.builder()
-        .setTracerProvider(tracerProvider)
-        .setMeterProvider(meterProvider)
-        .build();
-
-    GlobalOpenTelemetry.set(otel);
   }
-  */
+
+  /**
+   * Exposes the main {@link OpenTelemetry} bean wired with the tracer and meter providers.
+   */
+  @Bean
+  public OpenTelemetry openTelemetry(SdkTracerProvider sdkTracerProvider,
+                                     SdkMeterProvider sdkMeterProvider) {
+    return OpenTelemetrySdk.builder()
+        .setTracerProvider(sdkTracerProvider)
+        .setMeterProvider(sdkMeterProvider)
+        .build();
+  }
+
+  private static String resolveEndpoint(String prop, String env) {
+    String candidate = (prop != null && !prop.isBlank()) ? prop : env;
+    return (candidate == null || candidate.isBlank()) ? "http://localhost:4317" : candidate;
+  }
 }

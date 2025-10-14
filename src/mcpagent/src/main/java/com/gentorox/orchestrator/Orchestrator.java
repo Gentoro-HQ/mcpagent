@@ -18,6 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Orchestrates an inference call: optional KB retrieval, tool discovery, and provider invocation.
+ */
 @Component
 public class Orchestrator {
   private final java.util.Map<String, ModelProvider> providers;
@@ -44,6 +47,9 @@ public class Orchestrator {
     this.providerId = providerId; this.model = model;
   }
 
+  /**
+   * Executes an inference request with optional auto-context enrichment.
+   */
   public InferenceResponse run(List<InferenceRequest.Message> messages, java.util.Map<String,Object> opts) {
     var session = TelemetrySession.create();
     try (var mdc = new LogContext(session)) {
