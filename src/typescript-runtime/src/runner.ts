@@ -56,7 +56,7 @@ export async function runSnippetTS(userCode: string): Promise<RunResult> {
     target: ["node20"],
     treeShaking: true,
     plugins: [
-      alias({
+      createAliasPlugin({
         axios: path.resolve("src/shims/axios.ts"),
         "form-data": path.resolve("src/shims/form-data.ts"),
       }),

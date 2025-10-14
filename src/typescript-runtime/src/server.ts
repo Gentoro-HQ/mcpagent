@@ -71,10 +71,13 @@ export async function createServer(): Promise<FastifyInstance> {
 
     const result = await runSnippetTS(snippet);
 
-    if (result.ok) return { ok: true, value: result.value, logs: result.logs };
-    return reply
-      .code(400)
-      .send({ ok: false, error: result.error, logs: result.logs });
+    if (result.ok) {
+        return { ok: true, value: result.value, logs: result.logs };
+    } else {
+        return reply
+            .code(400)
+            .send({ ok: false, error: result.error, logs: result.logs });
+    }
   });
 
   // -----------------------------

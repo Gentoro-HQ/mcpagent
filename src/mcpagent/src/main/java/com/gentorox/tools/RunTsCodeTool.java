@@ -28,15 +28,13 @@ public class RunTsCodeTool implements NativeTool {
   @Override
   public String execute(Map<String, Object> args) {
     String code = String.valueOf(args.getOrDefault("code",""));
-    Object a = args.getOrDefault("args", java.util.Map.of());
     var session = TelemetrySession.create();
     return telemetry.inSpan(session,"tool.execute", java.util.Map.of("tool","runTsCode"),
         () -> telemetry.inSpan(session,"ts.exec", java.util.Map.of(), () -> {
-          var r = ts.exec(code, a).block();
+          var r = ts.exec(code).block();
           if (r == null) return "(no result)";
-          var stdout = r.stdout() == null ? "" : r.stdout();
-          var result = r.result() == null ? "" : r.result().toString();
-          return (stdout.isBlank() ? "" : (stdout + "\n")) + result;
+          if (r.value() == null) return "(no result)";
+          return (String) r.value();
         }));
   }
 }
