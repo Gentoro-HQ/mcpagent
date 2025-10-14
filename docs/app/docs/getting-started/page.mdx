@@ -1,0 +1,56 @@
+---
+description: Run the MCP Agent locally with Docker, interact with the MCP endpoint, and bring your own data.
+---
+
+# Getting Started
+
+Kick the tires in a few minutes using Docker with a mocked server for immediate testing.
+
+## Prerequisites
+
+- Docker (or another OCI container runtime like Podman)
+- Internet access to pull the image `admingentoro/mcpagent:latest`
+
+## Step 1: Running the Agent
+
+Start the MCP Agent with the built-in mock server:
+
+```bash
+docker run --rm \
+	-p 8082:8082 \
+	-e APP_ARGS="--process=mock-server --tcp-port=8082" \
+	admingentoro/mcpagent:latest
+```
+
+What to expect in the logs:
+
+- Supervisor starting multiple processes (app, otel, mock server)
+- A line indicating the mock server is listening on port 8082
+- The Spring app starting and registering the MCP HTTP Stream endpoint at `/mcp`
+
+## Step 2: Interacting with the Agent
+
+The MCP endpoint is exposed over HTTP streaming at:
+
+- MCP URL: `http://localhost:8082/mcp`
+
+Use your MCP-compatible client to connect to the URL above. The server will stream responses and tool calls as defined by the Model Context Protocol.
+
+## Step 3: Using Your Own Data
+
+Mount a local "foundation" folder to override the mocked content (e.g., include `Agent.md`, docs, or OpenAPI specs) at `/var/foundation` inside the container:
+
+```bash
+docker run --rm \
+	-p 8082:8082 \
+	-v "${PWD}:/var/foundation" \
+	-e APP_ARGS="--process=mock-server --tcp-port=8082" \
+	admingentoro/mcpagent:latest
+```
+
+Place files like `Agent.md`, Markdown docs, and OpenAPI specs in your current directory before running the command. The agent will index them to ground tool execution.
+
+## Next Steps
+
+- Guides: [Creating a foundation folder](/docs/guides/getting-started) and [Adding a tool](/docs/guides/adding-a-tool)
+- Concepts: [Architecture](/docs/concepts/architecture) and [Retrieval](/docs/concepts/retrieval)

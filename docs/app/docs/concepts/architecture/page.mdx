@@ -1,0 +1,62 @@
+---
+description: High-level system diagram and responsibilities.
+---
+
+# Architecture Overview
+
+This page gives a high-level view of the MCP Agent runtime and how requests flow
+through the system.
+
+## High-Level Overview
+
+![Architecture Overview](/images/architecture-overview.png)
+
+Core components shown in the diagram:
+
+- Controllers (HTTP/MCP) expose the MCP HTTP stream endpoint and receive client requests.
+- Orchestrator coordinates planning, generation, execution, and evaluation.
+- Services include the Knowledge Base (KB) and retrieval, telemetry (OpenTelemetry), and optional TS runtime helpers.
+- Model providers integrate with OpenAI, Gemini, Anthropic, and others via a pluggable interface.
+
+## The Three Pillars
+
+### 1) Foundation
+
+The Foundation is the agent’s source of truth. It includes:
+
+- Knowledge Base: Indexed content from `Agent.md`, Markdown docs, and code/API references.
+- API Definitions: OpenAPI specs and generated client methods used for grounded tool calls.
+- Business Rules: Constraints, policies, and domain-specific logic that shape valid actions.
+
+Together, these assets ground the agent’s reasoning and ensure generated actions map to real, allowed capabilities.
+
+### 2) Agent Behavior
+
+Agent behavior is governed by configuration, typically YAML files, that define:
+
+- Prompts and system guidance for planning and generation
+- Guardrails and validation rules (e.g., parameter schemas, rate limits, safety constraints)
+- Model attributes such as provider, model name, temperature, and timeouts
+
+These configurations make behavior explicit, versionable, and easy to change without code edits.
+
+### 3) Feedback Loop
+
+Continuous improvement comes from human-in-the-loop feedback and telemetry:
+
+- Review traces, logs, and outcomes to spot issues or inefficiencies
+- Capture approvals/corrections on generated plans or code
+- Feed learnings back into prompts, rules, or the Foundation assets
+
+This iterative loop steadily improves reliability and task success.
+
+## Execution Workflow
+
+At runtime, requests flow through four main stages:
+
+- Planner: Interprets the goal, consults the Foundation, and proposes a grounded plan and tool sequence.
+- Generator: Produces concrete code or API calls (with inputs) to fulfill each step safely.
+- Code Executor: Executes generated code or tool calls in a controlled environment; streams results and artifacts.
+- Evaluator: Checks outcomes against expectations and guardrails; can request retries, refinements, or human input.
+
+This loop repeats as needed until the goal is met or an error is surfaced with actionable context.

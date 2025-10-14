@@ -1,0 +1,23 @@
+{
+	"name": "mcpagent-docs",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Documentation site for mcpagent powered by Nextra 4 (Next.js App Router)",
+  "license": "MIT",
+	"scripts": {
+		"dev": "next --turbopack",
+		"build": "next build",
+		"start": "next start",
+		"postbuild": "pagefind --site .next/server/app --output-path public/_pagefind"
+	},
+	"dependencies": {
+		"next": "^15.5.4",
+		"nextra": "^4.6.0",
+		"nextra-theme-docs": "^4.6.0",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"devDependencies": {
+		"pagefind": "^1.4.0"
+	}
+}

@@ -1,0 +1,26 @@
+---
+description: Start the agent locally with the mock server using Docker.
+---
+
+# Run with Docker
+
+Start the MCP Agent with the built-in mock server:
+
+```bash
+docker run --rm \
+  -p 8082:8082 \
+  -e APP_ARGS="--process=mock-server --tcp-port=8082" \
+  admingentoro/mcpagent:latest
+```
+
+Expose your own Foundation:
+
+```bash
+docker run --rm \
+  -p 8082:8082 \
+  -v "${PWD}:/var/foundation" \
+  -e APP_ARGS="--process=mock-server --tcp-port=8082" \
+  admingentoro/mcpagent:latest
+```
+
+MCP URL: `http://localhost:8082/mcp`.
