@@ -1,9 +1,23 @@
+# Application defaults for the MCP Agent (HTTP Streamable transport over Spring WebFlux)
+#
+# Notes for operators:
+# - server.port controls the HTTP port. Override via SERVER_PORT or Spring's standard env mapping.
+# - agentProtocol.mcp.config.* controls the MCP transport endpoint characteristics.
+# - Provider credentials are read from environment variables; leave blank in source control.
+
 server:
   port: 8080
+  # servlet context path can be set via `server.servlet.context-path` if needed
+  # servlet:
+  #   context-path: /api
 
-mcp:
-  http:
-    path: /mcp
+agentProtocol:
+  mcp:
+    config:
+      # If true, the transport will reject HTTP DELETE requests (defense-in-depth for some proxies)
+      disallowDelete: ${PROTOCOL_MCP_CONFIG_DISALLOW_DELETE:false}
+      # Path where the MCP streamable endpoint is exposed (combined with server.port and optional context-path)
+      messageEndpoint: ${PROTOCOL_MCP_CONFIG_MESSAGE_ENDPOINT:/mcp}
 
 providers:
   providers:
@@ -19,22 +33,28 @@ providers:
       apiKey: ${ANTHROPIC_API_KEY:}
       baseUrl: ${ANTHROPIC_BASE_URL:}
       modelName: ${ANTHROPIC_MODEL_NAME:claude-3-sonnet-20240229}
+  # Default inference provider key from the list above
   default-provider: ${INFERENCE_DEFAULT_PROVIDER:openai}
 
+# URL for the external TypeScript runtime used by some tools
 typescript:
   runtimeUrl: ${TS_RUNTIME_URL:http://localhost:7070}
 
+# Base directory for foundation assets (models, indexes, caches, etc.)
 foundation:
   dir: ${FOUNDATION_DIR:/var/foundation}
 
+# Guardrails configuration
 guardrails:
   strict: ${GUARDRAILS_STRICT:true}
 
+# Knowledge base auto-contexting configuration
 kb:
   autoContext:
     enabled: true
     topK: 4
 
+# OpenTelemetry service naming
 otel:
   service:
     name: mcpagent

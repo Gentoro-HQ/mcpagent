@@ -25,14 +25,11 @@ public final class TestSuiteRunner {
       Suite suite = om.readValue(suiteFile, Suite.class);
       ApplicationContext ctx = new AnnotationConfigApplicationContext("com.gentorox");
       Orchestrator orchestrator = ctx.getBean(Orchestrator.class);
-      String provider = System.getenv().getOrDefault("TEST_PROVIDER", 
-          System.getenv().getOrDefault("INFERENCE_DEFAULT_PROVIDER", "openai"));
-      String model = System.getenv().getOrDefault("TEST_MODEL", "gpt-4o-mini");
       int passed = 0;
       for (Case c : suite.suite) {
         log.info("Running test [{}] - {}", c.uid, c.description);
         var msg = new InferenceRequest.Message("user", c.prompt);
-        var resp = orchestrator.run(provider, model, List.of(msg), Map.of());
+        var resp = orchestrator.run(List.of(msg), Map.of());
         boolean ok = basicCheck(resp.content(), c.assertion);
         if (ok) { passed++; log.info("✅  [{}] passed", c.uid); }
         else { log.error("❌  [{}] failed\nAssertion: {}\nOutput: {}", c.uid, c.assertion, resp.content()); }
