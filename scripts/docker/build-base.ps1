@@ -1,9 +1,15 @@
-Param([string]$Version="latest")
+Param(
+    [string]$Version="latest",
+    [switch]$Push
+)
 
 $ErrorActionPreference = "Stop"
 
 $ROOT = (Resolve-Path "$PSScriptRoot\..\..").Path
 $Dockerfile = "$ROOT\Dockerfile.base"
+
+# Default platforms for multi-arch builds
+$Platforms = if ($env:DOCKER_PLATFORMS) { $env:DOCKER_PLATFORMS } else { "linux/amd64,linux/arm64" }
 
 # Validate Dockerfile exists
 if (-not (Test-Path $Dockerfile)) {
@@ -13,14 +19,42 @@ if (-not (Test-Path $Dockerfile)) {
 
 Write-Host "Building base image with version: $Version"
 Write-Host "Dockerfile: $Dockerfile"
+Write-Host "Platforms: $Platforms"
 
 # Build Docker image
 try {
-    docker build -f "$Dockerfile" -t "admingentoro/gentoro:base-$Version" -t "admingentoro/gentoro:base-latest" "$ROOT"
+    $buildArgs = @(
+        "buildx", "build",
+        "-f", "$Dockerfile",
+        "--platform", "$Platforms",
+        "-t", "admingentoro/gentoro:base-$Version",
+        "-t", "admingentoro/gentoro:base-latest"
+    )
+
+    if ($Push) {
+        Write-Host "Will push images to registry"
+        $buildArgs += "--push"
+    } else {
+        Write-Host "Building for local use (load to docker)"
+        # For local builds, we can only load one platform
+        $Platforms = "linux/amd64"
+        $buildArgs = @(
+            "buildx", "build",
+            "-f", "$Dockerfile",
+            "--platform", "$Platforms",
+            "-t", "admingentoro/gentoro:base-$Version",
+            "-t", "admingentoro/gentoro:base-latest",
+            "--load"
+        )
+    }
+
+    $buildArgs += "$ROOT"
+    
+    docker @buildArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Docker build failed"
     }
-    Write-Host "Successfully built admingentoro/gentoro:base-$Version"
+    Write-Host "Successfully built admingentoro/gentoro:base-$Version for platforms: $Platforms"
 } catch {
     Write-Error "Failed to build base image: $_"
     exit 1
