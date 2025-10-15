@@ -100,10 +100,21 @@ jobs:
       run: |
         POM_FILE="src/mcpagent/pom.xml"
         CURRENT_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" "$POM_FILE")
-        echo "Current version: $CURRENT_VERSION"
+        echo "Current POM version: $CURRENT_VERSION"
         
-        # Parse version
-        IFS='.-' read -r MAJ MIN PAT SNAP <<<"$CURRENT_VERSION"
+        # Get the latest tag (excluding pre-release tags)
+        LATEST_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+        
+        if [[ -z "$LATEST_TAG" ]]; then
+          echo "No existing version tags found, using POM version as base"
+          # Parse POM version
+          IFS='.-' read -r MAJ MIN PAT SNAP <<<"$CURRENT_VERSION"
+        else
+          echo "Latest tag: $LATEST_TAG"
+          # Parse latest tag (remove 'v' prefix)
+          VERSION_PART=${LATEST_TAG#v}
+          IFS='.' read -r MAJ MIN PAT <<<"$VERSION_PART"
+        fi
         
         # Calculate new version based on input
         BUMP="${{ github.event.inputs.version_type }}"
@@ -118,35 +129,20 @@ jobs:
         NEW_VERSION="${MAJ}.${MIN}.${PAT}-SNAPSHOT"
         TAG="v${MAJ}.${MIN}.${PAT}"
         
-        # Check if tag already exists
-        if git tag -l | grep -q "^${TAG}$"; then
-          echo "❌ Tag $TAG already exists!"
-          echo "Available tags:"
-          git tag -l | sort -V | tail -10
-          echo ""
-          echo "Please either:"
-          echo "1. Use a different version bump type (major/minor/patch)"
-          echo "2. Manually create a new tag with a different version"
-          echo "3. Delete the existing tag if it was created in error"
-          exit 1
-        fi
-        
         echo "version=$TAG" >> $GITHUB_OUTPUT
         echo "version_number=${MAJ}.${MIN}.${PAT}" >> $GITHUB_OUTPUT
         echo "new_snapshot=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "✅ Calculated version: $TAG (next snapshot: $NEW_VERSION)"
+        echo "📋 Version calculation:"
+        echo "  - Base: ${LATEST_TAG:-"POM version $CURRENT_VERSION"}"
+        echo "  - Bump type: $BUMP"
+        echo "  - New tag: $TAG"
     
     - name: Create tag for manual release
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
       run: |
         TAG="${{ steps.calculate_version.outputs.version }}"
         echo "Creating tag: $TAG"
-        
-        # Double-check tag doesn't exist (safety net)
-        if git tag -l | grep -q "^${TAG}$"; then
-          echo "❌ Tag $TAG already exists! This should have been caught earlier."
-          exit 1
-        fi
         
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
