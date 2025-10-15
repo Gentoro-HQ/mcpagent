@@ -32,6 +32,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      pull-requests: write
     
     steps:
     - name: Checkout code
@@ -63,15 +64,15 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
     
     - name: Set up QEMU
-      if: github.event.inputs.dry_run != 'true'
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
       uses: docker/setup-qemu-action@v3
     
     - name: Set up Docker Buildx
-      if: github.event.inputs.dry_run != 'true'
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
       uses: docker/setup-buildx-action@v3
     
     - name: Log in to Docker Hub
-      if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
@@ -116,49 +117,60 @@ jobs:
         echo "new_snapshot=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "Calculated version: $TAG (next snapshot: $NEW_VERSION)"
     
-    - name: Update version for manual release
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
-      run: |
-        NEW_SNAPSHOT="${{ steps.calculate_version.outputs.new_snapshot }}"
-        mvn -q -f src/mcpagent/pom.xml versions:set -DnewVersion="$NEW_SNAPSHOT" -DgenerateBackupPoms=false
-        
-        # Commit version bump
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add src/mcpagent/pom.xml
-        git commit -m "chore(release): bump version to $NEW_SNAPSHOT"
-    
     - name: Create tag for manual release
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
       run: |
         TAG="${{ steps.calculate_version.outputs.version }}"
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
         git tag -a "$TAG" -m "Release $TAG"
+        git push origin "$TAG"
     
     - name: Build and push base image
-      if: github.event.inputs.dry_run != 'true'
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
       run: |
         VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
         ./scripts/docker/build-base.sh "$VERSION" --push
     
     - name: Build product JAR
-      if: github.event.inputs.dry_run != 'true'
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
       run: |
         cd src/mcpagent
         ./mvnw -q -DskipTests package || mvn -q -DskipTests package
     
     - name: Build and push product image
-      if: github.event.inputs.dry_run != 'true'
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
       run: |
         VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
         POM_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" src/mcpagent/pom.xml)
         JAR_NAME="mcpagent-$POM_VERSION.jar"
         ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" --push
     
-    - name: Push changes for manual release
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
+    - name: Update version for next development cycle
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
       run: |
-        git push origin main
-        git push origin --tags
+        NEW_SNAPSHOT="${{ steps.calculate_version.outputs.new_snapshot }}"
+        
+        # Create a new branch for version bump
+        BRANCH_NAME="release/bump-version-$NEW_SNAPSHOT"
+        git checkout -b "$BRANCH_NAME"
+        
+        # Update version
+        mvn -q -f src/mcpagent/pom.xml versions:set -DnewVersion="$NEW_SNAPSHOT" -DgenerateBackupPoms=false
+        
+        # Commit and push to new branch
+        git add src/mcpagent/pom.xml
+        git commit -m "chore(release): bump version to $NEW_SNAPSHOT"
+        git push origin "$BRANCH_NAME"
+        
+        # Create PR using GitHub CLI
+        gh pr create \
+          --title "chore(release): bump version to $NEW_SNAPSHOT" \
+          --body "Automated version bump after release ${{ steps.calculate_version.outputs.version }}" \
+          --base main \
+          --head "$BRANCH_NAME"
+      env:
+        GH_TOKEN: ${{ github.token }}
     
     - name: Create GitHub Release
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
@@ -190,14 +202,15 @@ jobs:
         prerelease: false
     
     - name: Dry run summary
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == true
       run: |
         echo "## Dry Run Summary"
         echo "Version: ${{ steps.calculate_version.outputs.version }}"
         echo "Next snapshot: ${{ steps.calculate_version.outputs.new_snapshot }}"
         echo ""
         echo "This would have:"
-        echo "- Updated POM version to ${{ steps.calculate_version.outputs.new_snapshot }}"
-        echo "- Created tag ${{ steps.calculate_version.outputs.version }}"
+        echo "- Created and pushed tag ${{ steps.calculate_version.outputs.version }}"
         echo "- Built and pushed base and product Docker images"
-        echo "- Created GitHub release"
+        echo "- Created a PR to bump version to ${{ steps.calculate_version.outputs.new_snapshot }}"
+        echo ""
+        echo "Note: The tag push will trigger the GitHub Release creation automatically."
