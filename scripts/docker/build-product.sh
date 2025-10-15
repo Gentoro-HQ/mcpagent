@@ -4,11 +4,17 @@ set -euo pipefail
 VERSION="${1:-dev}"
 JAR_NAME="${2:-}"
 PUSH_FLAG="${3:-}"
+PLATFORM_FLAG="${4:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 POM="$ROOT_DIR/src/mcpagent/pom.xml"
 
 # Default platforms for multi-arch builds
 PLATFORMS="${DOCKER_PLATFORMS:-linux/amd64,linux/arm64}"
+
+# Handle platform flag
+if [[ "$PLATFORM_FLAG" == "--platform" && -n "${5:-}" ]]; then
+  PLATFORMS="${5}"
+fi
 
 # Get version from POM if JAR_NAME not provided
 if [[ -z "$JAR_NAME" ]]; then
@@ -35,23 +41,9 @@ echo "JAR: $JAR_NAME"
 echo "Platforms: $PLATFORMS"
 
 # Determine build command based on whether we're pushing
-BUILD_CMD="docker buildx build"
-BUILD_ARGS=(
-  -f "$ROOT_DIR/Dockerfile"
-  --platform "$PLATFORMS"
-  --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
-  --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
-  -t "admingentoro/gentoro:$VERSION"
-  -t "admingentoro/gentoro:latest"
-)
-
 if [[ "$PUSH_FLAG" == "--push" ]]; then
   echo "Will push images to registry"
-  BUILD_ARGS+=(--push)
-else
-  echo "Building for local use (load to docker)"
-  # For local builds, we can only load one platform
-  PLATFORMS="linux/amd64"
+  BUILD_CMD="docker buildx build"
   BUILD_ARGS=(
     -f "$ROOT_DIR/Dockerfile"
     --platform "$PLATFORMS"
@@ -59,7 +51,23 @@ else
     --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
     -t "admingentoro/gentoro:$VERSION"
     -t "admingentoro/gentoro:latest"
-    --load
+    --push
+  )
+else
+  echo "Building for local use (docker buildx with --load)"
+  # For local builds, use docker buildx with --load to access local images
+  # Don't override PLATFORMS if it was set via --platform parameter
+  if [[ "$PLATFORM_FLAG" != "--platform" ]]; then
+    PLATFORMS="linux/amd64"
+  fi
+  BUILD_CMD="docker build"
+  BUILD_ARGS=(
+    -f "$ROOT_DIR/Dockerfile"
+    --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
+    --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
+    -t "admingentoro/gentoro:$VERSION"
+    -t "admingentoro/gentoro:latest"
+    --platform "$PLATFORMS"
   )
 fi
 
