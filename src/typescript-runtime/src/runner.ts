@@ -1,150 +1,147 @@
-/**
- * Execution runner for user-provided TypeScript/JavaScript snippets.
- *
- * Responsibilities
- * - Discover external SDKs (sdk-registry.ts) and generate the entry source (template.ts).
- * - Bundle the entry to a single IIFE with esbuild and alias axios/form-data to local shims.
- * - Execute inside isolated-vm with strict memory and time limits.
- * - Expose a host-side HTTP bridge (FETCH_BRIDGE) implemented via createHttpBridge.
- * - Return a stable result shape with logs and either value or error.
- */
-import ivm from "isolated-vm";
+import vm from "node:vm";
 import * as esbuild from "esbuild";
 import { createEntrySourceMulti } from "./template.js";
 import { getExternalSDKsCached } from "./sdk-registry.js";
-import path from "node:path";
 import { createAliasPlugin } from "./esbuild-alias.js";
-import { createHttpBridge } from "./http-bridge.js";
-
-/** One console call captured from inside the isolate. */
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 export type RunLogEntry = { level: string; args: unknown[] };
-
-/** Final outcome of a snippet execution. */
 export type RunResult =
-  | { ok: true; value: unknown; logs: RunLogEntry[] }
-  | { ok: false; error: string; logs: RunLogEntry[] };
+    | { ok: true; value: unknown; logs: RunLogEntry[] }
+    | { ok: false; error: string; logs: RunLogEntry[] };
 
-// Environment-driven execution limits with sane defaults.
-const SNIPPET_MEM_MB = Number(process.env.SNIPPET_MEM_MB ?? 128);
-const SNIPPET_TIMEOUT_MS = Number(process.env.SNIPPET_TIMEOUT_MS ?? 60000);
+const SNIPPET_TIMEOUT_MS = Number(process.env.SNIPPET_TIMEOUT_MS ?? 60_000);
 
-/**
- * Bundle and run a snippet in an isolated-vm context.
- *
- * Notes
- * - The isolate has no access to Node core modules; the bundle excludes them and globals are nulled.
- * - Network is allowed only through FETCH_BRIDGE, backed by the host's createHttpBridge.
- * - Timeouts are enforced both at script.run and at the awaited main() call to guard CPU and async waits.
- */
+// --- add these for ESM compatibility ---
+const requireForVm = createRequire(import.meta.url);
+const __filename_vm = fileURLToPath(import.meta.url);
+const __dirname_vm = path.dirname(__filename_vm);
+const moduleForVm: { exports: any } = { exports: {} };
+const exportsForVm = moduleForVm.exports;
+
 export async function runSnippetTS(userCode: string): Promise<RunResult> {
-  // Discover registered external SDKs and compose the entry source.
-  const sdkMap = getExternalSDKsCached();
-  const entrySource = createEntrySourceMulti(sdkMap, userCode);
+    // 1) Compose the entry from your SDK registry + user code
+    const sdkMap = getExternalSDKsCached();
+    const entrySource = createEntrySourceMulti(sdkMap, userCode);
 
-  // Build a self-contained IIFE bundle of the entry source.
-  const buildResult = await esbuild.build({
-    stdin: {
-      contents: entrySource,
-      resolveDir: process.cwd(),
-      sourcefile: "entry.ts",
-      loader: "ts",
-    },
-    bundle: true,
-    write: false,
-    platform: "node",
-    format: "iife",
-    target: ["node20"],
-    treeShaking: true,
-    plugins: [
-      createAliasPlugin({
-        axios: path.resolve("src/shims/axios.ts"),
-        "form-data": path.resolve("src/shims/form-data.ts"),
-      }),
-    ],
-    external: [
-      "fs",
-      "child_process",
-      "worker_threads",
-      "vm",
-      "cluster",
-      "net",
-      "tls",
-      "dgram",
-      "inspector",
-    ],
-  });
-  const bundledCode = buildResult.outputFiles[0].text;
+    // 2) Bundle to a single IIFE; leave axios/form-data external on purpose
+    const build = await esbuild.build({
+        stdin: {
+            contents: entrySource,
+            resolveDir: process.cwd(),
+            sourcefile: "entry.ts",
+            loader: "ts",
+        },
+        bundle: true,
+        write: false,
+        platform: "node",
+        format: "iife",           // exposes globalThis.__SNIPPET_MAIN
+        target: ["node20"],
+        treeShaking: true,
+        plugins: [
+            createAliasPlugin({
+                // IMPORTANT: no axios/form-data aliases now
+            }),
+        ],
+        external: [
+            "axios",                // ← keep axios external
+            "form-data",            // ← only if your SDK imports it directly
+            // Node core externals you already had:
+            "fs",
+            "child_process",
+            "worker_threads",
+            "vm",
+            "cluster",
+            "net",
+            "tls",
+            "dgram",
+            "inspector",
+        ],
+        // Optional, but helps module resolution in mono-repos:
+        mainFields: ["module", "main"],
+        conditions: ["node", "default"],
+        // Useful if you want to inspect what’s external/bundled:
+        // metafile: true,
+    });
 
-  // Create an isolate with a strict memory cap.
-  const isolate = new ivm.Isolate({ memoryLimit: SNIPPET_MEM_MB });
-  try {
-    const context = await isolate.createContext();
-    const jail = context.global;
+    const bundledCode = build.outputFiles[0].text;
 
-    await jail.set("global", jail.derefInto());
+    // 4) Prepare a Node vm context with CommonJS globals so external requires work
+    let context;
+    try {
+        context = vm.createContext({
+            // make the same global shared to catch __SNIPPET_MAIN
+            globalThis,
+            // CommonJS globals for externals like axios:
+            require: requireForVm,
+            module: moduleForVm,
+            exports: exportsForVm,
+            __dirname: __dirname_vm,
+            __filename: __filename_vm,
+            process,
 
-    // Disable Node-ish globals inside the isolate.
-    await jail.set("process", null as any);
-    await jail.set("Buffer", null as any);
+            // 🔑 Web/WHATWG globals the SDK may use
+            URL,                         // <-- fixes "URL is not defined"
+            URLSearchParams,
+            TextEncoder,
+            TextDecoder,
+            AbortController,
 
-    // Wire the host-side HTTP bridge. Snippet code calls global FETCH_BRIDGE(url, init).
-    const httpBridge = createHttpBridge(); // optionally pass baseURL/headers in the future
-    await jail.set(
-      "FETCH_BRIDGE",
-      new ivm.Reference((url: any, init: any) => httpBridge(String(url), init)),
+            // Nice to have if your SDK ever hits them (Node 18+ provides these)
+            Blob: globalThis.Blob,
+            FormData: globalThis.FormData,
+            Headers: globalThis.Headers,
+
+            // timers if your snippet uses them directly
+            setTimeout,
+            clearTimeout,
+            setInterval,
+            clearInterval,
+        });
+    } catch (err: any) {
+        return { ok: false, error: err?.stack ?? String(err), logs: [] };
+    }
+
+    // 5) Run the IIFE so it defines globalThis.__SNIPPET_MAIN
+    try {
+        new vm.Script(
+            // set a filename for better stack traces
+            `"use strict";\n${bundledCode}\n//# sourceURL=bundle.iife.js\n`,
+            { filename: "bundle.iife.js"}
+        ).runInContext(context, { timeout: SNIPPET_TIMEOUT_MS });
+    } catch (err: any) {
+        return { ok: false, error: err?.stack ?? String(err), logs: [] };
+    }
+
+    // 6) Grab and invoke __SNIPPET_MAIN with a timeout
+    const mainFn = (globalThis as any).__SNIPPET_MAIN as
+        | (() => Promise<{ value?: unknown; logs?: any[]; error?: string }>)
+        | undefined;
+
+    if (typeof mainFn !== "function") {
+        return { ok: false, error: "main() not found in bundle", logs: [] };
+    }
+
+    // Promise.race-based async timeout (separate from vm run timeout)
+    const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+            () => reject(new Error(`Snippet timed out after ${SNIPPET_TIMEOUT_MS} ms`)),
+            SNIPPET_TIMEOUT_MS
+        )
     );
 
-    // Compile and run the bundled user program (CPU time limit only here).
-    const script = await isolate.compileScript(bundledCode, {
-      filename: "bundle.iife.js",
-    });
-    await script.run(context, { timeout: SNIPPET_TIMEOUT_MS });
-
-    // Grab the exported main entry from the bundle.
-    const mainRef = (await jail.get("__SNIPPET_MAIN", {
-      reference: true,
-    })) as ivm.Reference<
-      () => Promise<{ value?: unknown; logs?: any[]; error?: string }>
-    > | null;
-    if (!mainRef) {
-      return { ok: false, error: "main() not found in bundle", logs: [] };
-    }
-
-    // Call main() with a timeout on the awaited result as well.
-    const runPromise = mainRef.apply(undefined, [], {
-      timeout: SNIPPET_TIMEOUT_MS,
-      result: { promise: true, copy: true },
-    });
-
-    // Add an outer timeout that disposes the isolate if the promise hangs on async work.
-    const timed = new Promise((resolve, reject) => {
-      const t = setTimeout(() => {
-        try {
-          isolate.dispose();
-        } catch {}
-        reject(new Error(`Snippet timed out after ${SNIPPET_TIMEOUT_MS} ms`));
-      }, SNIPPET_TIMEOUT_MS);
-      runPromise.then(
-        (v) => {
-          clearTimeout(t);
-          resolve(v);
-        },
-        (e) => {
-          clearTimeout(t);
-          reject(e);
-        },
-      );
-    });
-
-    const res: any = await timed;
-    if (res?.error) {
-      return { ok: false, error: res.error, logs: res.logs ?? [] };
-    }
-    return { ok: true, value: res?.value, logs: res?.logs ?? [] };
-  } finally {
-    // Ensure we always free isolate resources.
     try {
-      isolate.dispose();
-    } catch {}
-  }
+        const result: any = await Promise.race([mainFn(), timeoutPromise]);
+        if (result?.error) {
+            return { ok: false, error: String(result.error), logs: result.logs ?? [] };
+        }
+        return { ok: true, value: result?.value, logs: result?.logs ?? [] };
+    } catch (err: any) {
+        return { ok: false, error: err?.stack ?? String(err), logs: [] };
+    } finally {
+        // 7) Cleanup globals if you don’t want them to leak between runs
+        try { delete (globalThis as any).__SNIPPET_MAIN; } catch {}
+        // try { delete (globalThis as any).FETCH_BRIDGE; } catch {}
+    }
 }

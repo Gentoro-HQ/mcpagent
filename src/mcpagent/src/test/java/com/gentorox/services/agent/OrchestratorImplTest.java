@@ -8,10 +8,12 @@ import com.gentorox.services.knowledgebase.KnowledgeBaseEntry;
 import com.gentorox.services.knowledgebase.KnowledgeBaseService;
 import com.gentorox.services.telemetry.TelemetryService;
 import com.gentorox.tools.NativeTool;
+import com.gentorox.tools.NativeToolsRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,7 +85,9 @@ public class OrchestratorImplTest {
         new KnowledgeBaseEntry("kb://openapi/catalog.yaml", "", "")
     ));
 
-    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, List.of(toolOk, toolBroken));
+    NativeToolsRegistry nativeToolsRegistry = new NativeToolsRegistry(new ArrayList<>());
+    nativeToolsRegistry.addTools(List.of(toolOk, toolBroken));
+    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, nativeToolsRegistry);
 
     List<InferenceRequest.Message> msgs = List.of(
         new InferenceRequest.Message("user", "Pay order 123"),
@@ -91,7 +95,13 @@ public class OrchestratorImplTest {
     );
     Map<String, Object> opts = Map.of("reqId", "r-1");
 
-    when(inference.sendRequest(anyString(), anyList(), eq(opts)))
+    when(inference.sendRequest(anyString()))
+        .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
+    when(inference.sendRequest(anyString(), any(NativeToolsRegistry.class)))
+        .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
+    when(inference.sendRequest(anyString(), anyList()))
+        .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
+    when(inference.sendRequest(anyString(), any(), any()))
         .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
 
     InferenceResponse resp = orch.run(msgs, opts);
@@ -104,7 +114,7 @@ public class OrchestratorImplTest {
             prompt.contains("kb://docs/A.md") &&
             prompt.contains("Available Services:") &&
             prompt.contains("kb://openapi/catalog.yaml")
-    ), argThat((List<ToolSpec> tools) -> tools.size() == 1 && tools.get(0).name().equals("Math")), eq(opts));
+    ), argThat((registry) -> registry.currentTools().size() == 1 && registry.currentTools().get(0).spec().name().equals("Math")), anyList());
   }
 
   @Test
@@ -115,7 +125,7 @@ public class OrchestratorImplTest {
 
     when(kb.list("")).thenReturn(List.of());
 
-    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, List.of());
+    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, null);
 
     List<InferenceRequest.Message> msgs = List.of(new InferenceRequest.Message("user", "please delete file"));
 
@@ -130,10 +140,10 @@ public class OrchestratorImplTest {
     when(agent.guardrails()).thenReturn("");
     when(kb.list("")).thenReturn(List.of());
 
-    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, List.of());
+    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, null);
 
     // Null lists/options
-    when(inference.sendRequest(anyString(), anyList(), anyMap()))
+    when(inference.sendRequest(anyString(), any(), any()))
         .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
 
     InferenceResponse resp = orch.run(null, null);

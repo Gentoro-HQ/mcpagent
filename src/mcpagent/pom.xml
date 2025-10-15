@@ -173,6 +173,13 @@
       <artifactId>opentelemetry-sdk-testing</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Ensure we can compile a LauncherSessionListener for early test env loading -->
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-launcher</artifactId>
+      <version>1.10.3</version>
+      <scope>test</scope>
+    </dependency>
 
   </dependencies>
 

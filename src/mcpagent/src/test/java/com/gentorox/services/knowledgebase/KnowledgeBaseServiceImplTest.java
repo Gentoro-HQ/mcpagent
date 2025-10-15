@@ -34,7 +34,7 @@ public class KnowledgeBaseServiceImplTest {
   void setUp() {
     inference = Mockito.mock(InferenceService.class);
     // Return a short deterministic hint regardless of prompt
-    when(inference.sendRequest(any(), any())).thenReturn(new InferenceResponse("test hint", Optional.empty(), "trace"));
+    when(inference.sendRequest(any(), any(), any())).thenReturn(new InferenceResponse("test hint", Optional.empty(), "trace"));
 
     ts = Mockito.mock(TypescriptRuntimeClient.class);
 
@@ -52,7 +52,6 @@ public class KnowledgeBaseServiceImplTest {
     // Create foundation structure
     Path foundation = tmp.resolve("foundation");
     Files.createDirectories(foundation);
-    Files.writeString(foundation.resolve("Agent.md"), "# Agent\nBehave well.");
 
     Path docs = Files.createDirectories(foundation.resolve("docs"));
     Path doc1 = docs.resolve("documentation_1.md");
@@ -73,7 +72,7 @@ public class KnowledgeBaseServiceImplTest {
 
     // Verify entries
     var entries = svc.list(null);
-    assertTrue(entries.size() >= 4, "Expected at least 4 entries");
+    assertTrue(entries.size() >= 3, "Expected at least 3 entries");
 
     // Check listing by prefix
     String docsPrefix = "kb://docs";

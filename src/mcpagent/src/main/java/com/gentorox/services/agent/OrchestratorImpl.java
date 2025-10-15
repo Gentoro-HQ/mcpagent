@@ -10,6 +10,7 @@ import com.gentorox.services.telemetry.LogContext;
 import com.gentorox.services.telemetry.TelemetryService;
 import com.gentorox.services.telemetry.TelemetrySession;
 import com.gentorox.tools.NativeTool;
+import com.gentorox.tools.NativeToolsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -36,18 +37,18 @@ public class OrchestratorImpl implements Orchestrator {
   private final KnowledgeBaseService kbService;
   private final InferenceService inferenceService;
   private final TelemetryService telemetry;
-  private final List<NativeTool> nativeTools;
+  private final NativeToolsRegistry nativeToolsRegistry;
 
   public OrchestratorImpl(AgentService agentService,
                           KnowledgeBaseService kbService,
                           InferenceService inferenceService,
                           TelemetryService telemetry,
-                          List<NativeTool> nativeTools) {
+                          NativeToolsRegistry nativeToolsRegistry) {
     this.agentService = Objects.requireNonNull(agentService, "agentService");
     this.kbService = Objects.requireNonNull(kbService, "kbService");
     this.inferenceService = Objects.requireNonNull(inferenceService, "inferenceService");
     this.telemetry = Objects.requireNonNull(telemetry, "telemetry");
-    this.nativeTools = nativeTools == null ? List.of() : List.copyOf(nativeTools);
+    this.nativeToolsRegistry = nativeToolsRegistry;
   }
 
   @Override
@@ -69,12 +70,6 @@ public class OrchestratorImpl implements Orchestrator {
     // Step 2: build personalized system prompt with KB and services
     String systemPrompt = telemetry.inSpan(session, "orchestrator.buildSystemPrompt", this::buildSystemPrompt);
 
-    // Step 3: tools list
-    List<ToolSpec> tools = telemetry.inSpan(session, "orchestrator.listTools", () -> nativeTools.stream()
-        .map(this::safeSpec)
-        .filter(Objects::nonNull)
-        .toList());
-
     // Step 4: guardrails validation (minimal example; can be extended)
     telemetry.inSpan(session, "orchestrator.guardrails", () -> {
       String guardrails = agentService.guardrails();
@@ -88,8 +83,23 @@ public class OrchestratorImpl implements Orchestrator {
 
     // Step 5: call inference service
     telemetry.countPrompt(session, "gentoro", "agent");
+    // Build a safe registry excluding tools whose spec() throws
+    NativeToolsRegistry safeRegistry = null;
+    if (nativeToolsRegistry != null) {
+      List<NativeTool> safeTools = nativeToolsRegistry.currentTools().stream()
+          .filter(Objects::nonNull)
+          .filter(t -> safeSpec(t) != null)
+          .collect(Collectors.toList());
+      safeRegistry = new NativeToolsRegistry(safeTools);
+    }
+
+    final NativeToolsRegistry sr = safeRegistry;
     InferenceResponse response = telemetry.inSpan(session, "orchestrator.infer", () ->
-        inferenceService.sendRequest(formatFinalPrompt(systemPrompt, userPrompt, msgs), tools, opts));
+        inferenceService.sendRequest(
+            formatFinalPrompt(systemPrompt, userPrompt, msgs),
+            sr,
+            List.of()
+        ));
     telemetry.countModelCall(session, "model", "chat");
     return response;
   }
@@ -122,11 +132,14 @@ public class OrchestratorImpl implements Orchestrator {
         .sorted()
         .toList();
 
-    String toolsSummary = nativeTools.stream()
-        .map(this::safeSpec)
-        .filter(Objects::nonNull)
-        .map(ts -> String.format("- %s :: %s", ts.name(), optional(ts.description())))
-        .collect(Collectors.joining("\n"));
+    String toolsSummary = "";
+    if (nativeToolsRegistry != null) {
+      toolsSummary = nativeToolsRegistry.currentTools().stream()
+          .map(this::safeSpec)
+          .filter(Objects::nonNull)
+          .map(ts -> String.format("- %s :: %s", ts.name(), optional(ts.description())))
+          .collect(Collectors.joining("\n"));
+    }
 
     StringBuilder sb = new StringBuilder();
     sb.append(base == null ? "" : base);
