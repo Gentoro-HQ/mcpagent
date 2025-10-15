@@ -69,9 +69,15 @@ jobs:
     - name: Build product JAR and run tests
       run: |
         cd src/mcpagent
-        ./mvnw -q -DskipTests package || mvn -q -DskipTests package
+        
+        # Create foundation directory for tests
+        sudo mkdir -p /var/foundation
+        sudo chmod 755 /var/foundation
+        
+        # Build and test
+        mvn -q -DskipTests package
         echo "Running unit tests..."
-        ./mvnw -q test || mvn -q test
+        mvn -q test
     
     - name: Build product image
       run: |
