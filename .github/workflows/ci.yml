@@ -75,8 +75,8 @@ jobs:
         sudo chmod 777 /var/foundation
         
         # Build and test
-        echo "Building JAR (skipping unit tests)..."
-        mvn -q -DskipTests package
+        echo "Building executable JAR (skipping unit tests)..."
+        mvn -q -DskipTests clean package spring-boot:repackage
         echo "Skipping unit tests for now..."
         # mvn -q test
     
