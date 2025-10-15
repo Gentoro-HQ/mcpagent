@@ -147,7 +147,9 @@ export async function createServer(): Promise<FastifyInstance> {
               "--additional-properties",
               [
                   "supportsES6=true",
-                  "withSeparateModelsAndApi=false",
+                  "apiPackage=apis",
+                  "modelPackage=models",
+                  "useTags=true",
                   "useSingleRequestParameter=true"
               ].join(",")
           ];

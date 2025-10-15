@@ -15,20 +15,20 @@ describe('names utilities', () => {
 
   it('sanitizeBaseName allows alphanum and underscore only', async () => {
     const mod = await import('../src/names');
-    expect(mod.sanitizeBaseName('Good_Name_123')).toBe('Good_Name_123');
-    expect(mod.sanitizeBaseName('has-dash')).toBe('');
+    expect(mod.sanitizeNamespace('Good_Name_123')).toBe('Good_Name_123');
+    expect(mod.sanitizeNamespace('has-dash')).toBe('');
     // current implementation trims; spaces are not allowed around but trimmed content is valid
-    expect(mod.sanitizeBaseName(' spaced ')).toBe('spaced');
-    expect(mod.sanitizeBaseName(undefined)).toBe('');
+    expect(mod.sanitizeNamespace(' spaced ')).toBe('spaced');
+    expect(mod.sanitizeNamespace(undefined)).toBe('');
   });
 
   it('uniqueSdkFolderName generates non-colliding folders based on preferred name', async () => {
     process.env.EXTERNAL_SDKS_ROOT = tmp;
-    const { uniqueSdkFolderName } = await import('../src/names');
-    const a = uniqueSdkFolderName('MySDK');
+    const { createUniqueSdkFolder } = await import('../src/names');
+    const a = createUniqueSdkFolder('MySDK');
     // Simulate folder being taken to force next unique name
     fs.mkdirSync(a.absPath, { recursive: true });
-    const b = uniqueSdkFolderName('MySDK');
+    const b = createUniqueSdkFolder('MySDK');
     expect(a.namespace).toMatch(/^mysdk(.*)?/);
     expect(b.namespace).not.toBe(a.namespace);
     expect(a.absPath.startsWith(tmp)).toBe(true);

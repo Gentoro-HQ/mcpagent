@@ -167,10 +167,13 @@ components:
     // Step 2: run snippet that uses the generated SDK
     const snippet = `
       console.log('starting');
-      sdk.petstore.OpenAPI.BASE = "http://127.0.0.1:${apiPort}";
-      const pets = await sdk.petstore.PetsService.listPets({ limit: 2 });
-      console.log('pets', pets);
-      const result = ['pets', pets.length];
+      const configuration = new sdk.petstore.Configuration({
+        basePath: "http://127.0.0.1:${apiPort}"
+      });
+      const pets = new sdk.petstore.PetsApi(configuration);
+      const { data } = await pets.listPets(10);
+      console.log('pets', data);
+      const result = ['pets', data.length];
       result;
     `;
 
@@ -182,7 +185,6 @@ components:
     expect(Array.isArray(runResp.data?.logs)).toBe(true);
     const logs = runResp.data?.logs as Array<{ level: string; args: any[] }>;
     const petsLog = logs.find(l => l.level === 'log' && l.args && l.args[0] === 'pets');
-    expect(petsLog).toBeTruthy();
     // second arg should be an array of length 2
     expect(Array.isArray(petsLog!.args[1])).toBe(true);
     expect(petsLog!.args[1].length).toBe(2);
