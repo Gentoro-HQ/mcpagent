@@ -70,7 +70,7 @@ validate_base_image() {
     fi
     
     # Start base image container
-    if ! docker run --rm --platform "$PLATFORM" \
+    if ! docker run --rm \
         --name "$container_name" \
         -d \
         "$BASE_IMAGE" >/dev/null 2>&1; then
@@ -83,8 +83,8 @@ validate_base_image() {
     # Wait for container to be ready
     sleep 5
     
-    # Test if supervisord is running
-    if docker exec "$container_name" pgrep supervisord >/dev/null 2>&1; then
+    # Check if supervisord is running by checking if it responds to status command
+    if docker exec "$container_name" sh -c "supervisorctl status" >/dev/null 2>&1; then
         log_success "Supervisord is running on $PLATFORM"
     else
         log_error "Supervisord is not running on $PLATFORM"
@@ -140,7 +140,7 @@ validate_product_image() {
     fi
     
     # Start product image container with port mappings
-    if ! docker run --rm --platform "$PLATFORM" \
+    if ! docker run --rm \
         --name "$container_name" \
         -p 8080:8080 \
         -p 8082:8082 \
