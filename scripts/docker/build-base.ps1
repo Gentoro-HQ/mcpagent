@@ -1,6 +1,7 @@
 Param(
     [string]$Version="latest",
-    [switch]$Push
+    [switch]$Push,
+    [string]$Platform=""
 )
 
 $ErrorActionPreference = "Stop"
@@ -9,7 +10,7 @@ $ROOT = (Resolve-Path "$PSScriptRoot\..\..").Path
 $Dockerfile = "$ROOT\Dockerfile.base"
 
 # Default platforms for multi-arch builds
-$Platforms = if ($env:DOCKER_PLATFORMS) { $env:DOCKER_PLATFORMS } else { "linux/amd64,linux/arm64" }
+$Platforms = if ($Platform) { $Platform } elseif ($env:DOCKER_PLATFORMS) { $env:DOCKER_PLATFORMS } else { "linux/amd64,linux/arm64" }
 
 # Validate Dockerfile exists
 if (-not (Test-Path $Dockerfile)) {
@@ -37,7 +38,10 @@ try {
     } else {
         Write-Host "Building for local use (load to docker)"
         # For local builds, we can only load one platform
-        $Platforms = "linux/amd64"
+        # Don't override PLATFORMS if it was set via --platform parameter
+        if (-not $Platform) {
+            $Platforms = "linux/amd64"
+        }
         $buildArgs = @(
             "buildx", "build",
             "-f", "$Dockerfile",

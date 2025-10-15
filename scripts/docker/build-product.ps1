@@ -1,7 +1,8 @@
 Param(
     [string]$Version="dev",
     [string]$JarName="",
-    [switch]$Push
+    [switch]$Push,
+    [string]$Platform=""
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,7 +11,7 @@ $ROOT = (Resolve-Path "$PSScriptRoot\..\..").Path
 $POM = "$ROOT\src\mcpagent\pom.xml"
 
 # Default platforms for multi-arch builds
-$Platforms = if ($env:DOCKER_PLATFORMS) { $env:DOCKER_PLATFORMS } else { "linux/amd64,linux/arm64" }
+$Platforms = if ($Platform) { $Platform } elseif ($env:DOCKER_PLATFORMS) { $env:DOCKER_PLATFORMS } else { "linux/amd64,linux/arm64" }
 
 # Get version from POM if JarName not provided
 if ([string]::IsNullOrEmpty($JarName)) {
@@ -56,18 +57,20 @@ try {
         Write-Host "Will push images to registry"
         $buildArgs += "--push"
     } else {
-        Write-Host "Building for local use (load to docker)"
-        # For local builds, we can only load one platform
-        $Platforms = "linux/amd64"
+        Write-Host "Building for local use (docker buildx with --load)"
+        # For local builds, use docker buildx with --load to access local images
+        # Don't override PLATFORMS if it was set via --platform parameter
+        if (-not $Platform) {
+            $Platforms = "linux/amd64"
+        }
         $buildArgs = @(
-            "buildx", "build",
+            "build",
             "-f", "$ROOT\Dockerfile",
-            "--platform", "$Platforms",
             "--build-arg", "APP_JAR=src/mcpagent/target/$JarName",
             "--build-arg", "BASE_IMAGE=admingentoro/gentoro:base-$Version",
             "-t", "admingentoro/gentoro:$Version",
             "-t", "admingentoro/gentoro:latest",
-            "--load"
+            "--platform", "$Platforms"
         )
     }
 
