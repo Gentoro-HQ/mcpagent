@@ -31,9 +31,10 @@ docker run -p 8080:8080 -e OPENAI_API_KEY=your-key admingentoro/gentoro:latest
 # Build locally
 ./scripts/docker/build-base.sh latest
 ./scripts/docker/build-product.sh latest
-```
 
-See [docs/DOCKER_MULTIPLATFORM.md](docs/DOCKER_MULTIPLATFORM.md) for detailed multi-platform build instructions.
+# Test services
+./scripts/docker/test-services.sh
+```
 
 ## Environment
 

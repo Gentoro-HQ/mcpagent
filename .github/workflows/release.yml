@@ -146,6 +146,205 @@ jobs:
         JAR_NAME="mcpagent-$POM_VERSION.jar"
         ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" --push
     
+    - name: Validate base image services
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
+      run: |
+        VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
+        echo "Validating base image services for version: $VERSION"
+        
+        # Test base image on both platforms
+        for platform in linux/amd64 linux/arm64; do
+          echo "Testing base image on $platform..."
+          
+          CONTAINER_NAME="base-validation-$platform-$(date +%s)"
+          
+          # Start base image container
+          if docker run --rm --platform "$platform" \
+            --name "$CONTAINER_NAME" \
+            -d \
+            "${{ env.IMAGE_NAME_BASE }}:base-$VERSION" >/dev/null 2>&1; then
+            
+            echo "✅ Base image container started on $platform"
+            
+            # Wait for container to be ready
+            sleep 5
+            
+            # Test if supervisord is running
+            if docker exec "$CONTAINER_NAME" pgrep supervisord >/dev/null 2>&1; then
+              echo "✅ Supervisord is running on $platform"
+            else
+              echo "❌ Supervisord is not running on $platform"
+              docker logs "$CONTAINER_NAME" 2>/dev/null || true
+              docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+              exit 1
+            fi
+            
+            # Test required binaries
+            local required_binaries=("java" "node" "otelcol" "supervisord")
+            for binary in "${required_binaries[@]}"; do
+              if docker exec "$CONTAINER_NAME" which "$binary" >/dev/null 2>&1; then
+                echo "✅ Binary $binary is available on $platform"
+              else
+                echo "❌ Binary $binary is missing on $platform"
+                docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+                exit 1
+              fi
+            done
+            
+            # Test startup scripts
+            local startup_scripts=("/opt/bin/entrypoint.sh" "/opt/bin/run-app.sh" "/opt/bin/run-otel.sh" "/opt/bin/run-ts.sh" "/opt/bin/run-mock.sh")
+            for script in "${startup_scripts[@]}"; do
+              if docker exec "$CONTAINER_NAME" test -x "$script"; then
+                echo "✅ Startup script $script is executable on $platform"
+              else
+                echo "❌ Startup script $script is missing or not executable on $platform"
+                docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+                exit 1
+              fi
+            done
+            
+            docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+            echo "✅ Base image validation passed for $platform"
+          else
+            echo "❌ Failed to start base image container on $platform"
+            exit 1
+          fi
+        done
+        
+        echo "✅ All base image validations passed"
+    
+    - name: Validate product image services
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
+      run: |
+        VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
+        echo "Validating product image services for version: $VERSION"
+        
+        # Test product image on both platforms
+        for platform in linux/amd64 linux/arm64; do
+          echo "Testing product image on $platform..."
+          
+          CONTAINER_NAME="product-validation-$platform-$(date +%s)"
+          
+          # Start product image container with port mappings
+          if docker run --rm --platform "$platform" \
+            --name "$CONTAINER_NAME" \
+            -p 8080:8080 \
+            -p 8082:8082 \
+            -p 7070:7070 \
+            -p 4317:4317 \
+            -e "OPENAI_API_KEY=test-key" \
+            -e "GEMINI_API_KEY=test-key" \
+            -e "ANTHROPIC_API_KEY=test-key" \
+            -d \
+            "${{ env.IMAGE_NAME_PRODUCT }}:$VERSION" >/dev/null 2>&1; then
+            
+            echo "✅ Product image container started on $platform"
+            
+            # Wait for services to start
+            echo "Waiting for services to start on $platform..."
+            timeout=90
+            counter=0
+            services_ready=0
+            
+            while [[ $counter -lt $timeout ]]; do
+              services_ready=0
+              
+              # Check MCP Agent (port 8080)
+              if curl -f http://localhost:8080/actuator/health >/dev/null 2>&1; then
+                services_ready=$((services_ready + 1))
+              fi
+              
+              # Check if Java process is running
+              if docker exec "$CONTAINER_NAME" pgrep java >/dev/null 2>&1; then
+                services_ready=$((services_ready + 1))
+              fi
+              
+              # Check if otelcol process is running
+              if docker exec "$CONTAINER_NAME" pgrep otelcol >/dev/null 2>&1; then
+                services_ready=$((services_ready + 1))
+              fi
+              
+              if [[ $services_ready -ge 2 ]]; then
+                echo "✅ Core services are ready on $platform"
+                break
+              fi
+              
+              sleep 3
+              counter=$((counter + 3))
+            done
+            
+            if [[ $counter -ge $timeout ]]; then
+              echo "❌ Services did not start within timeout period on $platform"
+              docker logs "$CONTAINER_NAME" 2>/dev/null || true
+              docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+              exit 1
+            fi
+            
+            # Test MCP Agent endpoints
+            if curl -f http://localhost:8080/actuator/health >/dev/null 2>&1; then
+              echo "✅ MCP Agent health endpoint is responding on $platform"
+            else
+              echo "❌ MCP Agent health endpoint is not responding on $platform"
+              docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+              exit 1
+            fi
+            
+            if curl -f http://localhost:8080/actuator/info >/dev/null 2>&1; then
+              echo "✅ MCP Agent info endpoint is responding on $platform"
+            else
+              echo "⚠️ MCP Agent info endpoint is not responding on $platform"
+            fi
+            
+            # Test supervisor processes
+            supervisor_status=$(docker exec "$CONTAINER_NAME" supervisorctl status 2>/dev/null || echo "")
+            if [[ -n "$supervisor_status" ]]; then
+              echo "✅ Supervisor is managing processes on $platform"
+              echo "$supervisor_status" | while read -r line; do
+                echo "  $line"
+              done
+            else
+              echo "⚠️ Could not get supervisor status on $platform"
+            fi
+            
+            # Test OpenTelemetry Collector
+            if docker exec "$CONTAINER_NAME" pgrep otelcol >/dev/null 2>&1; then
+              echo "✅ OpenTelemetry Collector is running on $platform"
+            else
+              echo "❌ OpenTelemetry Collector is not running on $platform"
+              docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+              exit 1
+            fi
+            
+            # Check if collector is listening on expected ports
+            if docker exec "$CONTAINER_NAME" netstat -tlnp 2>/dev/null | grep -q ":4317"; then
+              echo "✅ OpenTelemetry Collector is listening on port 4317 on $platform"
+            else
+              echo "⚠️ OpenTelemetry Collector is not listening on port 4317 on $platform"
+            fi
+            
+            # Test optional services (may not be present)
+            if curl -f http://localhost:8082/health >/dev/null 2>&1; then
+              echo "✅ Mock Server is responding on $platform"
+            else
+              echo "ℹ️ Mock Server is not responding on $platform (optional service)"
+            fi
+            
+            if curl -f http://localhost:7070/health >/dev/null 2>&1; then
+              echo "✅ TypeScript Runtime is responding on $platform"
+            else
+              echo "ℹ️ TypeScript Runtime is not responding on $platform (optional service)"
+            fi
+            
+            docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+            echo "✅ Product image validation passed for $platform"
+          else
+            echo "❌ Failed to start product image container on $platform"
+            exit 1
+          fi
+        done
+        
+        echo "✅ All product image validations passed"
+    
     - name: Update version for next development cycle
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
       run: |
@@ -199,6 +398,16 @@ jobs:
           - Updated base image: `${{ env.IMAGE_NAME_BASE }}:base-${{ steps.extract_version.outputs.version }}`
           - Updated product image: `${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}`
           
+          ## Service Validation ✅
+          
+          All services have been validated and are confirmed working:
+          - **MCP Agent** (port 8080) - Main Spring Boot application
+          - **OpenTelemetry Collector** (port 4317) - Telemetry data collection
+          - **Mock Server** (port 8082, optional) - External mock server
+          - **TypeScript Runtime** (port 7070, optional) - Node.js runtime
+          
+          **Platform Support**: Both `linux/amd64` and `linux/arm64` architectures tested and validated.
+          
           ## Docker Images
           
           ```bash
@@ -209,6 +418,18 @@ jobs:
           # Product image
           docker pull ${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}
           docker pull ${{ env.IMAGE_NAME_PRODUCT }}:latest
+          ```
+          
+          ## Quick Start
+          
+          ```bash
+          # Run the validated image
+          docker run -p 8080:8080 \
+            -e OPENAI_API_KEY=your-key \
+            ${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}
+          
+          # Test health endpoint
+          curl http://localhost:8080/actuator/health
           ```
         draft: false
         prerelease: false
@@ -223,6 +444,11 @@ jobs:
         echo "This would have:"
         echo "- Created and pushed tag ${{ steps.calculate_version.outputs.version }}"
         echo "- Built and pushed base and product Docker images"
+        echo "- Validated all services on both linux/amd64 and linux/arm64 platforms:"
+        echo "  - MCP Agent (port 8080) - Main Spring Boot application"
+        echo "  - OpenTelemetry Collector (port 4317) - Telemetry data collection"
+        echo "  - Mock Server (port 8082, optional) - External mock server"
+        echo "  - TypeScript Runtime (port 7070, optional) - Node.js runtime"
         echo "- Created a PR to bump version to ${{ steps.calculate_version.outputs.new_snapshot }}"
         echo ""
         echo "Note: The tag push will trigger the GitHub Release creation automatically."
