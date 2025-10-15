@@ -40,7 +40,10 @@ if [[ "$PUSH_FLAG" == "--push" ]]; then
 else
   echo "Building for local use (load to docker)"
   # For local builds, we can only load one platform
-  PLATFORMS="linux/amd64"
+  # Don't override PLATFORMS if it was set via --platform parameter
+  if [[ "$PLATFORM_FLAG" != "--platform" ]]; then
+    PLATFORMS="linux/amd64"
+  fi
   BUILD_ARGS=(
     -f "$DOCKERFILE"
     --platform "$PLATFORMS"
