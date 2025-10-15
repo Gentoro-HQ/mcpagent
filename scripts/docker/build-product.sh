@@ -41,26 +41,9 @@ echo "JAR: $JAR_NAME"
 echo "Platforms: $PLATFORMS"
 
 # Determine build command based on whether we're pushing
-BUILD_CMD="docker buildx build"
-BUILD_ARGS=(
-  -f "$ROOT_DIR/Dockerfile"
-  --platform "$PLATFORMS"
-  --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
-  --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
-  -t "admingentoro/gentoro:$VERSION"
-  -t "admingentoro/gentoro:latest"
-)
-
 if [[ "$PUSH_FLAG" == "--push" ]]; then
   echo "Will push images to registry"
-  BUILD_ARGS+=(--push)
-else
-  echo "Building for local use (load to docker)"
-  # For local builds, we can only load one platform
-  # Don't override PLATFORMS if it was set via --platform parameter
-  if [[ "$PLATFORM_FLAG" != "--platform" ]]; then
-    PLATFORMS="linux/amd64"
-  fi
+  BUILD_CMD="docker buildx build"
   BUILD_ARGS=(
     -f "$ROOT_DIR/Dockerfile"
     --platform "$PLATFORMS"
@@ -68,7 +51,22 @@ else
     --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
     -t "admingentoro/gentoro:$VERSION"
     -t "admingentoro/gentoro:latest"
-    --load
+    --push
+  )
+else
+  echo "Building for local use (regular docker build)"
+  # For local builds, use regular docker build to access local images
+  # Don't override PLATFORMS if it was set via --platform parameter
+  if [[ "$PLATFORM_FLAG" != "--platform" ]]; then
+    PLATFORMS="linux/amd64"
+  fi
+  BUILD_CMD="docker build"
+  BUILD_ARGS=(
+    -f "$ROOT_DIR/Dockerfile"
+    --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
+    --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
+    -t "admingentoro/gentoro:$VERSION"
+    -t "admingentoro/gentoro:latest"
   )
 fi
 
