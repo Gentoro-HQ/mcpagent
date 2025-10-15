@@ -1,7 +1,7 @@
 package com.gentorox.protocols;
 
-import com.gentorox.orchestrator.Orchestrator;
 import com.gentorox.core.model.InferenceResponse;
+import com.gentorox.services.agent.Orchestrator;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.transport.WebFluxStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;

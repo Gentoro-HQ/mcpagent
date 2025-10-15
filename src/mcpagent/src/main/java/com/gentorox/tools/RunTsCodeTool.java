@@ -21,8 +21,8 @@ public class RunTsCodeTool implements NativeTool {
   @Override
   public ToolSpec spec() {
     return new ToolSpec("runTsCode","Execute a short TypeScript snippet in the isolated runtime and return stdout/result.",
-        java.util.List.of(new ToolSpec.Parameter("code","string",true,"TypeScript code to execute",null),
-            new ToolSpec.Parameter("args","object",false,"JSON-like arguments",null)));
+        java.util.List.of(
+            new ToolSpec.Parameter("code","string",true,"TypeScript code to execute",null) ));
   }
 
   @Override

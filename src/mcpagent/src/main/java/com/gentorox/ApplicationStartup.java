@@ -1,8 +1,6 @@
 package com.gentorox;
 
-import com.gentorox.services.indexer.MockServerRunner;
 import com.gentorox.services.indexer.ValidationRunner;
-import com.gentorox.services.testsuite.TestSuiteRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -21,8 +19,6 @@ public class ApplicationStartup implements ApplicationRunner {
     String process = args.containsOption("process") ? args.getOptionValues("process").get(0) : "standard";
     switch (process) {
       case "validate" -> ValidationRunner.run();
-      case "test_suite" -> TestSuiteRunner.run();
-      case "mock-server" -> MockServerRunner.run(args);
       default -> LOG.info("Starting standard mode (MCP server + orchestrator)");
     }
   }
