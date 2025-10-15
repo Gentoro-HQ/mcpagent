@@ -57,10 +57,16 @@ validate_base_image() {
     
     local container_name="base-validation-$(date +%s)"
     
-    # Check if base image exists
-    if ! docker manifest inspect "$BASE_IMAGE" >/dev/null 2>&1; then
-        log_error "Base image $BASE_IMAGE does not exist"
-        return 1
+    # Check if base image exists (try local first, then registry)
+    if ! docker image inspect "$BASE_IMAGE" >/dev/null 2>&1; then
+        log_info "Base image not found locally, checking registry..."
+        if ! docker manifest inspect "$BASE_IMAGE" >/dev/null 2>&1; then
+            log_error "Base image $BASE_IMAGE does not exist locally or in registry"
+            return 1
+        fi
+        log_info "Base image found in registry"
+    else
+        log_info "Base image found locally"
     fi
     
     # Start base image container
@@ -121,10 +127,16 @@ validate_product_image() {
     
     local container_name="product-validation-$(date +%s)"
     
-    # Check if product image exists
-    if ! docker manifest inspect "$PRODUCT_IMAGE" >/dev/null 2>&1; then
-        log_error "Product image $PRODUCT_IMAGE does not exist"
-        return 1
+    # Check if product image exists (try local first, then registry)
+    if ! docker image inspect "$PRODUCT_IMAGE" >/dev/null 2>&1; then
+        log_info "Product image not found locally, checking registry..."
+        if ! docker manifest inspect "$PRODUCT_IMAGE" >/dev/null 2>&1; then
+            log_error "Product image $PRODUCT_IMAGE does not exist locally or in registry"
+            return 1
+        fi
+        log_info "Product image found in registry"
+    else
+        log_info "Product image found locally"
     fi
     
     # Start product image container with port mappings
