@@ -151,26 +151,38 @@ jobs:
       run: |
         NEW_SNAPSHOT="${{ steps.calculate_version.outputs.new_snapshot }}"
         
-        # Create a new branch for version bump
-        BRANCH_NAME="release/bump-version-$NEW_SNAPSHOT"
-        git checkout -b "$BRANCH_NAME"
-        
         # Update version
         mvn -q -f src/mcpagent/pom.xml versions:set -DnewVersion="$NEW_SNAPSHOT" -DgenerateBackupPoms=false
         
-        # Commit and push to new branch
-        git add src/mcpagent/pom.xml
-        git commit -m "chore(release): bump version to $NEW_SNAPSHOT"
-        git push origin "$BRANCH_NAME"
-        
-        # Create PR using GitHub CLI
-        gh pr create \
-          --title "chore(release): bump version to $NEW_SNAPSHOT" \
-          --body "Automated version bump after release ${{ steps.calculate_version.outputs.version }}" \
-          --base main \
-          --head "$BRANCH_NAME"
-      env:
-        GH_TOKEN: ${{ github.token }}
+        echo "new_snapshot=$NEW_SNAPSHOT" >> $GITHUB_OUTPUT
+      id: version_bump
+    
+    - name: Create Pull Request for version bump
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore(release): bump version to ${{ steps.calculate_version.outputs.new_snapshot }}"
+        branch: release/bump-version-${{ steps.calculate_version.outputs.new_snapshot }}
+        delete-branch: true
+        title: "chore(release): bump version to ${{ steps.calculate_version.outputs.new_snapshot }}"
+        body: |
+          ## Automated version bump after release
+          
+          This PR bumps the version to `${{ steps.calculate_version.outputs.new_snapshot }}` following the release of `${{ steps.calculate_version.outputs.version }}`.
+          
+          ### Changes
+          - Updated `src/mcpagent/pom.xml` version to `${{ steps.calculate_version.outputs.new_snapshot }}`
+          
+          ### Release Information
+          - Released version: `${{ steps.calculate_version.outputs.version }}`
+          - Next development version: `${{ steps.calculate_version.outputs.new_snapshot }}`
+          
+          ---
+          
+          🤖 This PR was automatically created by the release workflow.
+        labels: release, automated
+        assignees: ${{ github.actor }}
     
     - name: Create GitHub Release
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
