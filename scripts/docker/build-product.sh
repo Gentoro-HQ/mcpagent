@@ -4,11 +4,17 @@ set -euo pipefail
 VERSION="${1:-dev}"
 JAR_NAME="${2:-}"
 PUSH_FLAG="${3:-}"
+PLATFORM_FLAG="${4:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 POM="$ROOT_DIR/src/mcpagent/pom.xml"
 
 # Default platforms for multi-arch builds
 PLATFORMS="${DOCKER_PLATFORMS:-linux/amd64,linux/arm64}"
+
+# Handle platform flag
+if [[ "$PLATFORM_FLAG" == "--platform" && -n "${5:-}" ]]; then
+  PLATFORMS="${5}"
+fi
 
 # Get version from POM if JAR_NAME not provided
 if [[ -z "$JAR_NAME" ]]; then

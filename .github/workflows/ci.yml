@@ -73,7 +73,7 @@ jobs:
       run: |
         VERSION="${{ steps.version.outputs.version }}"
         echo "Building base image for ${{ matrix.platform }}..."
-        ./scripts/docker/build-base.sh "$VERSION" --platform "${{ matrix.platform }}"
+        ./scripts/docker/build-base.sh "$VERSION" "" --platform "${{ matrix.platform }}"
     
     - name: Build product JAR
       run: |
@@ -86,7 +86,7 @@ jobs:
         POM_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" src/mcpagent/pom.xml)
         JAR_NAME="mcpagent-$POM_VERSION.jar"
         echo "Building product image for ${{ matrix.platform }}..."
-        ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" --platform "${{ matrix.platform }}"
+        ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" "" --platform "${{ matrix.platform }}"
     
     - name: Validate services
       run: |

@@ -3,11 +3,17 @@ set -euo pipefail
 
 VERSION="${1:-latest}"
 PUSH_FLAG="${2:-}"
+PLATFORM_FLAG="${3:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DOCKERFILE="$ROOT_DIR/Dockerfile.base"
 
 # Default platforms for multi-arch builds
 PLATFORMS="${DOCKER_PLATFORMS:-linux/amd64,linux/arm64}"
+
+# Handle platform flag
+if [[ "$PLATFORM_FLAG" == "--platform" && -n "${4:-}" ]]; then
+  PLATFORMS="${4}"
+fi
 
 # Validate Dockerfile exists
 if [[ ! -f "$DOCKERFILE" ]]; then
