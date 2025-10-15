@@ -75,8 +75,9 @@ jobs:
         sudo chmod 777 /var/foundation
         
         # Build and test
+        echo "Building JAR (skipping unit tests)..."
+        mvn -q -DskipTests package
         echo "Skipping unit tests for now..."
-        # mvn -q -DskipTests package
         # mvn -q test
     
     - name: Build product image
