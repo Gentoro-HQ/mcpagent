@@ -2,7 +2,6 @@ package com.gentorox.protocols;
 
 import com.gentorox.core.model.InferenceRequest;
 import com.gentorox.core.model.InferenceResponse;
-import com.gentorox.orchestrator.Orchestrator;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.server.McpAsyncServer;
 import io.modelcontextprotocol.server.McpServer;
@@ -112,7 +111,7 @@ public class McpServerConfig {
    * to the internal Orchestrator using a user-provided prompt plus optional options map.
    */
   @Bean
-  McpServerFeatures.AsyncToolSpecification asyncToolSpecification(McpJsonMapper jsonMapper, Orchestrator orchestrator) {
+  McpServerFeatures.AsyncToolSpecification asyncToolSpecification(McpJsonMapper jsonMapper, com.gentorox.services.agent.Orchestrator orchestrator) {
     return new McpServerFeatures.AsyncToolSpecification (
         McpSchema.Tool.builder()
             .name("gentoro.run")
@@ -173,7 +172,7 @@ public class McpServerConfig {
             final Object optionsObj = args.get("options");
             final Map<String, Object> options = asObjectMap(optionsObj); // may be null
 
-            InferenceResponse resp = orchestrator.run(List.of(new InferenceRequest.Message("user", prompt)), options);
+            InferenceResponse resp = orchestrator.run(List.of(new InferenceRequest.Message("user", prompt)), options == null ? Map.of() : options);
             Assert.notNull(resp, "Orchestrator response must not be null");
 
             return Mono.just(

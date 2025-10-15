@@ -2,6 +2,9 @@
 .DS_Store
 Thumbs.db
 
+# Runtime state generation
+src/acme-analytics-server/mcpagent-handbook/state
+
 # IDEs and editors
 .idea/
 .vscode/

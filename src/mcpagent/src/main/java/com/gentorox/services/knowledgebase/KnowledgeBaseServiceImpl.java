@@ -235,12 +235,6 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
   }
 
   private void ingestFoundation(Path root) {
-    // Agent.md -> treat as docs/Agent.md
-    Path agent = root.resolve("Agent.md");
-    if (Files.isRegularFile(agent)) {
-      addFoundationFile(agent, "docs", agent.getFileName().toString());
-    }
-
     // docs/*.md
     Path docsDir = root.resolve("docs");
     if (Files.isDirectory(docsDir)) {

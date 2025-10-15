@@ -71,4 +71,4 @@ knowledgeBase:
     size: 500
     # If true, uses the configured InferenceService to generate a concise hint for each entry.
     # Otherwise, falls back to the first N characters of the content.
-    useAi: false
+    useAi: true

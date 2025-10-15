@@ -1,7 +1,7 @@
 package com.gentorox.protocols;
 
 import com.gentorox.core.model.InferenceResponse;
-import com.gentorox.orchestrator.Orchestrator;
+import com.gentorox.services.agent.Orchestrator;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.json.McpJsonMapper;
