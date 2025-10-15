@@ -86,6 +86,16 @@ jobs:
         POM_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" src/mcpagent/pom.xml)
         JAR_NAME="mcpagent-$POM_VERSION.jar"
         echo "Building product image for ${{ matrix.platform }}..."
+        
+        # Ensure base image is available locally for this platform
+        echo "Checking if base image exists locally..."
+        if ! docker image inspect "admingentoro/gentoro:base-$VERSION" >/dev/null 2>&1; then
+          echo "Base image not found locally, building it for ${{ matrix.platform }}..."
+          ./scripts/docker/build-base.sh "$VERSION" "" --platform "${{ matrix.platform }}"
+        else
+          echo "Base image found locally"
+        fi
+        
         ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" "" --platform "${{ matrix.platform }}"
     
     - name: Validate services
