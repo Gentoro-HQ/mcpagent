@@ -79,6 +79,12 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_PASSWORD }}
     
+    - name: Show existing tags
+      run: |
+        echo "📋 Existing tags in repository:"
+        git tag -l | sort -V | tail -10 || echo "No tags found"
+        echo ""
+    
     - name: Extract version from tag
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
       id: extract_version
@@ -112,19 +118,52 @@ jobs:
         NEW_VERSION="${MAJ}.${MIN}.${PAT}-SNAPSHOT"
         TAG="v${MAJ}.${MIN}.${PAT}"
         
+        # Check if tag already exists
+        if git tag -l | grep -q "^${TAG}$"; then
+          echo "❌ Tag $TAG already exists!"
+          echo "Available tags:"
+          git tag -l | sort -V | tail -10
+          echo ""
+          echo "Please either:"
+          echo "1. Use a different version bump type (major/minor/patch)"
+          echo "2. Manually create a new tag with a different version"
+          echo "3. Delete the existing tag if it was created in error"
+          exit 1
+        fi
+        
         echo "version=$TAG" >> $GITHUB_OUTPUT
         echo "version_number=${MAJ}.${MIN}.${PAT}" >> $GITHUB_OUTPUT
         echo "new_snapshot=$NEW_VERSION" >> $GITHUB_OUTPUT
-        echo "Calculated version: $TAG (next snapshot: $NEW_VERSION)"
+        echo "✅ Calculated version: $TAG (next snapshot: $NEW_VERSION)"
     
     - name: Create tag for manual release
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
       run: |
         TAG="${{ steps.calculate_version.outputs.version }}"
+        echo "Creating tag: $TAG"
+        
+        # Double-check tag doesn't exist (safety net)
+        if git tag -l | grep -q "^${TAG}$"; then
+          echo "❌ Tag $TAG already exists! This should have been caught earlier."
+          exit 1
+        fi
+        
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git tag -a "$TAG" -m "Release $TAG"
-        git push origin "$TAG"
+        
+        # Create and push tag
+        if git tag -a "$TAG" -m "Release $TAG"; then
+          echo "✅ Tag $TAG created successfully"
+          if git push origin "$TAG"; then
+            echo "✅ Tag $TAG pushed successfully"
+          else
+            echo "❌ Failed to push tag $TAG"
+            exit 1
+          fi
+        else
+          echo "❌ Failed to create tag $TAG"
+          exit 1
+        fi
     
     - name: Build and push base image
       if: github.event_name == 'push' || github.event.inputs.dry_run != true
