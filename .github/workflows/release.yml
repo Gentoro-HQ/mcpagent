@@ -201,7 +201,7 @@ jobs:
       if: github.event_name == 'push' || github.event.inputs.dry_run != true
       run: |
         cd src/mcpagent
-        ./mvnw -q -DskipTests package || mvn -q -DskipTests package
+        ./mvnw -q -DskipTests package spring-boot:repackage || mvn -q -DskipTests package spring-boot:repackage
     
     - name: Build and push product image
       if: github.event_name == 'push' || github.event.inputs.dry_run != true

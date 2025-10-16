@@ -26,7 +26,7 @@ if [[ -z "$JAR_NAME" ]]; then
   
   # Build app JAR if not already built
   echo "Building application JAR..."
-  ( cd "$ROOT_DIR/src/mcpagent" && ./mvnw -q -DskipTests package || mvn -q -DskipTests package )
+  ( cd "$ROOT_DIR/src/mcpagent" && ./mvnw -q -DskipTests package spring-boot:repackage || mvn -q -DskipTests package spring-boot:repackage )
 fi
 
 # Validate JAR exists
@@ -35,6 +35,17 @@ if [[ ! -f "$JAR_PATH" ]]; then
   echo "JAR file not found: $JAR_PATH"
   exit 1
 fi
+
+# Validate JAR has proper Spring Boot manifest
+if ! unzip -p "$JAR_PATH" META-INF/MANIFEST.MF | grep -q "Main-Class: org.springframework.boot.loader.launch.JarLauncher"; then
+  echo "ERROR: JAR file is missing Spring Boot Main-Class manifest attribute"
+  echo "This usually means spring-boot:repackage was not run properly"
+  echo "JAR manifest:"
+  unzip -p "$JAR_PATH" META-INF/MANIFEST.MF
+  exit 1
+fi
+
+echo "✅ JAR validation passed - Spring Boot fat JAR with proper manifest"
 
 echo "Building product image with version: $VERSION"
 echo "JAR: $JAR_NAME"

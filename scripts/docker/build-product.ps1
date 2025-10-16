@@ -23,9 +23,9 @@ if ([string]::IsNullOrEmpty($JarName)) {
     Write-Host "Building application JAR..."
     Push-Location "$ROOT\src\mcpagent"
     if (Test-Path .\mvnw) { 
-        ./mvnw -q -DskipTests package 
+        ./mvnw -q -DskipTests package spring-boot:repackage
     } else { 
-        mvn -q -DskipTests package 
+        mvn -q -DskipTests package spring-boot:repackage
     }
     Pop-Location
 }
@@ -36,6 +36,18 @@ if (-not (Test-Path $jarPath)) {
     Write-Error "JAR file not found: $jarPath"
     exit 1
 }
+
+# Validate JAR has proper Spring Boot manifest
+$manifest = & unzip -p $jarPath META-INF/MANIFEST.MF
+if (-not ($manifest -match "Main-Class: org.springframework.boot.loader.launch.JarLauncher")) {
+    Write-Error "JAR file is missing Spring Boot Main-Class manifest attribute"
+    Write-Host "This usually means spring-boot:repackage was not run properly"
+    Write-Host "JAR manifest:"
+    Write-Host $manifest
+    exit 1
+}
+
+Write-Host "✅ JAR validation passed - Spring Boot fat JAR with proper manifest"
 
 Write-Host "Building product image with version: $Version"
 Write-Host "JAR: $JarName"
