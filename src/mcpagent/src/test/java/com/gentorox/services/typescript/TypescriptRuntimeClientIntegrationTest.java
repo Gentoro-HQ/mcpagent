@@ -1,9 +1,6 @@
 package com.gentorox.services.typescript;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,14 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration tests against a live TypeScript Runtime server.
  */
-@SpringBootTest
-@TestPropertySource(properties = {
-    "typescriptRuntime.baseUrl=${TS_RUNTIME_URL:http://localhost:7070}"
-})
 public class TypescriptRuntimeClientIntegrationTest {
 
-  @Value("${typescriptRuntime.baseUrl}")
-  private String typescriptRuntimeBaseUrl;
+  private final String typescriptRuntimeBaseUrl = System.getenv().getOrDefault("TS_RUNTIME_URL", "http://localhost:7070");
 
   @Test
   void exec_againstLiveServer_shouldReturnOutput() {
