@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest
 @TestPropertySource(properties = {
-    "typescriptRuntime.baseUrl=${TS_RUNTIME_URL:http://localhost:7070}"
+    "typescriptRuntime.baseUrl=${TS_RUNTIME_URL:http://localhost:3000}"
 })
 public class TypescriptRuntimeClientIntegrationTest {
 

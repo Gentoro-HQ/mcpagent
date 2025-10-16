@@ -168,6 +168,10 @@ jobs:
       run: |
         cd src/mcpagent
         echo "Running mcpagent integration tests..."
+        # Set environment variables for integration tests
+        export TS_RUNTIME_URL="http://localhost:3000"
+        export OPENAI_API_KEY="test-key-for-ci"
+        export SPRING_PROFILES_ACTIVE="test"
         # Run integration tests and capture exit code
         if mvn test -Dtest="*IntegrationTest"; then
           echo "Integration tests passed"
