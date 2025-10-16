@@ -124,9 +124,9 @@ jobs:
     - name: Start TypeScript runtime server
       run: |
         cd src/typescript-runtime
-        echo "Starting TypeScript runtime server on port 3000..."
-        # Use dev server for integration tests
-        npm run dev > ts-runtime.log 2>&1 &
+        echo "Starting TypeScript runtime server on port 7070..."
+        # Use dev server for integration tests with correct port
+        PORT=7070 npm run dev > ts-runtime.log 2>&1 &
         SERVER_PID=$!
         echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
         echo "TypeScript Runtime PID: $SERVER_PID"
@@ -146,7 +146,7 @@ jobs:
         # Check if server is running by trying to connect
         for i in {1..5}; do
           if kill -0 $SERVER_PID 2>/dev/null; then
-            RESPONSE=$(curl -s http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"test\")"}' 2>/dev/null)
+            RESPONSE=$(curl -s http://localhost:7070/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"test\")"}' 2>/dev/null)
             if echo "$RESPONSE" | grep -q '"ok":true'; then
               echo "TypeScript runtime server is ready"
               break
@@ -309,9 +309,9 @@ jobs:
     - name: Start TypeScript Runtime Service
       run: |
         cd src/typescript-runtime
-        echo "Starting TypeScript Runtime service on port 3000..."
+        echo "Starting TypeScript Runtime service on port 7070..."
         # Use dev server instead of production build to avoid module resolution issues
-        npm run dev > ts-runtime.log 2>&1 &
+        PORT=7070 npm run dev > ts-runtime.log 2>&1 &
         TSRT_PID=$!
         echo "TSRT_PID=$TSRT_PID" >> $GITHUB_ENV
         echo "TypeScript Runtime PID: $TSRT_PID"
@@ -335,7 +335,7 @@ jobs:
         echo "Waiting for TypeScript Runtime service to start..."
         for i in {1..30}; do
           if kill -0 $TSRT_PID 2>/dev/null; then
-            RESPONSE=$(curl -s http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"health check\")"}' 2>/dev/null)
+            RESPONSE=$(curl -s http://localhost:7070/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"health check\")"}' 2>/dev/null)
             if echo "$RESPONSE" | grep -q '"ok":true'; then
               echo "✅ TypeScript Runtime service is ready"
               break
@@ -419,7 +419,7 @@ jobs:
         
         # Test /run endpoint
         echo "Testing /run endpoint..."
-        RESPONSE=$(curl -s -X POST http://localhost:3000/run \
+        RESPONSE=$(curl -s -X POST http://localhost:7070/run \
           -H "Content-Type: application/json" \
           -d '{"snippet":"console.log(\"Hello from TypeScript Runtime\"); \"success\""}')
         echo "Response: $RESPONSE"
@@ -433,7 +433,7 @@ jobs:
         
         # Test /sdk/upload endpoint
         echo "Testing /sdk/upload endpoint..."
-        RESPONSE=$(curl -s -X POST http://localhost:3000/sdk/upload \
+        RESPONSE=$(curl -s -X POST http://localhost:7070/sdk/upload \
           -F "spec=@/dev/null" \
           -F "outDir=test")
         echo "Response: $RESPONSE"
@@ -545,13 +545,13 @@ jobs:
         
         # Test that all services can communicate
         echo "All services are running and responding:"
-        echo "✅ TypeScript Runtime: http://localhost:3000"
+        echo "✅ TypeScript Runtime: http://localhost:7070"
         echo "✅ ACME Analytics Server: http://localhost:8081" 
         echo "✅ MCP Agent: http://localhost:8080"
         
         # Verify no port conflicts
         echo "Checking for port conflicts..."
-        netstat -tlnp | grep -E ":(3000|8080|8081)" || echo "No port conflicts detected"
+        netstat -tlnp | grep -E ":(7070|8080|8081)" || echo "No port conflicts detected"
         
         echo ""
         echo "⚠️  Note: Service validation may fail due to external dependencies:"

@@ -38,7 +38,7 @@ pnpm install
 pnpm dev
 ```
 
-By default the service listens on PORT=3000 and uses EXTERNAL_SDKS_ROOT=/tmp/external-sdks. You can override:
+By default the service listens on PORT=7070 and uses EXTERNAL_SDKS_ROOT=/tmp/external-sdks. You can override:
 
 ```bash
 PORT=3001 EXTERNAL_SDKS_ROOT=./.sdks pnpm dev
@@ -59,7 +59,7 @@ Generates a TypeScript SDK from an uploaded OpenAPI specification.
 **Example:**
 
 ```bash
-curl -s -X POST "http://localhost:3000/sdk/upload"   -H "content-type: multipart/form-data"   -F "spec=@./petstore.yaml"   -F "outDir=petstore"
+curl -s -X POST "http://localhost:7070/sdk/upload"   -H "content-type: multipart/form-data"   -F "spec=@./petstore.yaml"   -F "outDir=petstore"
 ```
 
 **Successful response:**
@@ -90,7 +90,7 @@ Generates Markdown documentation for a previously generated SDK and returns it a
 **Example:**
 
 ```bash
-curl -s "http://localhost:3000/sdk/docs/petstore?cleanup=true"
+curl -s "http://localhost:7070/sdk/docs/petstore?cleanup=true"
 ```
 
 **Successful response:**
@@ -124,7 +124,7 @@ Executes arbitrary TypeScript/JavaScript code in an isolated VM context.
 **Example:**
 
 ```bash
-curl -X POST http://localhost:3000/run   -H "Content-Type: application/json"   -d '{
+curl -X POST http://localhost:7070/run   -H "Content-Type: application/json"   -d '{
     "snippet": "sdk.petstore.OpenAPI.BASE = \"https://api.example.com/pets\"; const pets = await sdk.petstore.PetsApi.listPets({ limit: 2 }); console.log(pets);"
   }'
 ```
@@ -156,7 +156,7 @@ Environment variables:
 
 | Variable             | Default               | Description                         |
 | -------------------- | --------------------- | ----------------------------------- |
-| PORT                 | 3000                  | HTTP server port                    |
+| PORT                 | 7070                  | HTTP server port                    |
 | EXTERNAL_SDKS_ROOT   | /tmp/external-sdks    | Directory for generated SDKs        |
 | SNIPPET_MEM_MB       | 128                   | Memory limit per snippet (MB)       |
 | SNIPPET_TIMEOUT_MS   | 60000                 | Max execution time per snippet (ms) |
