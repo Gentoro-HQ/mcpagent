@@ -8,6 +8,8 @@
   <name>mcpagent</name>
   <properties>
     <java.version>21</java.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
     <spring-boot.version>3.3.4</spring-boot.version>
     <openai.version>4.2.0</openai.version>
     <google-genai.version>1.21.0</google-genai.version>
@@ -195,7 +197,9 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
         <configuration>
-          <release>${java.version}</release>
+            <source>${java.version}</source>
+            <target>${java.version}</target>
+            <release>${java.version}</release>
         </configuration>
       </plugin>
       <plugin>

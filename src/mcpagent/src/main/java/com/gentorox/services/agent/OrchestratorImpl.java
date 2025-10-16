@@ -97,8 +97,7 @@ public class OrchestratorImpl implements Orchestrator {
     InferenceResponse response = telemetry.inSpan(session, "orchestrator.infer", () ->
         inferenceService.sendRequest(
             formatFinalPrompt(systemPrompt, userPrompt, msgs),
-            sr,
-            List.of()
+            sr != null ? sr.currentTools() : Collections.emptyList()
         ));
     telemetry.countModelCall(session, "model", "chat");
     return response;

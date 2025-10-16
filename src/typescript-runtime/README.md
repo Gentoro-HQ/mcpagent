@@ -145,6 +145,13 @@ The response returns `{ ok, value?, error?, logs }` where logs capture console o
 
 ## Configuration
 
+Environment configuration is managed with dotenv and supports layered files:
+
+- .env: checked-in, commented template listing all supported variables.
+- .env.local: developer-specific overrides (gitignored). Values here override .env.
+
+At startup we load .env first and then .env.local (with override). You can still set shell environment variables and they will be respected. Tests that mutate process.env continue to work since dotenv only seeds process.env.
+
 Environment variables:
 
 | Variable             | Default               | Description                         |

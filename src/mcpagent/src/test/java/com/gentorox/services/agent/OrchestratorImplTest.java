@@ -97,11 +97,7 @@ public class OrchestratorImplTest {
 
     when(inference.sendRequest(anyString()))
         .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
-    when(inference.sendRequest(anyString(), any(NativeToolsRegistry.class)))
-        .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
     when(inference.sendRequest(anyString(), anyList()))
-        .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
-    when(inference.sendRequest(anyString(), any(), any()))
         .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
 
     InferenceResponse resp = orch.run(msgs, opts);
@@ -114,7 +110,7 @@ public class OrchestratorImplTest {
             prompt.contains("kb://docs/A.md") &&
             prompt.contains("Available Services:") &&
             prompt.contains("kb://openapi/catalog.yaml")
-    ), argThat((registry) -> registry.currentTools().size() == 1 && registry.currentTools().get(0).spec().name().equals("Math")), anyList());
+    ), argThat((registry) -> registry.size() == 1 && registry.get(0).spec().name().equals("Math")));
   }
 
   @Test
@@ -143,7 +139,7 @@ public class OrchestratorImplTest {
     OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, null);
 
     // Null lists/options
-    when(inference.sendRequest(anyString(), any(), any()))
+    when(inference.sendRequest(anyString(), any()))
         .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
 
     InferenceResponse resp = orch.run(null, null);

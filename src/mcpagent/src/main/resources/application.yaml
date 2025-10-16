@@ -37,27 +37,20 @@ providers:
   default-provider: ${INFERENCE_DEFAULT_PROVIDER:openai}
 
 # URL for the external TypeScript runtime used by some tools
-typescript:
-  runtimeUrl: ${TS_RUNTIME_URL:http://localhost:7070}
-
-# Base directory for foundation assets (models, indexes, caches, etc.)
-foundation:
-  dir: ${FOUNDATION_DIR:/var/foundation}
+typescriptRuntime:
+  baseUrl: ${TS_RUNTIME_URL:http://localhost:7070}
 
 # Guardrails configuration
 guardrails:
   strict: ${GUARDRAILS_STRICT:true}
 
-# Knowledge base auto-contexting configuration
-kb:
-  autoContext:
-    enabled: true
-    topK: 4
-
 # OpenTelemetry service naming
 otel:
   service:
     name: mcpagent
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
 
 
 knowledgeBase:

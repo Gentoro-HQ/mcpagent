@@ -382,10 +382,9 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
   private static String computeSignature(Path root) {
     // Simple signature: concatenate file names + lastModified for known subtrees
     List<Path> toScan = new ArrayList<>();
-    toScan.add(root);
     toScan.add(root.resolve("docs"));
     toScan.add(root.resolve("openapi"));
-    toScan.add(root.resolve("tests"));
+    toScan.add(root.resolve("agent.yaml"));
     toScan.add(root.resolve("feedback"));
     StringBuilder sb = new StringBuilder();
     for (Path dir : toScan) {

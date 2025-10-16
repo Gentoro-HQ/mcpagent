@@ -3,9 +3,9 @@ package com.gentorox.services.inference;
 import com.gentorox.core.api.ToolSpec;
 import com.gentorox.core.model.InferenceResponse;
 import com.gentorox.tools.NativeTool;
+import com.gentorox.tools.NativeToolsRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
@@ -43,33 +43,36 @@ class InferenceServiceTest {
 
   @Value("${providers.default-provider}")
   private String defaultProvider;
-    private InferenceService inferenceService;
-    private ProviderConfig providerConfig;
+
+  private InferenceService inferenceService;
+  private ProviderProperties providerProperties;
+  private NativeToolsRegistry toolsRegistry;
 
   @BeforeEach
   void setUp() {
-    providerConfig = new ProviderConfig();
+    providerProperties = new ProviderProperties();
+    toolsRegistry = new NativeToolsRegistry(List.of());
 
-    ProviderConfig.ProviderSettings openaiSettings = new ProviderConfig.ProviderSettings();
+    ProviderProperties.ProviderSettings openaiSettings = new ProviderProperties.ProviderSettings();
     openaiSettings.setApiKey(openaiApiKey);
     openaiSettings.setModelName("gpt-4o-mini");
 
-    ProviderConfig.ProviderSettings anthropicSettings = new ProviderConfig.ProviderSettings();
+    ProviderProperties.ProviderSettings anthropicSettings = new ProviderProperties.ProviderSettings();
     anthropicSettings.setApiKey(anthropicApiKey);
     anthropicSettings.setModelName("claude-3-haiku-20240307");
 
-    ProviderConfig.ProviderSettings geminiSettings = new ProviderConfig.ProviderSettings();
+    ProviderProperties.ProviderSettings geminiSettings = new ProviderProperties.ProviderSettings();
     geminiSettings.setApiKey(geminiApiKey);
     geminiSettings.setModelName("gemini-2.0-flash");
 
-    providerConfig.setProviders(Map.of(
+    providerProperties.setProviders(Map.of(
         "openai", openaiSettings,
         "anthropic", anthropicSettings,
         "gemini", geminiSettings
     ));
-    providerConfig.setDefaultProvider(defaultProvider);
 
-    inferenceService = new InferenceService(providerConfig);
+    providerProperties.setDefaultProvider(defaultProvider);
+    inferenceService = new InferenceService(providerProperties, toolsRegistry);
   }
 
 
@@ -131,7 +134,6 @@ class InferenceServiceTest {
 
         InferenceResponse response = inferenceService.sendRequest(
             "Calculate 5 + 3 using the calculator tool",
-            null,
             List.of(tool)
         );
 
@@ -152,8 +154,8 @@ class InferenceServiceTest {
       assumeTrue(anthropicApiKey != null && !anthropicApiKey.isBlank(),
           "Skipping test because Anthropic API key is not set");
         // Switch to Anthropic provider
-        providerConfig.setDefaultProvider("anthropic");
-        InferenceService anthropicService = new InferenceService(providerConfig);
+        providerProperties.setDefaultProvider("anthropic");
+        InferenceService anthropicService = new InferenceService(providerProperties, toolsRegistry);
 
         InferenceResponse response = anthropicService.sendRequest(
             "What is the capital of France? Respond with just the city name.",
@@ -171,8 +173,8 @@ class InferenceServiceTest {
       assumeTrue(geminiApiKey != null && !geminiApiKey.isBlank(),
           "Skipping test because Gemini API key is not set");
         // Switch to Gemini provider
-        providerConfig.setDefaultProvider("gemini");
-        InferenceService geminiService = new InferenceService(providerConfig);
+        providerProperties.setDefaultProvider("gemini");
+        InferenceService geminiService = new InferenceService(providerProperties, toolsRegistry);
 
         InferenceResponse response = geminiService.sendRequest(
             "What color is the sky? Respond with just the color.",
@@ -206,32 +208,32 @@ class InferenceServiceTest {
     @Test
     void testMissingApiKey() {
         // Test with missing API key
-        ProviderConfig.ProviderSettings invalidSettings = new ProviderConfig.ProviderSettings();
+        ProviderProperties.ProviderSettings invalidSettings = new ProviderProperties.ProviderSettings();
         invalidSettings.setApiKey("");
         invalidSettings.setModelName("gpt-4");
 
-        ProviderConfig invalidConfig = new ProviderConfig();
+        ProviderProperties invalidConfig = new ProviderProperties();
         invalidConfig.setProviders(Map.of("openai", invalidSettings));
         invalidConfig.setDefaultProvider("openai");
 
         assertThrows(IllegalArgumentException.class, () -> {
-            new InferenceService(invalidConfig);
+            new InferenceService(invalidConfig, toolsRegistry);
         });
     }
 
     @Test
     void testUnknownProvider() {
         // Test with unknown provider
-        ProviderConfig.ProviderSettings settings = new ProviderConfig.ProviderSettings();
+        ProviderProperties.ProviderSettings settings = new ProviderProperties.ProviderSettings();
         settings.setApiKey("test-key");
         settings.setModelName("test-model");
 
-        ProviderConfig invalidConfig = new ProviderConfig();
+        ProviderProperties invalidConfig = new ProviderProperties();
         invalidConfig.setProviders(Map.of("unknown", settings));
         invalidConfig.setDefaultProvider("unknown");
 
         assertThrows(IllegalArgumentException.class, () -> {
-            new InferenceService(invalidConfig);
+            new InferenceService(invalidConfig, toolsRegistry);
         });
     }
 }

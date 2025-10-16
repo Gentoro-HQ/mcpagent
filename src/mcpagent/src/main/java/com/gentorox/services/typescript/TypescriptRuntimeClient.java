@@ -1,5 +1,6 @@
 package com.gentorox.services.typescript;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -19,8 +20,6 @@ import java.util.List;
  * - Generate a TypeScript SDK from an OpenAPI specification by uploading a file.
  * - Execute short TypeScript code snippets using previously generated SDKs.
  *
- * Configuration:
- * - Base URL: environment variable TS_RUNTIME_URL (default: http://localhost:3000)
  *
  * This class is stateless and thread-safe.
  */
@@ -29,11 +28,13 @@ public class TypescriptRuntimeClient {
   private final WebClient web;
 
   /**
-   * Creates a new client using the TS_RUNTIME_URL environment variable (or default).
+   * Creates a new TypescriptRuntimeClient.
+   *
+   * @param baseUrl the base URL of the runtime service, e.g. http://localhost:7070
    */
-  public TypescriptRuntimeClient() {
+  public TypescriptRuntimeClient(@Value("${typescriptRuntime.baseUrl:http://localhost:7070}") String baseUrl) {
     this.web = WebClient.builder()
-        .baseUrl(System.getenv().getOrDefault("TS_RUNTIME_URL", "http://localhost:3000"))
+        .baseUrl(baseUrl)
         .build();
   }
 

@@ -25,9 +25,9 @@ class SimpleInferenceTest {
     @EnabledIfEnvironmentVariable(named = "OPENAI_API_KEY", matches = ".+")
     void testOpenAIInference() {
         // Set up configuration
-        ProviderConfig config = new ProviderConfig();
+        ProviderProperties config = new ProviderProperties();
 
-        ProviderConfig.ProviderSettings openaiSettings = new ProviderConfig.ProviderSettings();
+        ProviderProperties.ProviderSettings openaiSettings = new ProviderProperties.ProviderSettings();
         openaiSettings.setApiKey(System.getenv("OPENAI_API_KEY"));
         openaiSettings.setModelName("gpt-4o-mini"); // Use cheaper model for testing
 
@@ -91,9 +91,9 @@ class SimpleInferenceTest {
     @EnabledIfEnvironmentVariable(named = "GEMINI_API_KEY", matches = ".+")
     void testGeminiInference() {
         // Set up configuration
-        ProviderConfig config = new ProviderConfig();
+        ProviderProperties config = new ProviderProperties();
 
-        ProviderConfig.ProviderSettings geminiSettings = new ProviderConfig.ProviderSettings();
+        ProviderProperties.ProviderSettings geminiSettings = new ProviderProperties.ProviderSettings();
         geminiSettings.setApiKey(System.getenv("GEMINI_API_KEY"));
         geminiSettings.setModelName("gemini-2.0-flash"); // Use supported model for testing
 
@@ -121,9 +121,9 @@ class SimpleInferenceTest {
     @EnabledIfEnvironmentVariable(named = "OPENAI_API_KEY", matches = ".+")
     void testToolCalling() {
         // Set up configuration
-        ProviderConfig config = new ProviderConfig();
+        ProviderProperties config = new ProviderProperties();
 
-        ProviderConfig.ProviderSettings openaiSettings = new ProviderConfig.ProviderSettings();
+        ProviderProperties.ProviderSettings openaiSettings = new ProviderProperties.ProviderSettings();
         openaiSettings.setApiKey(System.getenv("OPENAI_API_KEY"));
         openaiSettings.setModelName("gpt-4o-mini");
 

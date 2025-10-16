@@ -15,26 +15,26 @@ import static org.junit.jupiter.api.Assertions.*;
     "providers.providers.openai.modelName=gpt-4o-mini",
     "providers.default-provider=openai"
 })
-class ProviderConfigTest {
+class ProviderPropertiesTest {
 
     @Test
     void testProviderConfigLoading() {
-        ProviderConfig config = new ProviderConfig();
-        
+        ProviderProperties config = new ProviderProperties();
+
         // Set up test configuration
-        ProviderConfig.ProviderSettings openaiSettings = new ProviderConfig.ProviderSettings();
+        ProviderProperties.ProviderSettings openaiSettings = new ProviderProperties.ProviderSettings();
         openaiSettings.setApiKey("test-api-key");
         openaiSettings.setModelName("gpt-4o-mini");
-        
+
         config.setProviders(java.util.Map.of("openai", openaiSettings));
         config.setDefaultProvider("openai");
-        
+
         // Verify configuration
         assertNotNull(config.getProviders());
         assertTrue(config.getProviders().containsKey("openai"));
         assertEquals("openai", config.getDefaultProvider());
-        
-        ProviderConfig.ProviderSettings settings = config.getProviders().get("openai");
+
+        ProviderProperties.ProviderSettings settings = config.getProviders().get("openai");
         assertEquals("test-api-key", settings.getApiKey());
         assertEquals("gpt-4o-mini", settings.getModelName());
     }
@@ -45,12 +45,12 @@ class ProviderConfigTest {
         String openaiKey = System.getenv("OPENAI_API_KEY");
         String anthropicKey = System.getenv("ANTHROPIC_API_KEY");
         String geminiKey = System.getenv("GEMINI_API_KEY");
-        
+
         // At least one should be set for the test to be meaningful
         boolean hasAtLeastOneKey = (openaiKey != null && !openaiKey.isEmpty()) ||
                                   (anthropicKey != null && !anthropicKey.isEmpty()) ||
                                   (geminiKey != null && !geminiKey.isEmpty());
-        
+
         if (hasAtLeastOneKey) {
             System.out.println("Environment variables detected:");
             if (openaiKey != null && !openaiKey.isEmpty()) {
@@ -66,21 +66,21 @@ class ProviderConfigTest {
             System.out.println("No API keys found in environment variables.");
             System.out.println("Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY to run inference tests.");
         }
-        
+
         // This test always passes - it's just for information
         assertTrue(true);
     }
 
     @Test
     void testProviderSettings() {
-        ProviderConfig.ProviderSettings settings = new ProviderConfig.ProviderSettings();
-        
+        ProviderProperties.ProviderSettings settings = new ProviderProperties.ProviderSettings();
+
         // Test setters and getters
         settings.setApiKey("test-key");
         settings.setBaseUrl("https://api.test.com");
         settings.setEndpoint("https://endpoint.test.com");
         settings.setModelName("test-model");
-        
+
         assertEquals("test-key", settings.getApiKey());
         assertEquals("https://api.test.com", settings.getBaseUrl());
         assertEquals("https://endpoint.test.com", settings.getEndpoint());

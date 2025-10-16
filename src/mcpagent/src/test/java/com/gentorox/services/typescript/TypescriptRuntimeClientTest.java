@@ -29,7 +29,7 @@ public class TypescriptRuntimeClientTest {
 
   @BeforeEach
   void setUp() throws Exception {
-    client = new TypescriptRuntimeClient();
+    client = new TypescriptRuntimeClient("http://localhost");
     webClient = Mockito.mock(WebClient.class, Mockito.RETURNS_DEEP_STUBS);
 
     // Inject mocked WebClient into the client via reflection since constructor creates it internally

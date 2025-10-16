@@ -69,9 +69,9 @@ public class InferenceServiceManualTest {
         System.out.println("\n--- Testing OpenAI ---");
 
         try {
-            ProviderConfig config = new ProviderConfig();
+            ProviderProperties config = new ProviderProperties();
 
-            ProviderConfig.ProviderSettings openaiSettings = new ProviderConfig.ProviderSettings();
+            ProviderProperties.ProviderSettings openaiSettings = new ProviderProperties.ProviderSettings();
             openaiSettings.setApiKey(System.getenv("OPENAI_API_KEY"));
             openaiSettings.setModelName("gpt-4o-mini"); // Use cheaper model for testing
 
@@ -102,9 +102,9 @@ public class InferenceServiceManualTest {
         System.out.println("\n--- Testing Anthropic ---");
 
         try {
-            ProviderConfig config = new ProviderConfig();
+            ProviderProperties config = new ProviderProperties();
 
-            ProviderConfig.ProviderSettings anthropicSettings = new ProviderConfig.ProviderSettings();
+            ProviderProperties.ProviderSettings anthropicSettings = new ProviderProperties.ProviderSettings();
             anthropicSettings.setApiKey(System.getenv("ANTHROPIC_API_KEY"));
             anthropicSettings.setModelName("claude-3-haiku-20240307"); // Use cheaper model for testing
 
@@ -135,9 +135,9 @@ public class InferenceServiceManualTest {
         System.out.println("\n--- Testing Gemini ---");
 
         try {
-            ProviderConfig config = new ProviderConfig();
+            ProviderProperties config = new ProviderProperties();
 
-            ProviderConfig.ProviderSettings geminiSettings = new ProviderConfig.ProviderSettings();
+            ProviderProperties.ProviderSettings geminiSettings = new ProviderProperties.ProviderSettings();
             geminiSettings.setApiKey(System.getenv("GEMINI_API_KEY"));
             geminiSettings.setModelName("gemini-2.0-flash"); // Use supported model for testing
 
@@ -204,7 +204,6 @@ public class InferenceServiceManualTest {
             // Test tool calling
             InferenceResponse response = service.sendRequest(
                 "Calculate 5 + 3 using the calculator tool",
-                null,
                 List.of(tool)
             );
 

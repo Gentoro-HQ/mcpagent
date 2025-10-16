@@ -88,8 +88,8 @@ public class InferenceServiceCLI {
         }
 
         try {
-            ProviderConfig config = new ProviderConfig();
-            ProviderConfig.ProviderSettings openaiSettings = new ProviderConfig.ProviderSettings();
+            ProviderProperties config = new ProviderProperties();
+            ProviderProperties.ProviderSettings openaiSettings = new ProviderProperties.ProviderSettings();
             openaiSettings.setApiKey(System.getenv("OPENAI_API_KEY"));
             openaiSettings.setModelName("gpt-4o-mini");
 
@@ -122,8 +122,8 @@ public class InferenceServiceCLI {
         }
 
         try {
-            ProviderConfig config = new ProviderConfig();
-            ProviderConfig.ProviderSettings geminiSettings = new ProviderConfig.ProviderSettings();
+            ProviderProperties config = new ProviderProperties();
+            ProviderProperties.ProviderSettings geminiSettings = new ProviderProperties.ProviderSettings();
             geminiSettings.setApiKey(System.getenv("GEMINI_API_KEY"));
             geminiSettings.setModelName("gemini-2.0-flash");
 
@@ -170,8 +170,8 @@ public class InferenceServiceCLI {
         }
 
         try {
-            ProviderConfig config = new ProviderConfig();
-            ProviderConfig.ProviderSettings settings = new ProviderConfig.ProviderSettings();
+            ProviderProperties config = new ProviderProperties();
+            ProviderProperties.ProviderSettings settings = new ProviderProperties.ProviderSettings();
 
             if (provider.equals("openai")) {
                 settings.setApiKey(System.getenv("OPENAI_API_KEY"));
@@ -222,7 +222,7 @@ public class InferenceServiceCLI {
             System.out.print("Enter a math problem (e.g., 'Calculate 5 + 3'): ");
             String prompt = scanner.nextLine();
 
-            InferenceResponse response = service.sendRequest(prompt, null, List.of(calculatorTool));
+            InferenceResponse response = service.sendRequest(prompt, List.of(calculatorTool));
 
             System.out.println("✅ Tool calling test successful!");
             System.out.println("Response: " + response.content());
@@ -267,8 +267,8 @@ public class InferenceServiceCLI {
         }
 
         try {
-            ProviderConfig config = new ProviderConfig();
-            ProviderConfig.ProviderSettings settings = new ProviderConfig.ProviderSettings();
+            ProviderProperties config = new ProviderProperties();
+            ProviderProperties.ProviderSettings settings = new ProviderProperties.ProviderSettings();
 
             if (provider.equals("openai")) {
                 settings.setApiKey(System.getenv("OPENAI_API_KEY"));

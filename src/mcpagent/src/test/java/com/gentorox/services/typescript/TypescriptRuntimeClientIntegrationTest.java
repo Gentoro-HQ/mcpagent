@@ -1,7 +1,9 @@
 package com.gentorox.services.typescript;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,11 +13,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration tests against a live TypeScript Runtime server.
  */
+@SpringBootTest
+@TestPropertySource(properties = {
+    "typescriptRuntime.baseUrl=${TS_RUNTIME_URL:http://localhost:7070}"
+})
 public class TypescriptRuntimeClientIntegrationTest {
+
+  @Value("${typescriptRuntime.baseUrl}")
+  private String typescriptRuntimeBaseUrl;
 
   @Test
   void exec_againstLiveServer_shouldReturnOutput() {
-    TypescriptRuntimeClient client = new TypescriptRuntimeClient();
+    TypescriptRuntimeClient client = new TypescriptRuntimeClient(typescriptRuntimeBaseUrl);
     // Minimal snippet compatible with /run API (no export default required)
     var result = client.exec("console.log('hi'); return 40 + 2").block();
     assertThat(result).isNotNull();
@@ -28,7 +37,7 @@ public class TypescriptRuntimeClientIntegrationTest {
 
   @Test
   void uploadOpenapi_againstLiveServer_shouldGenerateSdk() throws Exception {
-    TypescriptRuntimeClient client = new TypescriptRuntimeClient();
+    TypescriptRuntimeClient client = new TypescriptRuntimeClient(typescriptRuntimeBaseUrl);
 
     // Create a minimal OpenAPI 3.0 spec in a temporary file
     String openapi = """

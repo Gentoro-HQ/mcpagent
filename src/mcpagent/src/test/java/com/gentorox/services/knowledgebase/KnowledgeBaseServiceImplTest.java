@@ -34,7 +34,7 @@ public class KnowledgeBaseServiceImplTest {
   void setUp() {
     inference = Mockito.mock(InferenceService.class);
     // Return a short deterministic hint regardless of prompt
-    when(inference.sendRequest(any(), any(), any())).thenReturn(new InferenceResponse("test hint", Optional.empty(), "trace"));
+    when(inference.sendRequest(any(), any())).thenReturn(new InferenceResponse("test hint", Optional.empty(), "trace"));
 
     ts = Mockito.mock(TypescriptRuntimeClient.class);
 

@@ -55,12 +55,9 @@ public class TelemetryConfig {
   @Bean(destroyMethod = "close")
   public SdkTracerProvider sdkTracerProvider(
       Resource otelResource,
-      @Value("${otel.exporter.otlp.endpoint:}") String otlpEndpointProp,
-      @Value("${OTEL_EXPORTER_OTLP_ENDPOINT:}") String otlpEndpointEnv) {
+      @Value("${otel.exporter.otlp.endpoint:http://localhost:4317}") String otlpEndpoint) {
 
-    String endpoint = resolveEndpoint(otlpEndpointProp, otlpEndpointEnv);
-
-    var spanExporter = OtlpGrpcSpanExporter.builder().setEndpoint(endpoint).build();
+    var spanExporter = OtlpGrpcSpanExporter.builder().setEndpoint(otlpEndpoint).build();
     return SdkTracerProvider.builder()
         .addSpanProcessor(BatchSpanProcessor.builder(spanExporter).build())
         .setResource(otelResource)
@@ -74,12 +71,9 @@ public class TelemetryConfig {
   @Bean(destroyMethod = "close")
   public SdkMeterProvider sdkMeterProvider(
       Resource otelResource,
-      @Value("${otel.exporter.otlp.endpoint:}") String otlpEndpointProp,
-      @Value("${OTEL_EXPORTER_OTLP_ENDPOINT:}") String otlpEndpointEnv) {
+      @Value("${otel.exporter.otlp.endpoint:http://localhost:4317}") String otlpEndpoint) {
 
-    String endpoint = resolveEndpoint(otlpEndpointProp, otlpEndpointEnv);
-
-    var metricExporter = OtlpGrpcMetricExporter.builder().setEndpoint(endpoint).build();
+    var metricExporter = OtlpGrpcMetricExporter.builder().setEndpoint(otlpEndpoint).build();
     return SdkMeterProvider.builder()
         .setResource(otelResource)
         .registerMetricReader(PeriodicMetricReader.builder(metricExporter).build())
@@ -96,10 +90,5 @@ public class TelemetryConfig {
         .setTracerProvider(sdkTracerProvider)
         .setMeterProvider(sdkMeterProvider)
         .build();
-  }
-
-  private static String resolveEndpoint(String prop, String env) {
-    String candidate = (prop != null && !prop.isBlank()) ? prop : env;
-    return (candidate == null || candidate.isBlank()) ? "http://localhost:4317" : candidate;
   }
 }

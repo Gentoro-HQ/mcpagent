@@ -6,12 +6,13 @@ import { createAliasPlugin } from "./esbuild-alias.js";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { getNumber } from "./env.js";
 export type RunLogEntry = { level: string; args: unknown[] };
 export type RunResult =
     | { ok: true; value: unknown; logs: RunLogEntry[] }
     | { ok: false; error: string; logs: RunLogEntry[] };
 
-const SNIPPET_TIMEOUT_MS = Number(process.env.SNIPPET_TIMEOUT_MS ?? 60_000);
+const SNIPPET_TIMEOUT_MS = getNumber("SNIPPET_TIMEOUT_MS", 60_000)!;
 
 // --- add these for ESM compatibility ---
 const requireForVm = createRequire(import.meta.url);

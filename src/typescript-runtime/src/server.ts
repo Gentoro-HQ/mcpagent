@@ -17,6 +17,7 @@ import { EXTERNAL_SDKS_ROOT } from "./config.js";
 import { invalidateExternalSDKCache } from "./sdk-registry.js";
 import { cleanExternalSDKsRoot } from "./startup.js";
 import { createUniqueSdkFolder } from "./names.js";
+import { getNumber } from "./env.js";
 
 // Cleanup the external SDKs root on startup
 cleanExternalSDKsRoot();
@@ -166,8 +167,8 @@ export async function createServer(): Promise<FastifyInstance> {
           const indexContent = `
 // Auto-generated fallback index.ts (OpenAPI Generator)
 // Re-export everything so consumers can do: import * as sdk from "<namespace>"
-export * from "./api";     // exported APIs live here (e.g., DefaultApi)
-export * from "./model";   // exported models live here
+export * from "./api";
+export * from "./configuration";
 `.trimStart();
           fs.writeFileSync(indexPath, indexContent, "utf8");
       }
@@ -213,7 +214,7 @@ export * from "./model";   // exported models live here
 // -----------------------------
 // Start server (main)
 // -----------------------------
-const port = Number(process.env.PORT ?? 3000);
+const port = getNumber("PORT", 3000)!;
 const app = await createServer();
 app
   .listen({ port, host: "0.0.0.0" })

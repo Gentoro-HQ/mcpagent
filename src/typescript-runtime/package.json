@@ -21,6 +21,7 @@
   "dependencies": {
     "@fastify/multipart": "^8.3.0",
     "axios": "^1.12.2",
+    "dotenv": "^16.4.5",
     "esbuild": "^0.23.0",
     "fastify": "^4.28.1",
     "form-data": "^4.0.4",

@@ -5,18 +5,19 @@ import com.gentorox.services.knowledgebase.KnowledgeBaseEntry;
 import com.gentorox.services.knowledgebase.KnowledgeBaseService;
 import com.gentorox.services.telemetry.TelemetryService;
 import com.gentorox.services.telemetry.TelemetrySession;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Component
 public class RetrieveContextTool implements NativeTool {
-  private final KnowledgeBaseService kbService;
-  private final TelemetryService telemetry;
+  private KnowledgeBaseService kbService;
+  private TelemetryService telemetry;
+  private final ApplicationContext applicationContext;
 
-  public RetrieveContextTool(KnowledgeBaseService kbService, TelemetryService telemetry) {
-    this.kbService = kbService; this.telemetry = telemetry;
+  public RetrieveContextTool(ApplicationContext applicationContext) {
+    this.applicationContext = applicationContext;
   }
 
   @Override
@@ -34,6 +35,17 @@ public class RetrieveContextTool implements NativeTool {
 
   @Override
   public String execute(Map<String, Object> args) {
+
+    if( kbService == null ) {
+      synchronized ( this ) {
+        if( kbService == null ) {
+          // lazy init and prevent circular dependency
+          kbService = applicationContext.getBean( KnowledgeBaseService.class);
+          telemetry = applicationContext.getBean( TelemetryService.class);
+        }
+      }
+    }
+
     var session = TelemetrySession.create();
     return telemetry.inSpan(session, "tool.execute", java.util.Map.of("tool", "retrieveContext"), () -> {
       telemetry.countTool(session, "retrieveContext");
