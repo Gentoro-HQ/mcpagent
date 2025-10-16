@@ -44,22 +44,22 @@ public class OrchestratorImplTest {
       Supplier<?> body = inv.getArgument(3);
       return body.get();
     });
-    when(telemetry.inSpan(any(), anyString(), any(Supplier.class))).thenAnswer(inv -> {
+    when(telemetry.inSpan(anyString(), any(Supplier.class))).thenAnswer(inv -> {
+      Supplier<?> body = inv.getArgument(1);
+      return body.get();
+    });
+    when(telemetry.inSpan(anyString(), anyMap(), any(Supplier.class))).thenAnswer(inv -> {
       Supplier<?> body = inv.getArgument(2);
       return body.get();
     });
-    when(telemetry.inSpan(any(), anyString(), anyMap(), any(Supplier.class))).thenAnswer(inv -> {
-      Supplier<?> body = inv.getArgument(3);
-      return body.get();
-    });
     // Runnable overloads
+    doAnswer(inv -> { Runnable r = inv.getArgument(1); r.run(); return null; })
+        .when(telemetry).inSpan(anyString(), any(Runnable.class));
     doAnswer(inv -> { Runnable r = inv.getArgument(2); r.run(); return null; })
-        .when(telemetry).inSpan(any(), anyString(), any(Runnable.class));
-    doAnswer(inv -> { Runnable r = inv.getArgument(3); r.run(); return null; })
-        .when(telemetry).inSpan(any(), anyString(), anyMap(), any(Runnable.class));
+        .when(telemetry).inSpan(anyString(), anyMap(), any(Runnable.class));
 
-    doAnswer(inv -> null).when(telemetry).countPrompt(any(), anyString(), anyString());
-    doAnswer(inv -> null).when(telemetry).countModelCall(any(), anyString(), anyString());
+    doAnswer(inv -> null).when(telemetry).countPrompt(anyString(), anyString());
+    doAnswer(inv -> null).when(telemetry).countModelCall(anyString(), anyString());
   }
 
   @Test
@@ -125,7 +125,7 @@ public class OrchestratorImplTest {
     OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry);
 
     // Null lists/options
-    when(inference.sendRequest(anyString()))
+    when(inference.sendRequest(anyString(), any()))
         .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
 
     InferenceResponse resp = orch.run(null, null);

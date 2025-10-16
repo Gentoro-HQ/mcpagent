@@ -43,8 +43,7 @@ class TelemetryServiceMetricsTest {
 
   @Test
   void countPrompt_emitsCounterWithAttributes() {
-    var session = new TelemetrySession("s-123");
-    telemetryService.countPrompt(session, "openai", "gpt-4o");
+    telemetryService.countPrompt("openai", "gpt-4o");
 
     var metrics = metricReader.collectAllMetrics();
     assertThat(metrics).anySatisfy(metric -> {
@@ -52,7 +51,6 @@ class TelemetryServiceMetricsTest {
         var data = metric.getLongSumData().getPoints();
         assertThat(data).anySatisfy(point -> {
           Attributes attrs = point.getAttributes();
-          assertThat(attrs.get(AttributeKey.stringKey(ATTR_SESSION_ID))).isEqualTo("s-123");
           assertThat(attrs.get(AttributeKey.stringKey(ATTR_PROVIDER))).isEqualTo("openai");
           assertThat(attrs.get(AttributeKey.stringKey(ATTR_MODEL))).isEqualTo("gpt-4o");
           assertThat(point.getValue()).isEqualTo(1);
@@ -63,8 +61,7 @@ class TelemetryServiceMetricsTest {
 
   @Test
   void countTool_emitsCounterWithAttributes() {
-    var session = new TelemetrySession("s-456");
-    telemetryService.countTool(session, "search");
+    telemetryService.countTool("search");
 
     var metrics = metricReader.collectAllMetrics();
     assertThat(metrics).anySatisfy(metric -> {
@@ -72,7 +69,6 @@ class TelemetryServiceMetricsTest {
         var data = metric.getLongSumData().getPoints();
         assertThat(data).anySatisfy(point -> {
           Attributes attrs = point.getAttributes();
-          assertThat(attrs.get(AttributeKey.stringKey(ATTR_SESSION_ID))).isEqualTo("s-456");
           assertThat(attrs.get(AttributeKey.stringKey(ATTR_TOOL))).isEqualTo("search");
           assertThat(point.getValue()).isEqualTo(1);
         });
@@ -82,8 +78,7 @@ class TelemetryServiceMetricsTest {
 
   @Test
   void countModelCall_emitsCounterWithAttributes() {
-    var session = new TelemetrySession("s-789");
-    telemetryService.countModelCall(session, "anthropic", "claude-3");
+    telemetryService.countModelCall("anthropic", "claude-3");
 
     var metrics = metricReader.collectAllMetrics();
     assertThat(metrics).anySatisfy(metric -> {
@@ -91,7 +86,6 @@ class TelemetryServiceMetricsTest {
         var data = metric.getLongSumData().getPoints();
         assertThat(data).anySatisfy(point -> {
           Attributes attrs = point.getAttributes();
-          assertThat(attrs.get(AttributeKey.stringKey(ATTR_SESSION_ID))).isEqualTo("s-789");
           assertThat(attrs.get(AttributeKey.stringKey(ATTR_PROVIDER))).isEqualTo("anthropic");
           assertThat(attrs.get(AttributeKey.stringKey(ATTR_MODEL))).isEqualTo("claude-3");
           assertThat(point.getValue()).isEqualTo(1);

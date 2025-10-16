@@ -23,9 +23,8 @@ public class RetrieveContextTool {
 
   @Tool("Retrieve knowledge base resources by names or relative paths and return their contents")
   public String retrieveContext(@P("Array of resource names. Each item may be a full kb:// URI or a relative path prefix") List<String> resources) {
-    var session = TelemetrySession.create();
-    return telemetry.inSpan(session, "tool.execute", java.util.Map.of("tool", "retrieveContext"), () -> {
-      telemetry.countTool(session, "retrieveContext");
+    return telemetry.inSpan("tool.execute", java.util.Map.of("tool", "retrieveContext"), () -> {
+      telemetry.countTool("retrieveContext");
 
       // Process the resources list
       if (resources == null || resources.isEmpty()) {
@@ -44,7 +43,7 @@ public class RetrieveContextTool {
           // Treat as relative prefix under kb://
           String prefix = trimmed.startsWith("/") ? trimmed.substring(1) : trimmed;
           String kbPrefix = "kb://" + prefix;
-          List<KnowledgeBaseEntry> entries = telemetry.inSpan(session, "kb.list", java.util.Map.of("prefix", kbPrefix),
+          List<KnowledgeBaseEntry> entries = telemetry.inSpan("kb.list", java.util.Map.of("prefix", kbPrefix),
               () -> kbService.list(kbPrefix));
           for (KnowledgeBaseEntry e : entries) {
             if (e.resource() != null) resolvedResources.add(e.resource());
@@ -55,7 +54,7 @@ public class RetrieveContextTool {
       // Fetch content for each resource
       List<Map<String, Object>> result = new ArrayList<>();
       for (String res : resolvedResources) {
-        String content = telemetry.inSpan(session, "kb.getContent", java.util.Map.of("resource", res),
+        String content = telemetry.inSpan("kb.getContent", java.util.Map.of("resource", res),
             () -> kbService.getContent(res).orElse(null));
         if (content != null) {
           result.add(Map.of(

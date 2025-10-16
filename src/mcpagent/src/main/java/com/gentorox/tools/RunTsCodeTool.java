@@ -18,9 +18,8 @@ public class RunTsCodeTool {
 
   @Tool("Execute a short TypeScript snippet in the isolated runtime and return stdout/result")
   public String runTsCode(@P("TypeScript code to execute") String code) {
-    var session = TelemetrySession.create();
-    return telemetry.inSpan(session,"tool.execute", java.util.Map.of("tool","runTsCode"),
-        () -> telemetry.inSpan(session,"ts.exec", java.util.Map.of(), () -> {
+    return telemetry.inSpan("tool.execute", java.util.Map.of("tool","runTsCode"),
+        () -> telemetry.inSpan("ts.exec", java.util.Map.of(), () -> {
           var r = ts.exec(code).block();
           if (r == null) return "(no result)";
           if (r.value() == null) return "(no result)";
