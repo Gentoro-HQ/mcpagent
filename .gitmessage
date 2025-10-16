@@ -1,0 +1,41 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+#
+# <footer>
+
+# Types:
+#   feat:     A new feature
+#   fix:      A bug fix
+#   docs:     Documentation only changes
+#   style:    Changes that do not affect the meaning of the code
+#   refactor: A code change that neither fixes a bug nor adds a feature
+#   perf:     A code change that improves performance
+#   test:     Adding missing tests or correcting existing tests
+#   chore:    Changes to the build process or auxiliary tools
+#   ci:       Changes to CI configuration files and scripts
+#
+# Scope (optional):
+#   Can be anything specifying the place of the commit change
+#   Examples: inference, tools, telemetry, mcp, etc.
+#
+# Subject:
+#   - Use imperative, present tense: "change" not "changed" nor "changes"
+#   - Don't capitalize first letter
+#   - No dot (.) at the end
+#   - 50 characters or less
+#
+# Body (optional):
+#   - Use imperative, present tense: "change" not "changed" nor "changes"
+#   - Wrap at 72 characters
+#   - Explain "what" and "why" vs. "how"
+#
+# Footer (optional):
+#   - Reference issues using keywords: Fixes #123, Closes #456
+#   - Breaking changes should start with "BREAKING CHANGE:"
+#
+# Examples:
+#   feat(inference): add telemetry to tool execution flow
+#   fix(tools): handle null arguments in calculator tool
+#   docs(readme): update installation instructions
+#   refactor(telemetry): simplify span creation logic

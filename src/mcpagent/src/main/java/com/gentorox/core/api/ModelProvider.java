@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface ModelProvider {
   String id();
-  InferenceResponse infer(InferenceRequest req, List<ToolSpec> tools);
+  InferenceResponse infer(InferenceRequest req, Object... toolInstances);
 }

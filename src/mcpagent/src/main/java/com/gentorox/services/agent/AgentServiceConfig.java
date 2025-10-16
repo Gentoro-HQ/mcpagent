@@ -2,7 +2,6 @@ package com.gentorox.services.agent;
 
 import com.gentorox.services.inference.InferenceService;
 import com.gentorox.services.knowledgebase.KnowledgeBaseService;
-import com.gentorox.tools.NativeTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +21,7 @@ import java.util.List;
  */
 @Configuration
 public class AgentServiceConfig {
-  private static final Logger LOGGER = LoggerFactory.getLogger(AgentServiceConfig.class);
+  private static final Logger logger = LoggerFactory.getLogger(AgentServiceConfig.class);
 
   /**
    * Creates and initializes the AgentService bean.
@@ -39,18 +38,17 @@ public class AgentServiceConfig {
   public AgentService agentService(
       @Value("${knowledgeBase.foundation.dir:/var/foundation}") String rootFoundationDir,
       InferenceService inferenceService,
-      KnowledgeBaseService kbService,
-      List<NativeTool> nativeTools) throws IOException {
+      KnowledgeBaseService kbService) throws IOException {
 
     Path rootFoundationPath = Path.of(rootFoundationDir);
-    LOGGER.info("Initializing AgentService with foundation dir: {}", rootFoundationPath.toAbsolutePath());
+    logger.info("Initializing AgentService with foundation dir: {}", rootFoundationPath.toAbsolutePath());
     if (!Files.exists(rootFoundationPath) || !Files.isDirectory(rootFoundationPath)) {
       throw new IllegalStateException("Foundation dir not found or not a directory: " + rootFoundationPath.toAbsolutePath());
     }
 
-    AgentService agentService = new AgentService(inferenceService, kbService, nativeTools);
+    AgentService agentService = new AgentService(inferenceService, kbService);
     agentService.initialize(rootFoundationPath);
-    LOGGER.info("AgentService initialized");
+    logger.info("AgentService initialized");
     return agentService;
   }
 }

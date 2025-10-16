@@ -22,7 +22,7 @@ import java.nio.file.Path;
  */
 @Configuration
 public class KnowledgeBaseConfig {
-  private static final Logger LOGGER = LoggerFactory.getLogger(KnowledgeBaseConfig.class);
+  private static final Logger logger = LoggerFactory.getLogger(KnowledgeBaseConfig.class);
 
   /**
    * Builds and initializes the KnowledgeBaseService at startup.
@@ -36,7 +36,7 @@ public class KnowledgeBaseConfig {
                               TypescriptRuntimeClient tsRuntimeClient,
                               KnowledgeBasePersistence persistence) throws IOException {
     Path rootFoundationPath = Path.of(rootFoundationDir);
-    LOGGER.info("Initializing KnowledgeBaseService with foundation dir: {}", rootFoundationPath.toAbsolutePath());
+    logger.info("Initializing KnowledgeBaseService with foundation dir: {}", rootFoundationPath.toAbsolutePath());
     if (!Files.exists(rootFoundationPath) || !Files.isDirectory(rootFoundationPath)) {
       throw new IllegalStateException("Foundation dir not found: " + rootFoundationPath.toAbsolutePath());
     }
@@ -44,14 +44,14 @@ public class KnowledgeBaseConfig {
     Path stateDir = rootFoundationPath.resolve("state");
     if (!Files.exists(stateDir)) {
       Files.createDirectories(stateDir);
-      LOGGER.debug("Created state directory at {}", stateDir.toAbsolutePath());
+      logger.debug("Created state directory at {}", stateDir.toAbsolutePath());
     }
 
     Path stateFile = stateDir.resolve("knowledge-base-state.json");
-    LOGGER.info("KnowledgeBase hints: aiGenerationEnabled={}, maxLength={}", hintAiGenerationEnabled, hintContentLimit);
+    logger.info("KnowledgeBase hints: aiGenerationEnabled={}, maxLength={}", hintAiGenerationEnabled, hintContentLimit);
     KnowledgeBaseService knowledgeBaseService = new KnowledgeBaseServiceImpl(inferenceService, tsRuntimeClient, persistence, stateFile, hintAiGenerationEnabled, hintContentLimit);
     knowledgeBaseService.initialize(Path.of(rootFoundationDir));
-    LOGGER.info("KnowledgeBaseService initialized; state file: {}", stateFile.toAbsolutePath());
+    logger.info("KnowledgeBaseService initialized; state file: {}", stateFile.toAbsolutePath());
     return knowledgeBaseService;
   }
 

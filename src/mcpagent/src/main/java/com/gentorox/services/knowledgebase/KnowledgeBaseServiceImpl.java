@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * subsequent startups by restoring from cache when no changes are detected.
  */
 public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(KnowledgeBaseServiceImpl.class);
+  private static final Logger logger = LoggerFactory.getLogger(KnowledgeBaseServiceImpl.class);
   private final InferenceService inferenceService;
   private final TypescriptRuntimeClient tsRuntimeClient;
   private final KnowledgeBasePersistence persistence;
@@ -108,7 +108,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         loadedFromCache = true;
         return;
       }
-    } catch (IOException e) { LOGGER.warn("Failed to load KnowledgeBaseState from {}", stateFile, e); }
+    } catch (IOException e) { logger.warn("Failed to load KnowledgeBaseState from {}", stateFile, e); }
 
     // Fresh build
     entries.clear();
@@ -122,7 +122,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     try {
       var state = new KnowledgeBaseState(signature, new ArrayList<>(entries.values()));
       persistence.save(stateFile, state);
-    } catch (IOException e) { LOGGER.warn("Failed to persist KnowledgeBaseState to {}", stateFile, e); }
+    } catch (IOException e) { logger.warn("Failed to persist KnowledgeBaseState to {}", stateFile, e); }
   }
 
   /**
@@ -176,11 +176,11 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         try {
           return Optional.of(Files.readString(p));
         } catch (IOException e) {
-          LOGGER.debug("Failed to read content from file {}", p, e);
+          logger.debug("Failed to read content from file {}", p, e);
           return Optional.empty();
         }
       }
-    } catch (URISyntaxException e) { LOGGER.debug("Invalid resource URI: {}", resourceUri, e); }
+    } catch (URISyntaxException e) { logger.debug("Invalid resource URI: {}", resourceUri, e); }
     return Optional.empty();
   }
 
@@ -241,7 +241,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
       try (var stream = Files.list(docsDir)) {
         stream.filter(p -> Files.isRegularFile(p) && hasExtension(p, ".md", ".mdx"))
             .forEach(p -> addFoundationFile(p, "docs", p.getFileName().toString()));
-      } catch (IOException e) { LOGGER.debug("Failed to list docs directory {}", docsDir, e); }
+      } catch (IOException e) { logger.debug("Failed to list docs directory {}", docsDir, e); }
     }
 
     // feedback/* (treat as markdown or text)
@@ -250,7 +250,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
       try (var stream = Files.list(feedbackDir)) {
         stream.filter(Files::isRegularFile)
             .forEach(p -> addFoundationFile(p, "feedback", p.getFileName().toString()));
-      } catch (IOException e) { LOGGER.debug("Failed to list feedback directory {}", feedbackDir, e); }
+      } catch (IOException e) { logger.debug("Failed to list feedback directory {}", feedbackDir, e); }
     }
 
     // tests/* (optional include - they are useful context sometimes)
@@ -262,7 +262,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
               Path rel = testsDir.relativize(p);
               addFoundationFile(p, "tests", rel.toString().replace('\\','/'));
             });
-      } catch (IOException e) { LOGGER.debug("Failed to walk tests directory {}", testsDir, e); }
+      } catch (IOException e) { logger.debug("Failed to walk tests directory {}", testsDir, e); }
     }
 
     // specs -> OpenAPI transformation (yaml/json)
@@ -271,7 +271,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
       try (var stream = Files.list(specsDir)) {
         stream.filter(p -> Files.isRegularFile(p) && hasExtension(p, ".yaml", ".yml", ".json"))
             .forEach(this::processOpenApiSpec);
-      } catch (IOException e) { LOGGER.debug("Failed to list specs directory {}", specsDir, e); }
+      } catch (IOException e) { logger.debug("Failed to list specs directory {}", specsDir, e); }
     }
   }
 
@@ -289,7 +289,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     try {
       UploadResult up = tsRuntimeClient.uploadOpenapi(spec, outDir)
           .onErrorResume(e -> {
-            LOGGER.error("Failed to upload OpenAPI spec to Typescript runtime", e);
+            logger.error("Failed to upload OpenAPI spec to Typescript runtime", e);
             return Mono.empty();
           }).blockOptional().orElse(null);
       if (up == null || up.sdk() == null || up.sdk().namespace() == null) {
@@ -317,7 +317,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
       }
     } catch (Exception e) {
       // On any error, at least index the raw spec file under openapi type
-      LOGGER.warn("Failed to process OpenAPI spec {}, indexing raw file instead", spec, e);
+      logger.warn("Failed to process OpenAPI spec {}, indexing raw file instead", spec, e);
       addFoundationFile(spec, "openapi", spec.getFileName().toString());
     }
   }
@@ -394,13 +394,13 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
               .forEach(f -> {
                 try {
                   sb.append(f.toAbsolutePath()).append('|').append(Files.getLastModifiedTime(f).toMillis()).append('\n');
-                } catch (IOException e) { LOGGER.debug("Failed to read lastModifiedTime for {}", f, e); }
+                } catch (IOException e) { logger.debug("Failed to read lastModifiedTime for {}", f, e); }
               });
-        } catch (IOException e) { LOGGER.debug("Failed to walk directory {}", dir, e); }
+        } catch (IOException e) { logger.debug("Failed to walk directory {}", dir, e); }
       } else if (Files.isRegularFile(dir)) {
         try {
           sb.append(dir.toAbsolutePath()).append('|').append(Files.getLastModifiedTime(dir).toMillis()).append('\n');
-        } catch (IOException e) { LOGGER.debug("Failed to read lastModifiedTime for {}", dir, e); }
+        } catch (IOException e) { logger.debug("Failed to read lastModifiedTime for {}", dir, e); }
       }
     }
     return Integer.toHexString(sb.toString().hashCode());

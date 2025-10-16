@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  * If the file does not exist, nothing happens (tests continue normally).
  */
 public class EnvLoaderLauncherSessionListener implements LauncherSessionListener {
-  private static final Logger LOGGER = LoggerFactory.getLogger(EnvLoaderLauncherSessionListener.class);
+  private static final Logger logger = LoggerFactory.getLogger(EnvLoaderLauncherSessionListener.class);
     private static volatile boolean loaded = false;
 
     @Override
@@ -55,7 +55,7 @@ public class EnvLoaderLauncherSessionListener implements LauncherSessionListener
         try {
             setEnvIfMissing(vars);
         } catch (Throwable ignored) {
-          LOGGER.warn("Failed to mutate env", ignored);
+          logger.warn("Failed to mutate env", ignored);
         }
     }
 

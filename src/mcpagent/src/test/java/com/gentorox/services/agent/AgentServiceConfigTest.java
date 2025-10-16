@@ -2,7 +2,6 @@ package com.gentorox.services.agent;
 
 import com.gentorox.services.inference.InferenceService;
 import com.gentorox.services.knowledgebase.KnowledgeBaseService;
-import com.gentorox.tools.NativeTool;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -32,7 +31,7 @@ public class AgentServiceConfigTest {
     InferenceService inference = mock(InferenceService.class);
     KnowledgeBaseService kb = mock(KnowledgeBaseService.class);
 
-    AgentService service = cfg.agentService(tmp.toString(), inference, kb, List.of());
+    AgentService service = cfg.agentService(tmp.toString(), inference, kb);
     assertNotNull(service);
     // service should be initialized; getConfig() should not throw
     assertDoesNotThrow(service::getConfig);
@@ -54,12 +53,12 @@ public class AgentServiceConfigTest {
 
     // Non-existing path
     IllegalStateException ex1 = assertThrows(IllegalStateException.class, () ->
-        cfg.agentService(tmp.resolve("missing").toString(), inference, kb, List.of()));
+        cfg.agentService(tmp.resolve("missing").toString(), inference, kb));
     assertTrue(ex1.getMessage().contains("Foundation dir not found or not a directory"));
 
     // Existing but not a directory
     IllegalStateException ex2 = assertThrows(IllegalStateException.class, () ->
-        cfg.agentService(file.toString(), inference, kb, List.of()));
+        cfg.agentService(file.toString(), inference, kb));
     assertTrue(ex2.getMessage().contains("Foundation dir not found or not a directory"));
   }
 }

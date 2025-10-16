@@ -1,19 +1,15 @@
 package com.gentorox.services.agent;
 
-import com.gentorox.core.api.ToolSpec;
 import com.gentorox.core.model.InferenceRequest;
 import com.gentorox.core.model.InferenceResponse;
 import com.gentorox.services.inference.InferenceService;
 import com.gentorox.services.knowledgebase.KnowledgeBaseEntry;
 import com.gentorox.services.knowledgebase.KnowledgeBaseService;
 import com.gentorox.services.telemetry.TelemetryService;
-import com.gentorox.tools.NativeTool;
-import com.gentorox.tools.NativeToolsRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,8 +29,6 @@ public class OrchestratorImplTest {
   KnowledgeBaseService kb;
   InferenceService inference;
   TelemetryService telemetry;
-  NativeTool toolOk;
-  NativeTool toolBroken;
 
   @BeforeEach
   void setUp() {
@@ -43,11 +37,7 @@ public class OrchestratorImplTest {
     inference = mock(InferenceService.class);
     telemetry = mock(TelemetryService.class);
 
-    toolOk = mock(NativeTool.class, withSettings().name("MathTool"));
-    toolBroken = mock(NativeTool.class, withSettings().name("BrokenTool"));
-
-    when(toolOk.spec()).thenReturn(new ToolSpec("Math", "Adds numbers", List.of()));
-    when(toolBroken.spec()).thenThrow(new RuntimeException("spec error"));
+    // Tools are now handled by LangChain4j @Tool annotations
 
     // Telemetry helpers: execute suppliers/runnables directly to avoid OTEL complexity in unit tests
     when(telemetry.runRoot(any(), anyString(), anyMap(), any(Supplier.class))).thenAnswer(inv -> {
@@ -85,9 +75,7 @@ public class OrchestratorImplTest {
         new KnowledgeBaseEntry("kb://openapi/catalog.yaml", "", "")
     ));
 
-    NativeToolsRegistry nativeToolsRegistry = new NativeToolsRegistry(new ArrayList<>());
-    nativeToolsRegistry.addTools(List.of(toolOk, toolBroken));
-    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, nativeToolsRegistry);
+    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry);
 
     List<InferenceRequest.Message> msgs = List.of(
         new InferenceRequest.Message("user", "Pay order 123"),
@@ -97,20 +85,18 @@ public class OrchestratorImplTest {
 
     when(inference.sendRequest(anyString()))
         .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
-    when(inference.sendRequest(anyString(), anyList()))
-        .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
 
     InferenceResponse resp = orch.run(msgs, opts);
     assertEquals("ok", resp.content());
 
-    // Verify tools list contains only the valid ToolSpec (safeSpec excludes broken tool)
+    // Verify the prompt contains expected content
     verify(inference).sendRequest(argThat(prompt ->
         prompt.contains("BASE_SP") &&
             prompt.contains("Knowledge Base (resources):") &&
             prompt.contains("kb://docs/A.md") &&
             prompt.contains("Available Services:") &&
             prompt.contains("kb://openapi/catalog.yaml")
-    ), argThat((registry) -> registry.size() == 1 && registry.get(0).spec().name().equals("Math")));
+    ));
   }
 
   @Test
@@ -121,7 +107,7 @@ public class OrchestratorImplTest {
 
     when(kb.list("")).thenReturn(List.of());
 
-    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, null);
+    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry);
 
     List<InferenceRequest.Message> msgs = List.of(new InferenceRequest.Message("user", "please delete file"));
 
@@ -136,10 +122,10 @@ public class OrchestratorImplTest {
     when(agent.guardrails()).thenReturn("");
     when(kb.list("")).thenReturn(List.of());
 
-    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry, null);
+    OrchestratorImpl orch = new OrchestratorImpl(agent, kb, inference, telemetry);
 
     // Null lists/options
-    when(inference.sendRequest(anyString(), any()))
+    when(inference.sendRequest(anyString()))
         .thenReturn(new InferenceResponse("ok", Optional.empty(), ""));
 
     InferenceResponse resp = orch.run(null, null);

@@ -1,9 +1,7 @@
 package com.gentorox.services.agent;
 
-import com.gentorox.core.api.ToolSpec;
 import com.gentorox.services.inference.InferenceService;
 import com.gentorox.services.knowledgebase.KnowledgeBaseService;
-import com.gentorox.tools.NativeTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -33,37 +31,18 @@ import java.util.regex.Pattern;
  */
 @Service
 public class AgentService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(AgentService.class);
+  private static final Logger logger = LoggerFactory.getLogger(AgentService.class);
 
   private final InferenceService inferenceService;
   private final KnowledgeBaseService kbService;
-  private final Map<String, ToolSpec> toolSpecsByClassName;
-  private final Map<String, ToolSpec> toolSpecsByName;
+  // Tools are now handled by LangChain4j @Tool annotations
 
   private volatile AgentConfig resolvedConfig;
 
-  public AgentService(InferenceService inferenceService, KnowledgeBaseService kbService, List<NativeTool> nativeTools) {
+  public AgentService(InferenceService inferenceService, KnowledgeBaseService kbService) {
     this.inferenceService = Objects.requireNonNull(inferenceService, "inferenceService");
     this.kbService = Objects.requireNonNull(kbService, "kbService");
-    // Build lookups from simple class name and tool name to ToolSpec for placeholder resolution
-    Map<String, ToolSpec> byClass = new HashMap<>();
-    Map<String, ToolSpec> byName = new HashMap<>();
-    if (nativeTools != null) {
-      for (NativeTool t : nativeTools) {
-        try {
-          String simple = t.getClass().getSimpleName();
-          ToolSpec spec = t.spec();
-          if (spec != null) {
-            if (simple != null) byClass.put(simple, spec);
-            if (spec.name() != null) byName.put(spec.name(), spec);
-          }
-        } catch (Exception ex) {
-          LOGGER.warn("Failed to read spec from tool {}", t, ex);
-        }
-      }
-    }
-    this.toolSpecsByClassName = Map.copyOf(byClass);
-    this.toolSpecsByName = Map.copyOf(byName);
+    // Tools are now handled by LangChain4j @Tool annotations
     // Do not auto-load here; let the host call initialize(...) once foundation is known.
   }
 
@@ -107,36 +86,11 @@ public class AgentService {
   /** Convenience: returns guardrails text (after autogen if enabled). */
   public String guardrails() { return Optional.ofNullable(getConfig().guardrails()).map(AgentConfig.Guardrails::content).orElse(""); }
 
-  // ---------- Placeholder resolution ----------
+  // ---------- System prompt personalization ----------
 
   private String personalizeSystemPrompt(String systemPrompt) {
-    if (systemPrompt == null || systemPrompt.isBlank()) return systemPrompt;
-    String text = systemPrompt;
-    Pattern p = Pattern.compile("\\{\\{\\s*tool\\.([A-Za-z0-9_$.]+)\\.(name|description)\\s*}}");
-    Matcher m = p.matcher(text);
-    StringBuffer sb = new StringBuffer();
-    while (m.find()) {
-      String id = m.group(1);
-      String field = m.group(2);
-      // Try direct by class simple name, then by tool name
-      ToolSpec spec = toolSpecsByClassName.get(id);
-      if (spec == null) spec = toolSpecsByName.get(id);
-      if (spec == null && id.contains(".")) {
-        // if provided a FQCN, try last segment
-        String simple = id.substring(id.lastIndexOf('.')+1);
-        spec = toolSpecsByClassName.get(simple);
-      }
-      String replacement;
-      if (spec == null) {
-        LOGGER.warn("Unresolved tool placeholder: {}.{}", id, field);
-        replacement = ""; // or keep original; choosing empty to avoid leaking template markers
-      } else {
-        replacement = "name".equals(field) ? spec.name() : Optional.ofNullable(spec.description()).orElse("");
-      }
-      m.appendReplacement(sb, Matcher.quoteReplacement(replacement));
-    }
-    m.appendTail(sb);
-    return sb.toString();
+    // Tools are now handled by LangChain4j @Tool annotations, no placeholder resolution needed
+    return systemPrompt;
   }
 
   // ---------- Loading ----------
@@ -157,7 +111,7 @@ public class AgentService {
     try (InputStream in = Files.newInputStream(overridePath)) {
       return parseYaml(in);
     } catch (Exception e) {
-      LOGGER.warn("Failed to parse foundation overrides at {}. Using defaults.", overridePath, e);
+      logger.warn("Failed to parse foundation overrides at {}. Using defaults.", overridePath, e);
       return AgentConfig.empty();
     }
   }
@@ -289,7 +243,7 @@ public class AgentService {
       }
       return result;
     } catch (Exception ex) {
-      LOGGER.warn("Failed to collect OpenAPI service summaries from KnowledgeBase", ex);
+      logger.warn("Failed to collect OpenAPI service summaries from KnowledgeBase", ex);
       return List.of();
     }
   }

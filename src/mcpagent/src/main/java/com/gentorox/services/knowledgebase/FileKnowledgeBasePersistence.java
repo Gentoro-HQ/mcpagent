@@ -22,7 +22,7 @@ import java.util.Optional;
  */
 @Component
 public class FileKnowledgeBasePersistence implements KnowledgeBasePersistence {
-  private static final Logger LOGGER = LoggerFactory.getLogger(FileKnowledgeBasePersistence.class);
+  private static final Logger logger = LoggerFactory.getLogger(FileKnowledgeBasePersistence.class);
 
   private final ObjectMapper objectMapper;
 
@@ -45,13 +45,13 @@ public class FileKnowledgeBasePersistence implements KnowledgeBasePersistence {
     Objects.requireNonNull(file, "file");
 
     if (Files.isRegularFile(file)) {
-      LOGGER.debug("Loading KnowledgeBaseState from {}", file);
+      logger.debug("Loading KnowledgeBaseState from {}", file);
       try (var in = Files.newBufferedReader(file)) {
         return Optional.ofNullable(objectMapper.readValue(in, KnowledgeBaseState.class));
       }
     }
 
-    LOGGER.debug("KnowledgeBaseState file not found or not a regular file: {}", file);
+    logger.debug("KnowledgeBaseState file not found or not a regular file: {}", file);
     return Optional.empty();
   }
 
@@ -75,11 +75,11 @@ public class FileKnowledgeBasePersistence implements KnowledgeBasePersistence {
 
     if (Files.exists(file)) {
       Path backup = file.resolveSibling(file.getFileName() + ".bak." + System.currentTimeMillis());
-      LOGGER.info("Existing KnowledgeBaseState detected. Creating backup: {} -> {}", file, backup);
+      logger.info("Existing KnowledgeBaseState detected. Creating backup: {} -> {}", file, backup);
       Files.move(file, backup);
     }
 
-    LOGGER.debug("Saving KnowledgeBaseState to {}", file);
+    logger.debug("Saving KnowledgeBaseState to {}", file);
     try (var out = Files.newBufferedWriter(file)) {
       objectMapper.writeValue(out, state);
     }

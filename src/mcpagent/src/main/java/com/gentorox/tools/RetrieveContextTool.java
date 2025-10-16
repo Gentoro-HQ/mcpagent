@@ -1,75 +1,45 @@
 package com.gentorox.tools;
 
-import com.gentorox.core.api.ToolSpec;
 import com.gentorox.services.knowledgebase.KnowledgeBaseEntry;
 import com.gentorox.services.knowledgebase.KnowledgeBaseService;
 import com.gentorox.services.telemetry.TelemetryService;
 import com.gentorox.services.telemetry.TelemetrySession;
-import org.springframework.context.ApplicationContext;
+import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.agent.tool.P;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class RetrieveContextTool implements NativeTool {
-  private KnowledgeBaseService kbService;
-  private TelemetryService telemetry;
-  private final ApplicationContext applicationContext;
+@Component
+public class RetrieveContextTool {
+  private final KnowledgeBaseService kbService;
+  private final TelemetryService telemetry;
 
-  public RetrieveContextTool(ApplicationContext applicationContext) {
-    this.applicationContext = applicationContext;
+  public RetrieveContextTool(KnowledgeBaseService kbService, TelemetryService telemetry) {
+    this.kbService = kbService;
+    this.telemetry = telemetry;
   }
 
-  @Override
-  public ToolSpec spec() {
-    return new ToolSpec(
-        "retrieveContext",
-        "Retrieve knowledge base resources by names or relative paths and return their contents.",
-        java.util.List.of(
-            new ToolSpec.Parameter("resources","array",true,
-                "Array of resource names. Each item may be a full kb:// URI or a relative path prefix.",
-                Map.of("items", Map.of("type", "string")))
-        )
-    );
-  }
-
-  @Override
-  public String execute(Map<String, Object> args) {
-
-    if( kbService == null ) {
-      synchronized ( this ) {
-        if( kbService == null ) {
-          // lazy init and prevent circular dependency
-          kbService = applicationContext.getBean( KnowledgeBaseService.class);
-          telemetry = applicationContext.getBean( TelemetryService.class);
-        }
-      }
-    }
-
+  @Tool("Retrieve knowledge base resources by names or relative paths and return their contents")
+  public String retrieveContext(@P("Array of resource names. Each item may be a full kb:// URI or a relative path prefix") List<String> resources) {
     var session = TelemetrySession.create();
     return telemetry.inSpan(session, "tool.execute", java.util.Map.of("tool", "retrieveContext"), () -> {
       telemetry.countTool(session, "retrieveContext");
 
-      // Parse input array safely
-      Object raw = args.get("resources");
-      List<String> requested = new ArrayList<>();
-      if (raw instanceof Collection<?> c) {
-        for (Object o : c) if (o != null) requested.add(String.valueOf(o));
-      } else if (raw instanceof String s && !s.isBlank()) {
-        // allow single string for convenience
-        requested.add(s);
+      // Process the resources list
+      if (resources == null || resources.isEmpty()) {
+        return "No resources specified";
       }
 
-      if (requested.isEmpty()) return "[]";
-
       // Resolve to concrete kb:// resources
-      Set<String> resources = new LinkedHashSet<>();
-      for (String item : requested) {
+      Set<String> resolvedResources = new LinkedHashSet<>();
+      for (String item : resources) {
         String trimmed = item.trim();
         if (trimmed.isEmpty()) continue;
 
         if (trimmed.startsWith("kb://")) {
-          resources.add(trimmed);
+          resolvedResources.add(trimmed);
         } else {
           // Treat as relative prefix under kb://
           String prefix = trimmed.startsWith("/") ? trimmed.substring(1) : trimmed;
@@ -77,14 +47,14 @@ public class RetrieveContextTool implements NativeTool {
           List<KnowledgeBaseEntry> entries = telemetry.inSpan(session, "kb.list", java.util.Map.of("prefix", kbPrefix),
               () -> kbService.list(kbPrefix));
           for (KnowledgeBaseEntry e : entries) {
-            if (e.resource() != null) resources.add(e.resource());
+            if (e.resource() != null) resolvedResources.add(e.resource());
           }
         }
       }
 
       // Fetch content for each resource
       List<Map<String, Object>> result = new ArrayList<>();
-      for (String res : resources) {
+      for (String res : resolvedResources) {
         String content = telemetry.inSpan(session, "kb.getContent", java.util.Map.of("resource", res),
             () -> kbService.getContent(res).orElse(null));
         if (content != null) {

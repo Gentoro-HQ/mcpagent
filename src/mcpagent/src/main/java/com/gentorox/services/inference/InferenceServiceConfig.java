@@ -1,6 +1,6 @@
 package com.gentorox.services.inference;
 
-import com.gentorox.tools.NativeToolsRegistry;
+import com.gentorox.services.telemetry.TelemetryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Configuration;
  * Spring configuration for wiring the InferenceService bean.
  *
  * This configuration centralizes the creation of the InferenceService, ensuring
- * a single instance is constructed with the currently configured ProviderConfig
- * and the NativeToolsRegistry.
+ * a single instance is constructed with the currently configured ProviderProperties
+ * and TelemetryService.
  */
 @Configuration
 public class InferenceServiceConfig {
@@ -24,14 +24,14 @@ public class InferenceServiceConfig {
    * application was configured as intended.
    *
    * @param providerProperties provider selection and per-provider settings
-   * @param toolsRegistry registry with currently available native tools
+   * @param telemetry telemetry service for tracking
    * @return a configured InferenceService
    */
   @Bean
-  InferenceService inferenceService(ProviderProperties providerProperties, NativeToolsRegistry toolsRegistry) {
+  InferenceService inferenceService(ProviderProperties providerProperties, TelemetryService telemetry) {
     String defaultProvider = providerProperties != null ? providerProperties.getDefaultProvider() : null;
     LOGGER.info("Initializing InferenceService bean (defaultProvider={})", defaultProvider);
-    return new InferenceService(providerProperties, toolsRegistry);
+    return new InferenceService(providerProperties, telemetry);
   }
 
 }
