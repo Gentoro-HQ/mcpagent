@@ -24,6 +24,7 @@ Write-Host "Platforms: $Platforms"
 
 # Build Docker image
 try {
+    $buildCmd = "docker"
     $buildArgs = @(
         "buildx", "build",
         "-f", "$Dockerfile",
@@ -54,7 +55,7 @@ try {
 
     $buildArgs += "$ROOT"
     
-    docker @buildArgs
+    & $buildCmd @buildArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Docker build failed"
     }

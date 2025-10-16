@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Service validation script for Docker images
-# Usage: ./validate-services.sh <version> <platform>
+# Container validation script for Docker images
+# Usage: ./validate-containers.sh <version> <platform>
 
 set -euo pipefail
 
@@ -57,14 +57,12 @@ validate_base_image() {
     
     local container_name="base-validation-$(date +%s)"
     
-    # Check if base image exists (try local first, then registry)
+    # Check if base image exists locally
     if ! docker image inspect "$BASE_IMAGE" >/dev/null 2>&1; then
-        log_info "Base image not found locally, checking registry..."
-        if ! docker manifest inspect "$BASE_IMAGE" >/dev/null 2>&1; then
-            log_error "Base image $BASE_IMAGE does not exist locally or in registry"
-            return 1
-        fi
-        log_info "Base image found in registry"
+        log_error "Base image $BASE_IMAGE does not exist locally"
+        log_info "Available images:"
+        docker images | grep -E "(gentoro|base)" || echo "No gentoro images found"
+        return 1
     else
         log_info "Base image found locally"
     fi
@@ -127,14 +125,12 @@ validate_product_image() {
     
     local container_name="product-validation-$(date +%s)"
     
-    # Check if product image exists (try local first, then registry)
+    # Check if product image exists locally
     if ! docker image inspect "$PRODUCT_IMAGE" >/dev/null 2>&1; then
-        log_info "Product image not found locally, checking registry..."
-        if ! docker manifest inspect "$PRODUCT_IMAGE" >/dev/null 2>&1; then
-            log_error "Product image $PRODUCT_IMAGE does not exist locally or in registry"
-            return 1
-        fi
-        log_info "Product image found in registry"
+        log_error "Product image $PRODUCT_IMAGE does not exist locally"
+        log_info "Available images:"
+        docker images | grep -E "(gentoro|mcpagent)" || echo "No gentoro images found"
+        return 1
     else
         log_info "Product image found locally"
     fi
@@ -256,7 +252,7 @@ validate_product_image() {
 }
 
 main() {
-    log_info "Starting service validation"
+    log_info "Starting container validation"
     log_info "Version: $VERSION"
     log_info "Platform: $PLATFORM"
     log_info "Base Image: $BASE_IMAGE"
@@ -274,7 +270,7 @@ main() {
         exit 1
     fi
     
-    log_success "All service validations passed for $PLATFORM!"
+    log_success "All container validations passed for $PLATFORM!"
 }
 
 main "$@"

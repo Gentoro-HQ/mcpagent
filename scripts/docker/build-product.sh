@@ -60,11 +60,27 @@ else
   if [[ "$PLATFORM_FLAG" != "--platform" ]]; then
     PLATFORMS="linux/amd64"
   fi
+  
+  # Check if base image exists locally - try both versioned and latest
+  BASE_IMAGE_NAME="admingentoro/gentoro:base-$VERSION"
+  if ! docker image inspect "$BASE_IMAGE_NAME" >/dev/null 2>&1; then
+    echo "⚠️  Base image $BASE_IMAGE_NAME not found, trying base-latest..."
+    if docker image inspect "admingentoro/gentoro:base-latest" >/dev/null 2>&1; then
+      BASE_IMAGE_NAME="admingentoro/gentoro:base-latest"
+      echo "✅ Using admingentoro/gentoro:base-latest"
+    else
+      echo "❌ No base image found locally"
+      echo "Available base images:"
+      docker images | grep "admingentoro/gentoro.*base" || echo "No base images found"
+      exit 1
+    fi
+  fi
+  
   BUILD_CMD="docker build"
   BUILD_ARGS=(
     -f "$ROOT_DIR/Dockerfile"
     --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
-    --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
+    --build-arg "BASE_IMAGE=$BASE_IMAGE_NAME"
     -t "admingentoro/gentoro:$VERSION"
     -t "admingentoro/gentoro:latest"
     --platform "$PLATFORMS"

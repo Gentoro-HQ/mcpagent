@@ -136,7 +136,7 @@ docker rm mcpagent-deps
 ### Test Services
 ```bash
 # Test all services in the container
-./scripts/docker/validate-services.sh latest linux/amd64
+./scripts/docker/validate-containers.sh latest linux/amd64
 ```
 
 ## Environment
@@ -154,3 +154,40 @@ Traces/metrics/logs are exported to OTLP.
 ## MCP
 
 The tool `gentoro.run` accepts `{ provider, model, messages, options }` and returns `{ content, toolCall, traceId }`.
+
+## CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment. The pipeline includes:
+
+### Pipeline Stages
+
+1. **Unit Tests** - Fast feedback for code quality across all projects
+2. **Integration Tests** - Test component interactions (mcpagent ↔ TypeScript runtime)
+3. **Build & Service Validation** - Build artifacts and validate full system deployment
+4. **Docker Build & Container Validation** - Build and test containerized deployment for both AMD64 and ARM64
+
+### Pipeline Features
+
+- **Multi-platform support**: Tests both `linux/amd64` and `linux/arm64` architectures
+- **Resilient design**: Integration and service validation stages are optional to prevent external dependency failures
+- **Artifact management**: Build artifacts are shared between stages for efficiency
+- **Container validation**: Automated testing of Docker container functionality
+
+### Running Locally
+
+To run the same tests locally:
+
+```bash
+# Unit tests
+cd src/mcpagent && mvn test
+cd src/acme-analytics-server/server && mvn test  
+cd src/typescript-runtime && npm test
+
+# Integration tests
+cd src/typescript-runtime && npm run dev &
+cd src/mcpagent && mvn test -Dtest="*IntegrationTest"
+
+# Container validation
+./scripts/docker/validate-containers.sh 0.1.0 linux/amd64
+```
+

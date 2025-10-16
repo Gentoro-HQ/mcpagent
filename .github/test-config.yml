@@ -1,0 +1,129 @@
+# Test Configuration for CI/CD Pipeline
+# This file centralizes test configuration for better maintainability
+
+# Unit Test Configuration
+unit_tests:
+  mcpagent:
+    # Specific unit tests that don't require full Spring context
+    test_classes:
+      - "AgentServiceTest"
+      - "TelemetryServiceTracingTest" 
+      - "TelemetryServiceMetricsTest"
+      - "LogContextTest"
+      - "TelemetryConfigTest"
+    # Additional unit tests can be added here as they become available
+    additional_tests:
+      - "KnowledgeBaseServiceImplTest"
+      - "FileKnowledgeBasePersistenceTest"
+      - "OrchestratorImplTest"
+      - "AgentServiceConfigTest"
+  
+  acme_analytics_server:
+    # All tests are unit tests for this component
+    test_all: true
+  
+  typescript_runtime:
+    # All tests are unit tests for this component
+    test_all: true
+
+# Integration Test Configuration
+integration_tests:
+  mcpagent:
+    # Integration tests that require external dependencies
+    test_classes:
+      - "*IntegrationTest"
+    # These tests may require external services or special setup
+    requires_external_deps: true
+    skip_on_failure: true  # Skip if external deps not available
+
+# Build Configuration
+build:
+  mcpagent:
+    skip_tests: true  # Tests run in separate stages
+    create_executable_jar: true
+  
+  acme_analytics_server:
+    skip_tests: true
+    create_executable_jar: true
+  
+  typescript_runtime:
+    build_command: "npm run build"
+    install_command: "npm install --legacy-peer-deps"
+
+# Docker Configuration
+docker:
+  platforms:
+    - "linux/amd64"
+    - "linux/arm64"
+  
+  base_image:
+    build_script: "scripts/docker/build-base.sh"
+  
+  product_image:
+    build_script: "scripts/docker/build-product.sh"
+
+# Service Validation Configuration
+service_validation:
+  validation_script: "scripts/docker/validate-services.sh"
+  platforms:
+    - "linux/amd64"
+    - "linux/arm64"
+  
+  # HTTP Service Endpoints to validate
+  services:
+    mcpagent:
+      port: 8080
+      health_endpoint: "/actuator/health"
+      mcp_endpoint: "/mcp"
+      expected_response: "UP"
+    
+    acme_analytics_server:
+      port: 8081
+      health_endpoint: "/health"
+      fields_endpoint: "/fields"
+      query_endpoint: "/query"
+      expected_response: "healthy"
+    
+    typescript_runtime:
+      port: 3000
+      run_endpoint: "/run"
+      upload_endpoint: "/sdk/upload"
+      expected_response: "success"
+
+# Performance and Optimization
+performance:
+  # Cache configuration
+  cache:
+    maven:
+      path: "~/.m2"
+      key_pattern: "${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}"
+      restore_keys: "${{ runner.os }}-m2"
+    
+    npm:
+      path: "src/typescript-runtime/node_modules"
+      key_pattern: "${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json') }}"
+      restore_keys: "${{ runner.os }}-npm"
+  
+  # Parallel execution
+  parallel_jobs:
+    unit_tests: 1  # Run sequentially for now
+    integration_tests: 1
+    build: 1
+    docker_build: 2  # Matrix strategy for platforms
+    service_validation: 2  # Matrix strategy for platforms
+
+# Environment Configuration
+environment:
+  java_version: "21"
+  node_version: "20"
+  ubuntu_version: "ubuntu-latest"
+  
+  # Required directories for tests
+  required_directories:
+    - "/var/foundation"
+  
+  # Required tools
+  required_tools:
+    - "xmllint"
+    - "docker"
+    - "qemu"
