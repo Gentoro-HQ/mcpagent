@@ -139,8 +139,8 @@ jobs:
           echo "❌ TypeScript Runtime process died during integration test startup"
           echo "Log output:"
           cat ts-runtime.log || echo "No log file found"
-          echo "Skipping integration tests due to service startup failure"
-          exit 0
+          echo "Integration tests cannot run without TypeScript Runtime service"
+          exit 1
         fi
         
         # Check if server is running by trying to connect
@@ -157,8 +157,8 @@ jobs:
             echo "❌ TypeScript Runtime process died during health check (attempt $i/5)"
             echo "Log output:"
             cat ts-runtime.log || echo "No log file found"
-            echo "Skipping integration tests due to service failure"
-            exit 0
+            echo "Integration tests cannot run without TypeScript Runtime service"
+            exit 1
           fi
           echo "Waiting for server to start... attempt $i/5"
           sleep 5
@@ -168,14 +168,9 @@ jobs:
       run: |
         cd src/mcpagent
         echo "Running mcpagent integration tests..."
-        # Run integration tests and capture exit code
-        if mvn test -Dtest="*IntegrationTest"; then
-          echo "Integration tests passed"
-        else
-          echo "Integration tests failed - this may be expected if external dependencies are not available"
-          # Don't fail the entire pipeline for integration test failures
-          exit 0
-        fi
+        # Run integration tests - failures should block the pipeline
+        echo "Running integration tests..."
+        mvn test -Dtest="*IntegrationTest"
     
     - name: Stop TypeScript runtime server
       if: always()
