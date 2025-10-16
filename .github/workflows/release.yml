@@ -40,9 +40,9 @@ jobs:
           "https://api.github.com/repos/${{ github.repository }}/commits/main" | \
           jq -r '.sha')
         
-        # Check if PR checks workflow passed for the latest commit
+        # Check if CI checks workflow passed for the latest commit
         WORKFLOW_RUNS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/actions/workflows/pr-checks.yml/runs" | \
+          "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci-checks.yml/runs" | \
           jq -r '.workflow_runs[] | select(.head_sha == "'$LATEST_SHA'") | .conclusion')
         
         if [[ "$WORKFLOW_RUNS" == "success" ]]; then
