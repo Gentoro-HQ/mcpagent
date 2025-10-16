@@ -603,7 +603,7 @@ jobs:
     name: Docker Build & Container Validation
     runs-on: ubuntu-latest
     needs: build-and-service-validation
-    if: always() && (needs.build-and-service-validation.result == 'success' || needs.build-and-service-validation.result == 'skipped')
+    if: needs.build-and-service-validation.result == 'success' || needs.build-and-service-validation.result == 'skipped'
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
