@@ -283,7 +283,7 @@ jobs:
         fi
         
         # Check acme-analytics-server JAR
-        ACME_JAR=$(find src/acme-analytics-server/server/target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+        ACME_JAR=$(find src/acme-analytics-server/server/target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" -not -name "original-*.jar" | head -1)
         if [ -f "$ACME_JAR" ]; then
           echo "✅ acme-analytics-server JAR found: $ACME_JAR"
           ls -la "$ACME_JAR"
@@ -350,7 +350,7 @@ jobs:
     - name: Start ACME Analytics Server
       run: |
         cd src/acme-analytics-server/server
-        ACME_JAR=$(find target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+        ACME_JAR=$(find target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" -not -name "original-*.jar" | head -1)
         
         if [ -z "$ACME_JAR" ] || [ ! -f "$ACME_JAR" ]; then
           echo "❌ ACME Analytics Server JAR not found"
@@ -769,7 +769,7 @@ jobs:
         fi
         
         # Check acme-analytics-server JAR
-        ACME_JAR=$(find src/acme-analytics-server/server/target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+        ACME_JAR=$(find src/acme-analytics-server/server/target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" -not -name "original-*.jar" | head -1)
         if [ -f "$ACME_JAR" ]; then
           echo "✅ acme-analytics-server JAR found: $ACME_JAR"
           ls -la "$ACME_JAR"
