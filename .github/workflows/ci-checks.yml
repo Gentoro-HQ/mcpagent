@@ -351,7 +351,16 @@ jobs:
       run: |
         cd src/acme-analytics-server/server
         ACME_JAR=$(find target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+        
+        if [ -z "$ACME_JAR" ] || [ ! -f "$ACME_JAR" ]; then
+          echo "❌ ACME Analytics Server JAR not found"
+          echo "Available files in target/:"
+          ls -la target/ || echo "target directory not found"
+          exit 1
+        fi
+        
         echo "Starting ACME Analytics Server on port 8081..."
+        echo "Using JAR: $ACME_JAR"
         java -jar "$ACME_JAR" 8081 &
         ACME_PID=$!
         echo "ACME_PID=$ACME_PID" >> $GITHUB_ENV
@@ -359,14 +368,24 @@ jobs:
         # Wait for service to start
         echo "Waiting for ACME Analytics Server to start..."
         for i in {1..30}; do
-          if curl -f http://localhost:8081/health 2>/dev/null; then
-            echo "✅ ACME Analytics Server is ready"
-            break
+          if kill -0 $ACME_PID 2>/dev/null; then
+            if curl -f --max-time 5 http://localhost:8081/health 2>/dev/null; then
+              echo "✅ ACME Analytics Server is ready"
+              break
+            else
+              echo "Server process running but not responding... attempt $i/30"
+            fi
           else
-            echo "Waiting for ACME Analytics Server... attempt $i/30"
-            sleep 2
+            echo "❌ ACME Analytics Server process died during startup (attempt $i/30)"
+            exit 1
           fi
+          sleep 2
         done
+        
+        if [ $i -eq 30 ]; then
+          echo "❌ ACME Analytics Server failed to start within 60 seconds"
+          exit 1
+        fi
     
     - name: Start MCP Agent Service
       run: |
@@ -444,15 +463,44 @@ jobs:
       run: |
         echo "Testing ACME Analytics Server endpoints..."
         
-        # Test /health endpoint
+        # Check if server is running
+        echo "Checking if ACME server process is running..."
+        if [ ! -z "$ACME_PID" ]; then
+          if kill -0 $ACME_PID 2>/dev/null; then
+            echo "✅ ACME server process is running (PID: $ACME_PID)"
+          else
+            echo "❌ ACME server process is not running (PID: $ACME_PID)"
+            exit 1
+          fi
+        else
+          echo "❌ ACME_PID not set"
+          exit 1
+        fi
+        
+        # Check if port is listening
+        echo "Checking if port 8081 is listening..."
+        if netstat -tlnp 2>/dev/null | grep -q ":8081"; then
+          echo "✅ Port 8081 is listening"
+        else
+          echo "❌ Port 8081 is not listening"
+          echo "Active ports:"
+          netstat -tlnp 2>/dev/null | grep -E ":(8080|8081|7070)" || echo "No relevant ports found"
+          exit 1
+        fi
+        
+        # Test /health endpoint with timeout
         echo "Testing /health endpoint..."
-        RESPONSE=$(curl -s http://localhost:8081/health)
+        RESPONSE=$(curl -s --max-time 10 http://localhost:8081/health)
         echo "Response: $RESPONSE"
         
-        if echo "$RESPONSE" | grep -q "healthy"; then
+        if [ -z "$RESPONSE" ]; then
+          echo "❌ ACME Analytics Server /health endpoint returned empty response"
+          exit 1
+        elif echo "$RESPONSE" | grep -q "healthy"; then
           echo "✅ ACME Analytics Server /health endpoint working"
         else
           echo "❌ ACME Analytics Server /health endpoint failed"
+          echo "Expected 'healthy' in response, got: $RESPONSE"
           exit 1
         fi
         
