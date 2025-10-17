@@ -14,6 +14,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.Mockito.doAnswer;
 
 /**
  * Test cases for InferenceService.
@@ -61,6 +65,12 @@ class InferenceServiceTest {
             "gemini", geminiSettings
         ));
         providerProperties.setDefaultProvider("openai");
+        
+        // Configure telemetry mock to execute the supplier and return its result
+        doAnswer(invocation -> {
+            java.util.function.Supplier<?> supplier = (java.util.function.Supplier<?>) invocation.getArgument(3);
+            return supplier.get();
+        }).when(telemetry).runRoot(any(), anyString(), anyMap(), any(java.util.function.Supplier.class));
         
         inferenceService = new InferenceService(providerProperties, telemetry);
     }

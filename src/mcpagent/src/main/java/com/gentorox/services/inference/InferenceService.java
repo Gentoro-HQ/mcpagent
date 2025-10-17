@@ -30,8 +30,7 @@ public class InferenceService {
   
   // Define the AI service interface
   public interface AiAssistant {
-    @UserMessage("{{message}}")
-    String chat(@MemoryId String sessionId, String message);
+    String chat(@MemoryId String sessionId, @UserMessage String message);
   }
   
   public InferenceService(ProviderProperties providerProperties, TelemetryService telemetry) {
@@ -67,7 +66,7 @@ public class InferenceService {
         // Create AI service with tools
         AiAssistant assistant = AiServices.builder(AiAssistant.class)
             .chatLanguageModel(chatModel)
-            .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
+            .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
             .tools(toolInstances) // Pass tool instances directly
             .build();
         

@@ -54,8 +54,9 @@ public class EnvLoaderLauncherSessionListener implements LauncherSessionListener
         // Best-effort injection into process env so @EnabledIfEnvironmentVariable can see them.
         try {
             setEnvIfMissing(vars);
-        } catch (Throwable ignored) {
-          logger.warn("Failed to mutate env", ignored);
+        } catch (Throwable t) {
+            // Expected in modern Java due to module system restrictions
+            logger.warn("Failed to mutate environment: {}", t.getMessage());
         }
     }
 
@@ -108,6 +109,7 @@ public class EnvLoaderLauncherSessionListener implements LauncherSessionListener
         }
         if (toSet.isEmpty()) return;
 
+        // Try ProcessEnvironment approach (works on older Java versions)
         try {
             Class<?> pe = Class.forName("java.lang.ProcessEnvironment");
             java.lang.reflect.Field theEnvironmentField = pe.getDeclaredField("theEnvironment");
@@ -121,10 +123,12 @@ public class EnvLoaderLauncherSessionListener implements LauncherSessionListener
                 cienvMap.putAll(toSet);
             } catch (NoSuchFieldException ignore) { }
             return;
-        } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException ignored) {
-            // fallthrough
+        } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException | 
+                 java.lang.reflect.InaccessibleObjectException ignored) {
+            // Expected in modern Java due to module system restrictions
         }
 
+        // Try Collections$UnmodifiableMap approach (fallback)
         try {
             Map<String, String> env = System.getenv();
             Class<?> unmodifiableMapClass = Class.forName("java.util.Collections$UnmodifiableMap");
@@ -133,7 +137,9 @@ public class EnvLoaderLauncherSessionListener implements LauncherSessionListener
             Object obj = mField.get(env);
             Map map = (Map) obj;
             map.putAll(toSet);
-        } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
+        } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException | 
+                 java.lang.reflect.InaccessibleObjectException e) {
+            // Both approaches failed - this is expected in modern Java
             throw e;
         }
     }
