@@ -269,9 +269,32 @@ jobs:
           
           ---
           
-          🤖 This PR was automatically created by the release workflow.
+          🤖 This PR was automatically created and will be auto-merged by the release workflow.
         labels: release, automated
         assignees: ${{ github.actor }}
+      id: create_pr
+    
+    - name: Auto-merge version bump PR
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
+      run: |
+        PR_NUMBER="${{ steps.create_pr.outputs.pull-request-number }}"
+        echo "Auto-merging PR #$PR_NUMBER..."
+        
+        # Wait a moment for the PR to be fully created
+        sleep 5
+        
+        # Enable auto-merge for the PR
+        curl -X PUT \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
+          -d '{
+            "commit_title": "chore(release): bump version to ${{ steps.calculate_version.outputs.new_snapshot }}",
+            "commit_message": "Automatically merged by release workflow",
+            "merge_method": "rebase"
+          }'
+        
+        echo "✅ PR #$PR_NUMBER auto-merged successfully"
     
     - name: Create GitHub Release
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
