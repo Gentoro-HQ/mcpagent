@@ -1,9 +1,6 @@
 package com.acme.server;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Fake Data Generator for ACME Analytics Server
@@ -12,6 +9,12 @@ import java.util.concurrent.ThreadLocalRandom;
  * to simulate a real e-commerce analytics platform.
  */
 public class FakeDataGenerator {
+    
+    private final Random random;
+    
+    public FakeDataGenerator() {
+        this.random = new Random(42L); // Fixed seed for deterministic data
+    }
     
     // Data arrays for generating realistic fake data
     private static final String[] PRODUCT_CATEGORIES = {
@@ -81,24 +84,24 @@ public class FakeDataGenerator {
         for (int i = 0; i < count; i++) {
             Map<String, Object> customer = new HashMap<>();
             
-            String firstName = FIRST_NAMES[ThreadLocalRandom.current().nextInt(FIRST_NAMES.length)];
-            String lastName = LAST_NAMES[ThreadLocalRandom.current().nextInt(LAST_NAMES.length)];
+            String firstName = FIRST_NAMES[random.nextInt(FIRST_NAMES.length)];
+            String lastName = LAST_NAMES[random.nextInt(LAST_NAMES.length)];
             
             customer.put("id", "CUST-" + String.format("%06d", i + 1));
             customer.put("name", firstName + " " + lastName);
             customer.put("email", firstName.toLowerCase() + "." + lastName.toLowerCase() + "@email.com");
-            customer.put("phone", "+1-" + String.format("%03d", ThreadLocalRandom.current().nextInt(100, 999)) + 
-                        "-" + String.format("%04d", ThreadLocalRandom.current().nextInt(1000, 9999)));
-            customer.put("age", ThreadLocalRandom.current().nextInt(18, 80));
-            customer.put("gender", GENDERS[ThreadLocalRandom.current().nextInt(GENDERS.length)]);
-            customer.put("city", CITIES[ThreadLocalRandom.current().nextInt(CITIES.length)]);
-            customer.put("state", STATES[ThreadLocalRandom.current().nextInt(STATES.length)]);
+            customer.put("phone", "+1-" + String.format("%03d", random.nextInt(900) + 100) + 
+                        "-" + String.format("%04d", random.nextInt(9000) + 1000));
+            customer.put("age", random.nextInt(62) + 18);
+            customer.put("gender", GENDERS[random.nextInt(GENDERS.length)]);
+            customer.put("city", CITIES[random.nextInt(CITIES.length)]);
+            customer.put("state", STATES[random.nextInt(STATES.length)]);
             customer.put("country", "USA");
-            customer.put("zip_code", String.format("%05d", ThreadLocalRandom.current().nextInt(10000, 99999)));
+            customer.put("zip_code", String.format("%05d", random.nextInt(90000) + 10000));
             customer.put("registration_date", generateRandomDate(2020, 2023));
-            customer.put("loyalty_tier", LOYALTY_TIERS[ThreadLocalRandom.current().nextInt(LOYALTY_TIERS.length)]);
-            customer.put("total_spent", ThreadLocalRandom.current().nextDouble(0, 10000));
-            customer.put("total_orders", ThreadLocalRandom.current().nextInt(0, 50));
+            customer.put("loyalty_tier", LOYALTY_TIERS[random.nextInt(LOYALTY_TIERS.length)]);
+            customer.put("total_spent", random.nextDouble() * 10000);
+            customer.put("total_orders", random.nextInt(50));
             
             customers.add(customer);
         }
@@ -115,20 +118,20 @@ public class FakeDataGenerator {
         for (int i = 0; i < count; i++) {
             Map<String, Object> product = new HashMap<>();
             
-            String category = PRODUCT_CATEGORIES[ThreadLocalRandom.current().nextInt(PRODUCT_CATEGORIES.length)];
+            String category = PRODUCT_CATEGORIES[random.nextInt(PRODUCT_CATEGORIES.length)];
             String subcategory = getSubcategoryForCategory(category);
-            String brand = BRANDS[ThreadLocalRandom.current().nextInt(BRANDS.length)];
+            String brand = BRANDS[random.nextInt(BRANDS.length)];
             
             product.put("id", "PROD-" + String.format("%06d", i + 1));
             product.put("name", generateProductName(category, subcategory, brand));
             product.put("category", category);
             product.put("subcategory", subcategory);
             product.put("brand", brand);
-            product.put("price", ThreadLocalRandom.current().nextDouble(10, 1000));
-            product.put("cost", ThreadLocalRandom.current().nextDouble(5, 500));
-            product.put("inventory", ThreadLocalRandom.current().nextInt(0, 200));
-            product.put("rating", ThreadLocalRandom.current().nextDouble(1.0, 5.0));
-            product.put("weight", ThreadLocalRandom.current().nextDouble(0.1, 10.0));
+            product.put("price", random.nextDouble() * 990 + 10);
+            product.put("cost", random.nextDouble() * 495 + 5);
+            product.put("inventory", random.nextInt(200));
+            product.put("rating", random.nextDouble() * 4 + 1);
+            product.put("weight", random.nextDouble() * 9.9 + 0.1);
             product.put("dimensions", generateDimensions());
             
             products.add(product);
@@ -147,15 +150,15 @@ public class FakeDataGenerator {
             Map<String, Object> sale = new HashMap<>();
             
             // Select random customer and product
-            Map<String, Object> customer = customers.get(ThreadLocalRandom.current().nextInt(customers.size()));
-            Map<String, Object> product = products.get(ThreadLocalRandom.current().nextInt(products.size()));
+            Map<String, Object> customer = customers.get(random.nextInt(customers.size()));
+            Map<String, Object> product = products.get(random.nextInt(products.size()));
             
             double productPrice = (Double) product.get("price");
-            int quantity = ThreadLocalRandom.current().nextInt(1, 5);
-            double discount = ThreadLocalRandom.current().nextDouble(0, productPrice * 0.3);
+            int quantity = random.nextInt(4) + 1;
+            double discount = random.nextDouble() * (productPrice * 0.3);
             double amount = (productPrice * quantity) - discount;
             double tax = amount * 0.08; // 8% tax
-            double shippingCost = amount > 50 ? 0 : ThreadLocalRandom.current().nextDouble(5, 15);
+            double shippingCost = amount > 50 ? 0 : random.nextDouble() * 10 + 5;
             
             sale.put("id", "SAL-" + String.format("%06d", i + 1));
             sale.put("customer_id", customer.get("id"));
@@ -166,8 +169,8 @@ public class FakeDataGenerator {
             sale.put("discount", Math.round(discount * 100.0) / 100.0);
             sale.put("tax", Math.round(tax * 100.0) / 100.0);
             sale.put("shipping_cost", Math.round(shippingCost * 100.0) / 100.0);
-            sale.put("payment_method", PAYMENT_METHODS[ThreadLocalRandom.current().nextInt(PAYMENT_METHODS.length)]);
-            sale.put("status", SALE_STATUSES[ThreadLocalRandom.current().nextInt(SALE_STATUSES.length)]);
+            sale.put("payment_method", PAYMENT_METHODS[random.nextInt(PAYMENT_METHODS.length)]);
+            sale.put("status", SALE_STATUSES[random.nextInt(SALE_STATUSES.length)]);
             
             sales.add(sale);
         }
@@ -181,9 +184,9 @@ public class FakeDataGenerator {
     private String getSubcategoryForCategory(String category) {
         switch (category) {
             case "Electronics":
-                return ELECTRONICS_SUBCATEGORIES[ThreadLocalRandom.current().nextInt(ELECTRONICS_SUBCATEGORIES.length)];
+                return ELECTRONICS_SUBCATEGORIES[random.nextInt(ELECTRONICS_SUBCATEGORIES.length)];
             case "Clothing":
-                return CLOTHING_SUBCATEGORIES[ThreadLocalRandom.current().nextInt(CLOTHING_SUBCATEGORIES.length)];
+                return CLOTHING_SUBCATEGORIES[random.nextInt(CLOTHING_SUBCATEGORIES.length)];
             default:
                 return "General";
         }
@@ -201,7 +204,7 @@ public class FakeDataGenerator {
             "{brand} {subcategory} Deluxe"
         };
         
-        String template = nameTemplates[ThreadLocalRandom.current().nextInt(nameTemplates.length)];
+        String template = nameTemplates[random.nextInt(nameTemplates.length)];
         return template.replace("{brand}", brand)
                       .replace("{subcategory}", subcategory)
                       .replace("{category}", category);
@@ -211,9 +214,9 @@ public class FakeDataGenerator {
      * Generate random dimensions
      */
     private String generateDimensions() {
-        int length = ThreadLocalRandom.current().nextInt(5, 50);
-        int width = ThreadLocalRandom.current().nextInt(5, 30);
-        int height = ThreadLocalRandom.current().nextInt(2, 20);
+        int length = random.nextInt(45) + 5;
+        int width = random.nextInt(25) + 5;
+        int height = random.nextInt(18) + 2;
         return length + "x" + width + "x" + height;
     }
     
@@ -221,9 +224,9 @@ public class FakeDataGenerator {
      * Generate random date between start and end year
      */
     private String generateRandomDate(int startYear, int endYear) {
-        int year = ThreadLocalRandom.current().nextInt(startYear, endYear + 1);
-        int month = ThreadLocalRandom.current().nextInt(1, 13);
-        int day = ThreadLocalRandom.current().nextInt(1, 29); // Simplified - no leap year handling
+        int year = random.nextInt(endYear - startYear + 1) + startYear;
+        int month = random.nextInt(12) + 1;
+        int day = random.nextInt(28) + 1; // Simplified - no leap year handling
         
         return String.format("%04d-%02d-%02d", year, month, day);
     }

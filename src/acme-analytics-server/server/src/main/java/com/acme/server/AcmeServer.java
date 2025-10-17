@@ -12,7 +12,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
@@ -278,7 +277,7 @@ public class AcmeServer {
         // Create metadata
         ObjectNode metadata = objectMapper.createObjectNode();
         metadata.put("total_records", filteredSales.size());
-        metadata.put("execution_time_ms", ThreadLocalRandom.current().nextInt(10, 100));
+        metadata.put("execution_time_ms", 50); // Fixed execution time for deterministic results
         metadata.put("query_id", "qry_" + UUID.randomUUID().toString().substring(0, 8));
         metadata.put("has_more", selectedData.size() >= limit);
         result.metadata = metadata;
@@ -629,6 +628,7 @@ public class AcmeServer {
             }
         }
         
+        System.out.println("Starting ACME Analytics Server with deterministic data (seed: 42)");
         AcmeServer server = new AcmeServer(port);
         try {
             server.start();
