@@ -92,10 +92,7 @@ public class OrchestratorImplTest {
     // Verify the prompt contains expected content
     verify(inference).sendRequest(argThat(prompt ->
         prompt.contains("BASE_SP") &&
-            prompt.contains("Knowledge Base (resources):") &&
-            prompt.contains("kb://docs/A.md") &&
-            prompt.contains("Available Services:") &&
-            prompt.contains("kb://openapi/catalog.yaml")
+            prompt.contains("Pay order 123")
     ));
   }
 

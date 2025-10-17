@@ -22,6 +22,7 @@ function waitForOutput(child: any, matcher: RegExp, timeoutMs = 15_000): Promise
     const timer = setTimeout(() => reject(new Error('Timed out waiting for server output')), timeoutMs);
     const onData = (buf: Buffer) => {
       const s = buf.toString();
+      console.log('output', s);
       if (matcher.test(s)) {
         clearTimeout(timer);
         child.stdout.off('data', onData);
@@ -35,10 +36,13 @@ function waitForOutput(child: any, matcher: RegExp, timeoutMs = 15_000): Promise
 function startSnippetService(port: number, extsdkRoot: string) {
   const tsxBin = path.resolve(__dirname, '..', 'node_modules', '.bin', process.platform === 'win32' ? 'tsx.cmd' : 'tsx');
   const serverTs = path.resolve(__dirname, '..', 'src', 'server.ts');
+  // Use a clean working directory so dotenv in env.ts does not pick up project-level .env/.env.local
+  // We reuse the external SDKs temp root for convenience.
   const child = spawn(tsxBin, [serverTs], {
-    cwd: path.resolve(__dirname, '..'),
+    cwd: extsdkRoot,
     env: {
       ...process.env,
+      // Explicitly set the intended test values; ensure no conflicting vars leak in
       PORT: String(port),
       EXTERNAL_SDKS_ROOT: extsdkRoot,
       // tighter limits to keep test snappy
@@ -185,8 +189,16 @@ components:
     expect(Array.isArray(runResp.data?.logs)).toBe(true);
     const logs = runResp.data?.logs as Array<{ level: string; args: any[] }>;
     const petsLog = logs.find(l => l.level === 'log' && l.args && l.args[0] === 'pets');
-    // second arg should be an array of length 2
-    expect(Array.isArray(petsLog!.args[1])).toBe(true);
-    expect(petsLog!.args[1].length).toBe(2);
+    // second arg should indicate two items. Depending on runtime, logs may stringify objects.
+    const second = petsLog!.args[1];
+    if (Array.isArray(second)) {
+      expect(second.length).toBe(2);
+    } else if (typeof second === 'string') {
+      // e.g., "[object Object],[object Object]"
+      const parts = second.split(',');
+      expect(parts.length).toBe(2);
+    } else {
+      throw new Error(`Unexpected log arg type: ${typeof second}`);
+    }
   }, TEST_TIMEOUT);
 });

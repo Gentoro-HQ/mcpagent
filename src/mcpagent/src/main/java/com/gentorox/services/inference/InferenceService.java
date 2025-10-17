@@ -3,6 +3,7 @@ package com.gentorox.services.inference;
 import com.gentorox.core.model.InferenceResponse;
 import com.gentorox.services.telemetry.TelemetryService;
 import com.gentorox.services.telemetry.TelemetrySession;
+import com.gentorox.tools.AgentTool;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.anthropic.AnthropicChatModel;
@@ -16,8 +17,10 @@ import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +34,7 @@ public class InferenceService {
   private final TelemetryService telemetry;
   private final String provider;
   private final String modelName;
+  private final ApplicationContext applicationContext;
   // shared store so memories persist per sessionId
   private final ChatMemoryStore store = new InMemoryChatMemoryStore();
 
@@ -40,6 +44,11 @@ public class InferenceService {
   }
 
   public InferenceService(ProviderProperties providerProperties, TelemetryService telemetry) {
+    this(null, providerProperties, telemetry);
+  }
+
+  public InferenceService(ApplicationContext applicationContext, ProviderProperties providerProperties, TelemetryService telemetry) {
+    this.applicationContext = applicationContext;
     this.chatModel = createChatModel(providerProperties);
     this.telemetry = telemetry;
     this.provider = providerProperties.getDefaultProvider();
@@ -73,10 +82,16 @@ public class InferenceService {
             MessageWindowChatMemory.builder().chatMemoryStore(store).maxMessages(10).id(sessionId).build();
 
         // Create AI service with tools
+        List<Object> listOfAvailableTools = applicationContext != null ? new ArrayList<>(applicationContext.getBeansOfType(AgentTool.class).values()) : new ArrayList<>();
+        if( toolInstances != null ) {
+          for( Object o : toolInstances ) {
+            if( o != null ) listOfAvailableTools.add(o);
+          }
+        }
         AiAssistant assistant = AiServices.builder(AiAssistant.class)
             .chatLanguageModel(chatModel)
             .chatMemoryProvider(provider)
-            .tools(toolInstances) // Pass tool instances directly
+            .tools(listOfAvailableTools) // Pass tool instances directly
             .build();
 
         // Execute the request - tools are automatically called as needed

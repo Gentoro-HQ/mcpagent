@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Default KnowledgeBaseService implementation.
@@ -50,6 +51,8 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
   private Path foundationRoot;
   private final boolean aiHintGenerationEnabled;
   private final int hintContentLimit;
+
+  private final Map<String, String> compiledSDKs = new ConcurrentHashMap<>();
 
   /**
    * Creates a new service instance.
@@ -105,12 +108,14 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
           // Entries are stored with abstract URIs
           entries.put(e.resource(), e);
         }
+        compiledSDKs.putAll(cached.get().services());
         loadedFromCache = true;
         return;
       }
     } catch (IOException e) { logger.warn("Failed to load KnowledgeBaseState from {}", stateFile, e); }
 
     // Fresh build
+    compiledSDKs.clear();
     entries.clear();
     abstractToOriginal.clear();
     inMemoryContent.clear();
@@ -120,9 +125,16 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     // Persist state
     try {
-      var state = new KnowledgeBaseState(signature, new ArrayList<>(entries.values()));
+      var state = new KnowledgeBaseState(signature,
+          new ArrayList<>(entries.values()),
+          compiledSDKs);
       persistence.save(stateFile, state);
     } catch (IOException e) { logger.warn("Failed to persist KnowledgeBaseState to {}", stateFile, e); }
+  }
+
+  @Override
+  public Optional<Map<String, String>> getServices() {
+    return Optional.of( Map.copyOf(compiledSDKs) );
   }
 
   /**
@@ -154,6 +166,9 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
   @Override
   public Optional<String> getContent(String resourceUri) {
     try {
+      if( entries.containsKey(resourceUri) ) {
+        return Optional.of(entries.get(resourceUri).content());
+      }
       // If the given URI is abstract, resolve to original
       String original = abstractToOriginal.getOrDefault(resourceUri, null);
 
@@ -269,8 +284,11 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     Path specsDir = root.resolve("openapi");
     if (Files.isDirectory(specsDir)) {
       try (var stream = Files.list(specsDir)) {
+        AtomicInteger fileIndex = new AtomicInteger(0);
         stream.filter(p -> Files.isRegularFile(p) && hasExtension(p, ".yaml", ".yml", ".json"))
-            .forEach(this::processOpenApiSpec);
+            .forEach((p) -> {
+              this.processOpenApiSpec(fileIndex.incrementAndGet(), p);
+            });
       } catch (IOException e) { logger.debug("Failed to list specs directory {}", specsDir, e); }
     }
   }
@@ -284,10 +302,10 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     abstractToOriginal.put(abstractUri, original);
   }
 
-  private void processOpenApiSpec(Path spec) {
+  private void processOpenApiSpec(Integer fileIndex, Path spec) {
     String outDir = "openapi_" + safeSdkName(spec.getFileName().toString());
     try {
-      UploadResult up = tsRuntimeClient.uploadOpenapi(spec, outDir)
+      UploadResult up = tsRuntimeClient.uploadOpenapi(spec, outDir, fileIndex == 1)
           .onErrorResume(e -> {
             logger.error("Failed to upload OpenAPI spec to Typescript runtime", e);
             return Mono.empty();
@@ -295,6 +313,9 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
       if (up == null || up.sdk() == null || up.sdk().namespace() == null) {
         throw new RuntimeException("Failed to upload OpenAPI spec to Typescript runtime");
       }
+
+      compiledSDKs.put(up.sdk().namespace(), up.sdk().location());
+
       DocsResponse docs = tsRuntimeClient.fetchDocs(up.sdk().namespace(), false).onErrorResume(e -> Mono.empty()).blockOptional().orElse(null);
       if (docs != null && docs.files() != null && !docs.files().isEmpty()) {
         String baseDisk = docs.diskLocation();

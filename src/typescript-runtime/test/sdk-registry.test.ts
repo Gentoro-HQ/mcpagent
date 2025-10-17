@@ -3,6 +3,20 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+let TMP_ROOT: string; // defined at top-level so the hoisted mock can see it
+
+vi.mock("../src/config.js", async () => {
+    const actual = await vi.importActual<typeof import("../src/config.js")>(
+        "../src/config.js"
+    );
+    // use a getter so the current TMP_ROOT value is read at access time
+    return {
+        ...actual,
+        get EXTERNAL_SDKS_ROOT() { return TMP_ROOT; },
+    };
+});
+
+
 function writeFile(p: string, content = '') {
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, content, 'utf8');
@@ -13,13 +27,12 @@ describe('sdk-registry discovery and cache', () => {
 
   beforeEach(() => {
     vi.resetModules();
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sdks-'));
-    process.env.EXTERNAL_SDKS_ROOT = tmp;
+    TMP_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'sdks-'));
   });
 
   it('discovers SDKs by presence of index.ts/index.js', async () => {
-    const pet = path.join(tmp, 'petstore');
-    const foo = path.join(tmp, 'foo');
+    const pet = path.join(TMP_ROOT, 'petstore');
+    const foo = path.join(TMP_ROOT, 'foo');
     writeFile(path.join(pet, 'index.ts'), 'export {}');
     writeFile(path.join(foo, 'index.js'), 'export {}');
 
@@ -40,7 +53,7 @@ describe('sdk-registry discovery and cache', () => {
     expect(Object.keys(map)).toHaveLength(0);
 
     // Add one
-    const pet = path.join(tmp, 'petstore');
+    const pet = path.join(TMP_ROOT, 'petstore');
     writeFile(path.join(pet, 'index.ts'), 'export {}');
 
     // Still cached empty

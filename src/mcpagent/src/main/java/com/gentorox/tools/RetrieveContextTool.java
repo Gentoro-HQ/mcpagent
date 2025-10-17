@@ -2,17 +2,21 @@ package com.gentorox.tools;
 
 import com.gentorox.services.knowledgebase.KnowledgeBaseEntry;
 import com.gentorox.services.knowledgebase.KnowledgeBaseService;
+import com.gentorox.services.knowledgebase.KnowledgeBaseServiceImpl;
 import com.gentorox.services.telemetry.TelemetryService;
 import com.gentorox.services.telemetry.TelemetrySession;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.agent.tool.P;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
-public class RetrieveContextTool {
+public class RetrieveContextTool implements AgentTool {
+  private static final Logger logger = LoggerFactory.getLogger(RetrieveContextTool.class);
   private final KnowledgeBaseService kbService;
   private final TelemetryService telemetry;
 
@@ -21,13 +25,14 @@ public class RetrieveContextTool {
     this.telemetry = telemetry;
   }
 
-  @Tool("Retrieve knowledge base resources by names or relative paths and return their contents")
+  @Tool(name = "RetrieveContext", value = "Retrieve knowledge base resources by names or relative paths and return their contents")
   public String retrieveContext(@P("Array of resource names. Each item may be a full kb:// URI or a relative path prefix") List<String> resources) {
     return telemetry.inSpan("tool.execute", java.util.Map.of("tool", "retrieveContext"), () -> {
       telemetry.countTool("retrieveContext");
 
       // Process the resources list
       if (resources == null || resources.isEmpty()) {
+        logger.warn("No resources specified");
         return "No resources specified";
       }
 
@@ -39,7 +44,9 @@ public class RetrieveContextTool {
 
         if (trimmed.startsWith("kb://")) {
           resolvedResources.add(trimmed);
+          logger.debug("Resolving resource: {}", trimmed);
         } else {
+          logger.debug("Treating as relative resource: {}", trimmed);
           // Treat as relative prefix under kb://
           String prefix = trimmed.startsWith("/") ? trimmed.substring(1) : trimmed;
           String kbPrefix = "kb://" + prefix;
@@ -56,6 +63,7 @@ public class RetrieveContextTool {
       for (String res : resolvedResources) {
         String content = telemetry.inSpan("kb.getContent", java.util.Map.of("resource", res),
             () -> kbService.getContent(res).orElse(null));
+        logger.debug("Content found for {}", res);
         if (content != null) {
           result.add(Map.of(
               "resource", res,

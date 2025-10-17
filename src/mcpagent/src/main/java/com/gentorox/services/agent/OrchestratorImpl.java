@@ -8,6 +8,7 @@ import com.gentorox.services.knowledgebase.KnowledgeBaseService;
 import com.gentorox.services.telemetry.LogContext;
 import com.gentorox.services.telemetry.TelemetryService;
 import com.gentorox.services.telemetry.TelemetrySession;
+import dev.langchain4j.agent.tool.Tool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -114,14 +115,37 @@ public class OrchestratorImpl implements Orchestrator {
         .sorted()
         .toList();
 
-    String toolsSummary = "Tools are available via LangChain4j @Tool annotations";
+    StringBuilder serviceSummary = new StringBuilder();
+    kbService.getServices().ifPresent( entries -> {
+      for(Map.Entry<String, String> entry : entries.entrySet()) {
+        serviceSummary.append("- `").append(entry.getKey()).append("`\n\n");
+        serviceSummary.append(
+            """
+            |------------ | ----------------------------------- |
+            | Resource    | Short description                   |
+            |------------ | ----------------------------------- |
+            """);
 
-    StringBuilder sb = new StringBuilder();
-    sb.append(base == null ? "" : base);
-    sb.append("\n\nKnowledge Base (resources):\n").append(kbSummary);
-    sb.append("\n\nAvailable Services:\n").append(String.join("\n", services));
-    sb.append("\n\nAvailable Tools:\n").append(toolsSummary);
-    return sb.toString();
+        kbService.list("kb://openapi/%s/docs/".formatted(entry.getKey())).forEach(e -> {
+          serviceSummary.append("| `").append(e.resource()).append("` | ").append(optional(e.hint())).append(" |\n");
+        });
+      }
+    } );
+
+    Map<String, String> placeholders = new HashMap<>();
+    placeholders.put("tool.retrieveContext.name", "RetrieveContext");
+    placeholders.put("tool.retrieveContext.description", "Retrieve knowledge base resources by names or relative paths and return their contents");
+    placeholders.put("tool.runTsCode.name", "RunTypescriptSnippet");
+    placeholders.put("tool.runTsCode.description", "Execute a short TypeScript snippet in the isolated runtime and return stdout/result");
+    placeholders.put("kb.summary", kbSummary);
+    placeholders.put("kb.serviceSummary", Arrays.stream(serviceSummary.toString().split("\n")).map("    %s"::formatted).collect(Collectors.joining("\n")));
+    placeholders.put("services.summary", String.join("\n", services));
+    for(Map.Entry<String, String> entry : placeholders.entrySet()) {
+      while( base.contains("{{%s}}".formatted(entry.getKey())) ) {
+        base = base.replace("{{%s}}".formatted(entry.getKey()), entry.getValue());
+      }
+    }
+    return base;
   }
 
   private static String optional(String s) {

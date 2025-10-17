@@ -48,7 +48,7 @@ paths:
     Files.writeString(tmp, openapi);
 
     // Attempt upload
-    var res = client.uploadOpenapi(tmp, "simpleapi").block();
+    var res = client.uploadOpenapi(tmp, "simpleapi", true).block();
 
     // Basic assertions (shape may vary by server); this verifies the call and mapping work
     assertThat(res).isNotNull();

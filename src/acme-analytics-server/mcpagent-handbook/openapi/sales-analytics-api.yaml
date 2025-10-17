@@ -28,10 +28,8 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://api.acme.com/v1
+  - url: http://localhost:9080
     description: Production server
-  - url: https://staging-api.acme.com/v1
-    description: Staging server
 
 paths:
   /query:

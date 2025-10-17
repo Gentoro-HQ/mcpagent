@@ -1,10 +1,16 @@
 package com.gentorox.services.inference;
 
+import com.gentorox.services.knowledgebase.KnowledgeBaseService;
 import com.gentorox.services.telemetry.TelemetryService;
+import com.gentorox.services.typescript.TypescriptRuntimeClient;
+import com.gentorox.tools.AgentTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 /**
  * Spring configuration for wiring the InferenceService bean.
@@ -28,10 +34,10 @@ public class InferenceServiceConfig {
    * @return a configured InferenceService
    */
   @Bean
-  InferenceService inferenceService(ProviderProperties providerProperties, TelemetryService telemetry) {
+  InferenceService inferenceService(ApplicationContext applicationContext, ProviderProperties providerProperties, TelemetryService telemetry) {
     String defaultProvider = providerProperties != null ? providerProperties.getDefaultProvider() : null;
     LOGGER.info("Initializing InferenceService bean (defaultProvider={})", defaultProvider);
-    return new InferenceService(providerProperties, telemetry);
+    return new InferenceService(applicationContext, providerProperties, telemetry);
   }
 
 }

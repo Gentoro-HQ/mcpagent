@@ -126,7 +126,7 @@ public class KnowledgeBaseServiceImplTest {
     Files.writeString(spec, "{\n  \"openapi\": \"3.0.0\",\n  \"info\": {\"title\": \"Sample API\"},\n  \"paths\": {}\n}");
 
     // Mock upload + docs
-    when(ts.uploadOpenapi(eq(spec), any())).thenReturn(Mono.just(new UploadResult(true, new Sdk("ns1", "/tmp/sdk/ns1", "file:///tmp/sdk/ns1/index.ts"), "ok")));
+    when(ts.uploadOpenapi(eq(spec), any(), anyBoolean())).thenReturn(Mono.just(new UploadResult(true, new Sdk("ns1", "/tmp/sdk/ns1", "file:///tmp/sdk/ns1/index.ts"), "ok")));
     List<DocFile> files = List.of(new DocFile("ServiceApi.md", "# Service API\nDetails."));
     when(ts.fetchDocs(eq("ns1"), eq(false))).thenReturn(Mono.just(new DocsResponse(true, "ns1", files.size(), files, null, "generated")));
 
@@ -146,7 +146,7 @@ public class KnowledgeBaseServiceImplTest {
     assertTrue(content.get().contains("Service API"));
 
     // Verify TS client interacted
-    verify(ts, times(1)).uploadOpenapi(eq(spec), any());
+    verify(ts, times(1)).uploadOpenapi(eq(spec), any(), anyBoolean());
     verify(ts, times(1)).fetchDocs(eq("ns1"), eq(false));
   }
 }

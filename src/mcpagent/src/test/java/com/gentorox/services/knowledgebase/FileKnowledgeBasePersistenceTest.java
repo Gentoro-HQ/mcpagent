@@ -5,6 +5,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,7 +29,7 @@ public class FileKnowledgeBasePersistenceTest {
 
     KnowledgeBaseEntry e1 = new KnowledgeBaseEntry("file:///a.md", "doc a", "doc a");
     KnowledgeBaseEntry e2 = new KnowledgeBaseEntry("mem://b.md", "doc b", "doc b");
-    KnowledgeBaseState state = new KnowledgeBaseState("sig-123", List.of(e1, e2));
+    KnowledgeBaseState state = new KnowledgeBaseState("sig-123", List.of(e1, e2), Collections.emptyMap());
 
     p.save(file, state);
     assertTrue(Files.exists(file));

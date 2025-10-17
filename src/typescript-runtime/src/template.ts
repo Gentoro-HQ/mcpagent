@@ -31,7 +31,7 @@ const safeConsole = {
 };
 
 function isThenable(v: any): v is Promise<any> { return !!v && typeof v.then === "function"; }
-function toPlainError(e: any) { return { name: e?.name ?? "Error", message: String(e?.message ?? e), stack: typeof e?.stack==="string"?e.stack:undefined, status: (e as any)?.status, body: (e as any)?.body }; }
+function toPlainError(e: any) { return JSON.stringify( { name: e?.name ?? "Error", message: String(e?.message ?? e), stack: typeof e?.stack==="string"?e.stack:undefined, status: (e as any)?.status, body: (e as any)?.body } ); }
 function safePlain(v: any, seen = new WeakSet()): any {
   if (v===null || typeof v!=="object") { if (typeof v==="function") return \`[Function \${v.name||"anonymous"}]\`; if (isThenable(v)) return "[Promise]"; return v; }
   if (v instanceof Error) return toPlainError(v);
@@ -46,7 +46,17 @@ async function __run() {
   const _sdk = sdk;
   let result: any;
 
-  const _ret = await (async () => { ${userCode} })();
+  const _ret = await (async () => {
+    try {
+    // Auto-generated snippet goes here
+        
+    ${userCode}
+    
+    } catch (err: any) {
+        console.error('failed while executing snippet', err);
+        throw err;        
+    } 
+  })();
   const finalValue = (typeof result === 'undefined') ? _ret : result;
   const value = await awaitThenable(finalValue);
 

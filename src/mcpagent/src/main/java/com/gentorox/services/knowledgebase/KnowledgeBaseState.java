@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Serializable state of the Knowledge Base, so we can persist and restore quickly on startup.
@@ -13,12 +14,15 @@ import java.util.List;
  */
 public record KnowledgeBaseState(
     String signature,
-    List<KnowledgeBaseEntry> entries
+    List<KnowledgeBaseEntry> entries,
+    Map<String, String> services
 ) {
   @JsonCreator
   public KnowledgeBaseState(@JsonProperty("signature") String signature,
-                            @JsonProperty("entries") List<KnowledgeBaseEntry> entries) {
+                            @JsonProperty("entries") List<KnowledgeBaseEntry> entries,
+                            @JsonProperty("services") Map<String, String> services) {
     this.signature = signature;
     this.entries = entries;
+    this.services = services;
   }
 }

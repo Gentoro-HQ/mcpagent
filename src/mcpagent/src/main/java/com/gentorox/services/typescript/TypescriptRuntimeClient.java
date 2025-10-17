@@ -1,5 +1,9 @@
 package com.gentorox.services.typescript;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gentorox.tools.RetrieveContextTool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
@@ -25,6 +29,7 @@ import java.util.List;
  */
 @Component
 public class TypescriptRuntimeClient {
+  private static final Logger logger = LoggerFactory.getLogger(TypescriptRuntimeClient.class);
   private final WebClient web;
 
   /**
@@ -53,7 +58,17 @@ public class TypescriptRuntimeClient {
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(Map.of("snippet", code))
         .retrieve()
-        .bodyToMono(RunResponse.class);
+        .bodyToMono(String.class)                 // read raw string
+        .doOnNext(body -> logger.info("Raw response: {}", body)) // inspect/log it
+        .flatMap(body -> {
+          try {
+            RunResponse parsed = new ObjectMapper().readValue(body, RunResponse.class);
+            return Mono.just(parsed);
+          } catch (Exception e) {
+            logger.error("Failed to parse response", e);
+            return Mono.error(e);
+          }
+        });
   }
 
   /**
@@ -65,12 +80,14 @@ public class TypescriptRuntimeClient {
    *
    * @param specPath path to the local OpenAPI YAML/JSON file
    * @param outDir   desired output directory name on the runtime side
+   * @param cleanup   flag to force typescript runtime cleaning its cache.
    * @return a reactive Mono emitting the {@link UploadResult} returned by the runtime
    */
-  public Mono<UploadResult> uploadOpenapi(Path specPath, String outDir) {
+  public Mono<UploadResult> uploadOpenapi(Path specPath, String outDir, boolean cleanup) {
     MultipartBodyBuilder mb1 = new MultipartBodyBuilder();
     mb1.part("spec", new FileSystemResource(specPath.toFile()));
     mb1.part("outDir", outDir);
+    mb1.part("cleanup", String.valueOf(cleanup));
 
     return web.post()
         .uri("/sdk/upload")

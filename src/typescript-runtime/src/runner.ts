@@ -25,6 +25,7 @@ export async function runSnippetTS(userCode: string): Promise<RunResult> {
     // 1) Compose the entry from your SDK registry + user code
     const sdkMap = getExternalSDKsCached();
     const entrySource = createEntrySourceMulti(sdkMap, userCode);
+    console.log("entrySource", entrySource);
 
     // 2) Bundle to a single IIFE; leave axios/form-data external on purpose
     const build = await esbuild.build({
@@ -132,12 +133,22 @@ export async function runSnippetTS(userCode: string): Promise<RunResult> {
         )
     );
 
+    const normalizeLogs = (logs: RunLogEntry[] ) => {
+        return logs.map(normalizeLogArgs);
+    }
+
+    const normalizeLogArgs = (log:RunLogEntry) => {
+        log.args = (log.args ?? []).map((arg) => String(arg));
+        return log;
+    }
+
     try {
         const result: any = await Promise.race([mainFn(), timeoutPromise]);
+        console.log("result", JSON.stringify(result));
         if (result?.error) {
-            return { ok: false, error: String(result.error), logs: result.logs ?? [] };
+            return { ok: false, error: String(result.error), logs: normalizeLogs(result.logs ?? []) };
         }
-        return { ok: true, value: result?.value, logs: result?.logs ?? [] };
+        return { ok: true, value: result?.value, logs: normalizeLogs(result?.logs ?? []) };
     } catch (err: any) {
         return { ok: false, error: err?.stack ?? String(err), logs: [] };
     } finally {

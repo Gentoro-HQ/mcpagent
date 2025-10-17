@@ -2,6 +2,7 @@ package com.gentorox.services.knowledgebase;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -34,6 +35,14 @@ public interface KnowledgeBaseService {
    * @return optional content
    */
   Optional<String> getContent(String resourceUri);
+
+  /**
+   * Retrieves a map of service names and their corresponding descriptions or details, if available.
+   *
+   * @return an Optional containing a map where the keys are service names and the values are their descriptions,
+   *         or an empty Optional if no services are configured or available.
+   */
+  Optional<Map<String, String>> getServices();
 
   /**
    * Whether the KB was restored from persisted state during the last initialization.

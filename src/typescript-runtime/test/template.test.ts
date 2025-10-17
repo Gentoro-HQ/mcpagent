@@ -14,7 +14,7 @@ describe('makeEntrySourceMulti', () => {
 
   it('embeds the user code in an async IIFE and returns value/logs', () => {
     const src = createEntrySourceMulti({}, 'console.log("hi"); return 7;');
-    expect(src).toMatch(/const _ret = await \(async \(\) => \{ /);
+    expect(src).toMatch(/const _ret = await \(async \(\) => \{/);
     expect(src).toContain('console.log("hi")');
     expect(src).toContain('return 7;');
     expect(src).toContain('return { value, logs: plainLogs };');

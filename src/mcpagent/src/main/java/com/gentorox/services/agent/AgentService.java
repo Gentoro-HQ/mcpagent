@@ -207,7 +207,7 @@ public class AgentService {
 
   // ---------- AutoGen guardrails ----------
 
-  private String generateGuardrails(AgentConfig cfg, List<String> serviceSummaries) {
+  private String generateGuardrails(AgentConfig cfg, Map<String, String> serviceSummaries) {
     StringBuilder prompt = new StringBuilder();
     prompt.append("You are to produce a concise, comprehensive set of guardrails (capabilities and strict boundaries) for an AI Agent.\n");
     prompt.append("Use the provided information only. Anything outside the described capabilities must be refused.\n\n");
@@ -222,7 +222,9 @@ public class AgentService {
 
     if (!serviceSummaries.isEmpty()) {
       prompt.append("Available services and operations (OpenAPI-derived):\n");
-      for (String s : serviceSummaries) prompt.append("- ").append(s).append("\n");
+      for (String s : serviceSummaries.keySet()) {
+        prompt.append("- ").append(s).append("\n");
+      }
       prompt.append("\n");
     }
 
@@ -232,20 +234,8 @@ public class AgentService {
     return Optional.ofNullable(resp).map(r -> r.content()).orElse("");
   }
 
-  private List<String> collectOpenApiServices() {
-    // Knowledge base exposes entries under kb://openapi . We can list and use filenames as a proxy summary.
-    try {
-      var entries = kbService.list("kb://openapi");
-      List<String> result = new ArrayList<>();
-      for (var e : entries) {
-        String name = e.resource();
-        result.add(name);
-      }
-      return result;
-    } catch (Exception ex) {
-      logger.warn("Failed to collect OpenAPI service summaries from KnowledgeBase", ex);
-      return List.of();
-    }
+  private Map<String, String> collectOpenApiServices() {
+    return kbService.getServices().orElse(Collections.emptyMap());
   }
 
   // ---------- Data model ----------

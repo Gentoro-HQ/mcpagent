@@ -20,16 +20,17 @@ import java.util.stream.Stream;
  * RegressionService discovers YAML test files, executes prompts via Orchestrator, and evaluates
  * pass/fail using the InferenceService as an LLM judge. It logs per-test outcomes and returns a report.
  */
-@Service
 public class RegressionService {
 
     private static final Logger LOG = LoggerFactory.getLogger(RegressionService.class);
 
+    private final Path rootFoundationPath;
     private final Orchestrator orchestrator;
     private final InferenceService inferenceService;
     private final ObjectMapper yaml;
 
-    public RegressionService(Orchestrator orchestrator, InferenceService inferenceService) {
+    public RegressionService(Path rootFoundationPath, Orchestrator orchestrator, InferenceService inferenceService) {
+        this.rootFoundationPath = Objects.requireNonNull(rootFoundationPath, "rootFoundationPath");
         this.orchestrator = Objects.requireNonNull(orchestrator, "orchestrator");
         this.inferenceService = Objects.requireNonNull(inferenceService, "inferenceService");
         this.yaml = new ObjectMapper(new YAMLFactory());
@@ -39,7 +40,7 @@ public class RegressionService {
      * Runs all regression tests found under foundation/regression.
      */
     public RegressionReport runAll() {
-        Path root = Paths.get("foundation", "regression");
+        Path root = rootFoundationPath.resolve("regression");
         List<Path> files = discoverYamlFiles(root);
 
         if (files.isEmpty()) {
@@ -97,8 +98,10 @@ public class RegressionService {
             // 3) Log and record
             if (verdict.pass) {
                 LOG.info("[PASS] {}", name);
+                LOG.warn("[PASS] Produced value: {}", output);
             } else {
                 LOG.warn("[FAIL] {} :: {}", name, verdict.reason);
+                LOG.warn("[FAIL] Produced value: {}", output);
             }
             report.add(new RegressionReport.Item(name, verdict.pass, verdict.reason, prompt, output));
         } catch (Exception e) {

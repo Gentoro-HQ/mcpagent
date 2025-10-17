@@ -1,0 +1,15 @@
+tests:
+  - display-name: category and sales
+    prompt: |
+      Find all electronics sales in California. Return values per sub-category.
+    assert: |
+      These are all sub-categories of electronics: Audio, Computers, Mobile, Gaming, Cameras, Accessories.
+      Make sure the returned values are correct, and only include the sub-categories.
+      
+
+  - display-name: revenue by category
+    prompt: |
+      Calculate total revenue by product category for 2023.
+    assert: |
+      Check if a valid number is produced.
+      

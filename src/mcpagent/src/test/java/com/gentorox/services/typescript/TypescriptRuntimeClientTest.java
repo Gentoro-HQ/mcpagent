@@ -1,7 +1,9 @@
 package com.gentorox.services.typescript;
 
+import kotlin.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -12,11 +14,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 /**
@@ -57,8 +59,10 @@ public class TypescriptRuntimeClientTest {
         .contentType(eq(MediaType.APPLICATION_JSON))
         .bodyValue(any())
         .retrieve()
-        .bodyToMono(eq(TypescriptRuntimeClient.RunResponse.class)))
-        .thenReturn(Mono.just(expected));
+        .bodyToMono(eq(String.class))
+        .doOnNext(ArgumentMatchers.<Consumer<String>>any())
+        .flatMap(any())
+    ).thenReturn(Mono.just(expected));
 
     // Act
     TypescriptRuntimeClient.RunResponse out = client.exec("console.log('hello');").block();
@@ -86,7 +90,7 @@ public class TypescriptRuntimeClientTest {
         .thenReturn(Mono.just(expected));
 
     // Act
-    TypescriptRuntimeClient.UploadResult out = client.uploadOpenapi(tmpSpec, "petstore").block();
+    TypescriptRuntimeClient.UploadResult out = client.uploadOpenapi(tmpSpec, "petstore", false).block();
 
     // Assert
     assertThat(out).isNotNull();

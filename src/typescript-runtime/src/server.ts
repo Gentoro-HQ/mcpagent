@@ -11,16 +11,13 @@ import { z } from "zod";
 import multipart from "@fastify/multipart";
 import * as fs from "node:fs";
 import path from "node:path";
-import { runOpenApiGenerator } from "./lib/openapi-gen";
+import {runOpenApiGenerator, runShell} from "./lib/openapi-gen";
 import { runSnippetTS } from "./runner.js";
 import { EXTERNAL_SDKS_ROOT } from "./config.js";
 import { invalidateExternalSDKCache } from "./sdk-registry.js";
-import { cleanExternalSDKsRoot } from "./startup.js";
 import { createUniqueSdkFolder } from "./names.js";
 import { getNumber } from "./env.js";
-
-// Cleanup the external SDKs root on startup
-cleanExternalSDKsRoot();
+import {cleanExternalSDKsRoot} from "./startup";
 
 function readAllMarkdownFiles(dir: string, baseDir: string) {
     const out: Array<{ path: string; markdown: string }> = [];
@@ -115,6 +112,11 @@ export async function createServer(): Promise<FastifyInstance> {
         .send({ ok: false, error: "Missing 'spec' file field" });
     }
 
+    const cleanup = body?.cleanup?.value === "true";
+    if( cleanup ) {
+        cleanExternalSDKsRoot();
+    }
+
     const requested =
       typeof body?.outDir?.value === "string"
         ? body.outDir.value
@@ -151,7 +153,8 @@ export async function createServer(): Promise<FastifyInstance> {
                   "apiPackage=apis",
                   "modelPackage=models",
                   "useTags=true",
-                  "useSingleRequestParameter=true"
+                  "useOperationId=true",
+                  "useSingleRequestParameter=false"
               ].join(",")
           ];
           const { stdout, stderr } = await runOpenApiGenerator(args);
@@ -160,6 +163,48 @@ export async function createServer(): Promise<FastifyInstance> {
           req.log.error(e, "openapi-generator failed (typescript-axios)");
           return reply.code(400).send({ ok: false, error: `Codegen failed: ${String(e?.message ?? e)}` });
       }
+
+      await fs.promises.writeFile(path.join(absPath, "typedoc.json"), JSON.stringify({
+          entryPoints: ["./index.ts"],
+          out: "typedoc",
+          excludeExternals: true,
+          excludePrivate: true,
+          excludeProtected: true
+      }, null, 2));
+
+      await fs.promises.writeFile(path.join(absPath, "tsconfig.docs.json"), JSON.stringify({
+          compilerOptions: {
+              moduleResolution: "node",
+              esModuleInterop: true,
+              allowSyntheticDefaultImports: true,
+              skipLibCheck: true,
+              types: ["node"],
+              lib: ["ES2020", "DOM"]
+          },
+          include: ["./**/*.ts", "types/**/*.d.ts"]
+      }, null, 2));
+
+      const shellContent = `
+        set -Eeuo pipefail
+        trap 'code=$?; echo "::ERROR:: step failed (exit $code) at line $LINENO"; exit $code' ERR
+        set -x
+
+        cd ${absPath}
+        echo "entered ${absPath}"
+        
+        npm i axios@latest
+        npm i -D @types/node typedoc typedoc-plugin-markdown typescript @types/axios
+        echo "executed npm install"
+        
+                        
+        npx -y typedoc@latest --plugin typedoc-plugin-markdown --tsconfig tsconfig.docs.json --entryPoints ./index.ts --out ./typedoc
+        echo "executed npm typedoc"
+        
+        echo "listing content"
+        ls -al typedoc         
+      `;
+      const { stdout, stderr } = await runShell(shellContent);
+      req.log.info({ stdout, stderr }, "doctype: typescript-axios");
 
       // Optional: fallback index.ts for easy imports (OAG’s output uses Api+Model files)
       const indexPath = path.join(absPath, "index.ts");
@@ -202,7 +247,7 @@ export * from "./configuration";
             return reply.code(404).send({ ok: false, error: `Unknown namespace: ${namespace}` });
         }
 
-        const docsDir = path.join(absPath, "docs");
+        const docsDir = path.join(absPath, "typedoc");
         const files = readAllMarkdownFiles(docsDir, docsDir);
         return reply.send({ ok: true, namespace, count: files.length, files, diskLocation: docsDir });
 
