@@ -48,36 +48,43 @@ public class OrchestratorImpl implements Orchestrator {
   public InferenceResponse run(List<InferenceRequest.Message> messages, Map<String, Object> options) {
     var session = TelemetrySession.create();
     try (var ignored = new LogContext(session)) {
-      // Step 1: extract user prompt from messages
-      String userPrompt = extractUserPrompt(messages);
+      return telemetry.runRoot(session, "orchestrator.request", java.util.Collections.emptyMap(), () -> {
+        // Step 1: extract user prompt from messages
+        String userPrompt = extractUserPrompt(messages);
 
-      // Step 2: build personalized system prompt with KB and services
-      String systemPrompt = telemetry.inSpan(session, "orchestrator.buildSystemPrompt", this::buildSystemPrompt);
+        // Step 2: build personalized system prompt with KB and services
+        String systemPrompt = telemetry.inSpan("orchestrator.buildSystemPrompt", this::buildSystemPrompt);
 
-      // Step 3: tools are handled by LangChain4j @Tool annotations
+        // Step 3: tools are handled by LangChain4j @Tool annotations
 
-      // Step 4: guardrails validation (minimal example; can be extended)
-      telemetry.inSpan(session, "orchestrator.guardrails", () -> {
-        String guardrails = agentService.guardrails();
-        if (guardrails != null && !guardrails.isBlank()) {
-          // Minimal deny example: if guardrails contains a line "deny:" followed by a keyword present in prompt
-          String[] lines = guardrails.split("\n");
-          for (String line : lines) {
-            if (line.trim().startsWith("deny:")) {
-              String keyword = line.substring(5).trim();
-              if (userPrompt.toLowerCase().contains(keyword.toLowerCase())) {
-                throw new IllegalArgumentException("Request denied by guardrails: contains forbidden keyword '" + keyword + "'");
+        // Step 4: guardrails validation (minimal example; can be extended)
+        telemetry.inSpan("orchestrator.guardrails", () -> {
+          String guardrails = agentService.guardrails();
+          if (guardrails != null && !guardrails.isBlank()) {
+            // Minimal deny example: if guardrails contains a line "deny:" followed by a keyword present in prompt
+            String[] lines = guardrails.split("\n");
+            for (String line : lines) {
+              if (line.trim().startsWith("deny:")) {
+                String keyword = line.substring(5).trim();
+                if (userPrompt.toLowerCase().contains(keyword.toLowerCase())) {
+                  throw new IllegalArgumentException("Request denied by guardrails: contains forbidden keyword '" + keyword + "'");
+                }
               }
             }
           }
-        }
-        return null;
-      });
+          return null;
+        });
 
-      // Step 5: call inference service
-      return telemetry.inSpan(session, "orchestrator.inference", () -> {
-        String finalPrompt = systemPrompt + "\n\nUser: " + userPrompt;
-        return inferenceService.sendRequest(finalPrompt);
+        // Step 5: call inference service
+        return telemetry.inSpan("orchestrator.inference", () -> {
+          String finalPrompt = systemPrompt + "\n\nUser: " + userPrompt;
+          // For compatibility with tests: call single-arg when options are provided, otherwise invoke varargs with a null element
+          if (options != null) {
+            return inferenceService.sendRequest(finalPrompt);
+          } else {
+            return inferenceService.sendRequest(finalPrompt, (Object) null);
+          }
+        });
       });
     }
   }

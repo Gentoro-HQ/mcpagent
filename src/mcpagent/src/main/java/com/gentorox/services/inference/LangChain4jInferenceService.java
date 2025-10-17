@@ -46,22 +46,22 @@ public class LangChain4jInferenceService {
      */
     public String sendRequestWithTools(String prompt, Object... toolInstances) {
         TelemetrySession session = TelemetrySession.create();
-        
+
         return telemetry.runRoot(session, "langchain4j.inference.request", Map.of(
             "gentorox.inference.provider", provider,
             "gentorox.inference.model", modelName,
             "gentorox.inference.tools.count", String.valueOf(toolInstances.length)
         ), () -> {
             // Count the prompt
-            telemetry.countPrompt(session, provider, modelName);
-            
+            telemetry.countPrompt(provider, modelName);
+
             // Create AI service with tools
             AiAssistant assistant = AiServices.builder(AiAssistant.class)
                 .chatLanguageModel(chatModel)
                 .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                 .tools(toolInstances) // Pass tool instances directly
                 .build();
-            
+
             // Execute the request - tools are automatically called as needed
             return assistant.chat(session.id(), prompt);
         });
@@ -70,11 +70,11 @@ public class LangChain4jInferenceService {
     private ChatLanguageModel createChatModel(ProviderProperties providerProperties) {
         String provider = providerProperties.getDefaultProvider();
         ProviderProperties.ProviderSettings settings = providerProperties.getProviders().get(provider);
-        
+
         if (settings == null) {
             throw new IllegalArgumentException("Provider configuration not found for: " + provider);
         }
-        
+
         return switch (provider.toLowerCase()) {
             case "openai" -> {
                 if (settings.getApiKey() == null || settings.getApiKey().isEmpty()) {
@@ -83,11 +83,11 @@ public class LangChain4jInferenceService {
                 var builder = OpenAiChatModel.builder()
                     .apiKey(settings.getApiKey())
                     .modelName(settings.getModelName());
-                
+
                 if (settings.getBaseUrl() != null && !settings.getBaseUrl().isEmpty()) {
                     builder.baseUrl(settings.getBaseUrl());
                 }
-                
+
                 yield builder.build();
             }
             default -> throw new IllegalArgumentException("Unsupported model provider: " + provider);

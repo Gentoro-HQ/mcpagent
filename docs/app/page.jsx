@@ -7,7 +7,7 @@ export default function HomePage() {
         with dynamic code generation, retrieval, and built-in observability.
       </p>
       <div className="home-actions">
-        <a href="/docs/" className="btn-primary">Get Started</a>
+        <a href="/docs" className="btn-primary">Get Started</a>
         <a
           href="https://github.com/gentoro-GT/mcpagent"
           target="_blank"

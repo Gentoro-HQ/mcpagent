@@ -63,9 +63,8 @@ class TelemetryServiceTracingTest {
   @Test
   void inSpan_createsInternalSpan_andPropagatesParent() {
     var session = new TelemetrySession("s-1");
-
     telemetryService.runRoot(session, "root", () -> {
-      telemetryService.inSpan(session, "child", Map.of("k","v"), () -> "x");
+      telemetryService.inSpan("child", Map.of("k","v"), () -> "x");
       return null;
     });
 

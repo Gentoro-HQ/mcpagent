@@ -19,7 +19,7 @@ jobs:
       id-token: write
       contents: read
     env:
-      CF_DIST_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
     
     steps:
       - name: Checkout repository
@@ -75,10 +75,10 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
       - name: Invalidate CloudFront cache
-        if: ${{ env.CF_DIST_ID != '' }}
+        if: ${{ env.CLOUDFRONT_DISTRIBUTION_ID != '' }}
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id "${{ env.CF_DIST_ID }}" \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
 
       - name: Deployment summary
@@ -91,4 +91,4 @@ jobs:
           echo "- **Build Size**: $(du -sh out 2>/dev/null | cut -f1 || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
           echo "- **Files Deployed**: $(find out -type f 2>/dev/null | wc -l || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **CloudFront**: $([ -n "${{ env.CF_DIST_ID }}" ] && echo "Cache invalidated" || echo "Not configured")" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront**: $([ -n "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" ] && echo "Cache invalidated" || echo "Not configured")" >> $GITHUB_STEP_SUMMARY
