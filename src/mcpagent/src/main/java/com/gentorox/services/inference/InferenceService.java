@@ -59,7 +59,7 @@ public class InferenceService {
     TelemetrySession session = TelemetrySession.create();
 
     // Wrap the entire inference request in a root span
-    return telemetry.inSpan("inference.request", Map.of(
+    return telemetry.inSpan(session, "inference.request", Map.of(
         "gentorox.inference.provider", provider,
         "gentorox.inference.model", modelName,
         "gentorox.inference.tools.count", String.valueOf(toolInstances.length),
