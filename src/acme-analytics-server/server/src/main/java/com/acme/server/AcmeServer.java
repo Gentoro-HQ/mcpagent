@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -186,6 +187,10 @@ public class AcmeServer {
                 // Parse request body
                 String requestBody = new String(exchange.getRequestBody().readAllBytes());
                 ObjectNode request = (ObjectNode) objectMapper.readTree(requestBody);
+
+                if( !request.has("fields") ) {
+                  request.putArray("fields");
+                }
 
                 // Validate request
                 if (!request.has("filter") || !request.has("fields")) {
@@ -445,7 +450,11 @@ public class AcmeServer {
         switch (fieldType) {
           case "datetime":
             if (value instanceof String) {
-              return LocalDate.parse(value.toString()).toEpochDay();
+              try {
+                return LocalDateTime.parse(value.toString()).toLocalDate().toEpochDay();
+              } catch ( java.time.format.DateTimeParseException e ) {
+                return LocalDate.parse(value.toString()).toEpochDay();
+              }
             } else if (value instanceof LocalDate) {
               return ((LocalDate)value).toEpochDay();
             }

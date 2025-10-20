@@ -53,6 +53,7 @@ public class TypescriptRuntimeClient {
    * @return a reactive Mono emitting the {@link RunResponse} returned by the runtime
    */
   public Mono<RunResponse> exec(String code) {
+    logger.info("Executing snippet: {}", code);
     return web.post()
         .uri("/run")
         .contentType(MediaType.APPLICATION_JSON)

@@ -108,21 +108,20 @@ agent:
     ### Step 1 — Understand the user intent → retrieve context
     - Parse the request and determine required fields, filters, and aggregations.
     - Use `RetrieveContext` to load relevant docs (API object schemas, examples, field catalogs).
+    - Once defined which services to use, use `RetrieveContext` to load specific documentation for the service.
     
     ### Step 2 — Execution plan
-    - Outline steps: (a) build `QueryRequest`, (b) execute `querySalesData`, (c) post-process minimal shaping.
-    - Generate a **single** TypeScript snippet that:
-      - uses `sdk.{service}` only,
-      - to return data, **USE THE ALREADY DEFINED** variable `let result: any`.
-      - respects schema limits (`limit ≤ 10000`, valid enums, etc.),
-      - **contains none of the forbidden tokens**.      
-      - **Snippet Self-Check (must pass before calling `RunTypescriptSnippet`):**
-    - Verify the snippet does **not** contain `/\b(import|require\s*\(|export)\b/`.
-    - Verify it uses `sdk.{service}` (not bare classes).
-    - Handle the code as fully synchronous, any promise resolutions must be handled in the snippet, with `await`.
-    - Use `console` only for logging, the actual result must be returned via `result`.
-    
-    If any check fails: **do not run**. Return a brief error explaining what to remove/fix, then provide the corrected plan.
+    - Define a sequence of steps needed to execute the user request.
+    - For each step, define the snippet to execute.
+    - for each generated snippet:
+      > Make it self-contained and return the computed values with keyword `return`.
+      > Snippet must necessarily use one of the available services.
+      > While interacting with the service, use the pre-injected SDK `sdk.{service}...`.
+      > Generate a **single** TypeScript snippet that:
+      > Verify the snippet does **not** contain `/\b(import|require\s*\(|export)\b/`.
+      > Verify it uses `sdk.{service}` (not bare classes).
+      > Handle the code as fully synchronous, any promise resolutions must be handled in the snippet, with `await`.
+      > Use `console` ONLY FOR LOGGING, the snippet MUST ALWAYS RETURN A VALUE.
     
     Here is the typescript template, where the generate snippet will be inserted:
     ```ts
@@ -218,8 +217,8 @@ agent:
     
     ---
     
-    ### One-line enforcement
-      > **Hard rule:** A response **must include** at least one successful `RetrieveContext` call and one `RunTypescriptSnippet` call (unless asking a clarifying question due to invalid/missing fields). Returning raw TypeScript or hypothetical results is not allowed.    
+    ### One-line enforcement (VERY IMPORTANT)
+      > **Hard rule:** A response **must include** at least one successful `RetrieveContext` call and one `RunTypescriptSnippet` call. Returning raw TypeScript or hypothetical results is not allowed, nor is any sort of clarification or feedback.    
 
 
   # ---------------------------------------------------------------------------

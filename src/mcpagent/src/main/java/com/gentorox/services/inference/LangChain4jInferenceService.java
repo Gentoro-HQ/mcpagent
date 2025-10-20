@@ -6,6 +6,7 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.MemoryId;
@@ -90,6 +91,16 @@ public class LangChain4jInferenceService {
 
                 yield builder.build();
             }
+          case "gemini" -> {
+            if (settings.getApiKey() == null || settings.getApiKey().isEmpty()) {
+              throw new IllegalArgumentException("Gemini API key is required");
+            }
+            var builder = GoogleAiGeminiChatModel.builder()
+                .apiKey(settings.getApiKey())
+                .modelName(settings.getModelName());
+
+            yield builder.build();
+          }
             default -> throw new IllegalArgumentException("Unsupported model provider: " + provider);
         };
     }

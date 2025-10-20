@@ -25,7 +25,6 @@ export async function runSnippetTS(userCode: string): Promise<RunResult> {
     // 1) Compose the entry from your SDK registry + user code
     const sdkMap = getExternalSDKsCached();
     const entrySource = createEntrySourceMulti(sdkMap, userCode);
-    console.log("entrySource", entrySource);
 
     // 2) Bundle to a single IIFE; leave axios/form-data external on purpose
     const build = await esbuild.build({
