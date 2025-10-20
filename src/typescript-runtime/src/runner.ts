@@ -144,11 +144,10 @@ export async function runSnippetTS(userCode: string): Promise<RunResult> {
 
     try {
         const result: any = await Promise.race([mainFn(), timeoutPromise]);
-        console.log("result", JSON.stringify(result));
         if (result?.error) {
             return { ok: false, error: String(result.error), logs: normalizeLogs(result.logs ?? []) };
         }
-        return { ok: true, value: result?.value, logs: normalizeLogs(result?.logs ?? []) };
+        return { ok: true, value: JSON.stringify(result?.value), logs: normalizeLogs(result?.logs ?? []) };
     } catch (err: any) {
         return { ok: false, error: err?.stack ?? String(err), logs: [] };
     } finally {

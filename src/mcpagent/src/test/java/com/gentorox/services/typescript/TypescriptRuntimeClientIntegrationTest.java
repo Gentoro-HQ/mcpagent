@@ -24,7 +24,7 @@ public class TypescriptRuntimeClientIntegrationTest {
     assertThat(result.logs()).isNotNull();
     assertThat(result.logs()).isNotEmpty();
     assertThat(result.logs().stream().anyMatch( e -> e.args().stream().anyMatch( v -> v.contains("hi") ) )).isTrue();
-    assertThat(result.value()).isEqualTo(42);
+    assertThat(result.value()).isEqualTo("42");
   }
 
   @Test

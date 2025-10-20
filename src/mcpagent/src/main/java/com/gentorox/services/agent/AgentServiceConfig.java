@@ -30,15 +30,12 @@ public class AgentServiceConfig {
    *                          the property "knowledgeBase.foundation.dir". Defaults to "/var/foundation".
    * @param inferenceService  the inference service dependency
    * @param kbService         the knowledge base service dependency
-   * @param nativeTools       the list of native tools available to the agent
    * @return a fully initialized AgentService instance
-   * @throws IOException if initialization fails with an I/O error
    */
   @Bean
   public AgentService agentService(
       @Value("${knowledgeBase.foundation.dir:/var/foundation}") String rootFoundationDir,
-      InferenceService inferenceService,
-      KnowledgeBaseService kbService) throws IOException {
+      InferenceService inferenceService, KnowledgeBaseService kbService){
 
     Path rootFoundationPath = Path.of(rootFoundationDir);
     logger.info("Initializing AgentService with foundation dir: {}", rootFoundationPath.toAbsolutePath());

@@ -102,18 +102,21 @@ public class OrchestratorImpl implements Orchestrator {
   private String buildSystemPrompt() {
     String base = agentService.systemPrompt();
 
-    // Compress KB: only list resource + hint
-    List<KnowledgeBaseEntry> kb = kbService.list("");
-    String kbSummary = kb.stream()
-        .map(e -> String.format("- %s :: %s", e.resource(), optional(e.hint())))
-        .collect(Collectors.joining("\n"));
+    StringBuilder docsSummary = new StringBuilder();
+    docsSummary.append(
+        """
+        |------------ | ----------------------------------- |
+        | Resource    | Short description                   |
+        |------------ | ----------------------------------- |
+        """);
+
+    kbService.list("kb://docs/").forEach(e -> {
+      docsSummary.append("| `").append(e.resource()).append("` | ").append(optional(e.hint())).append(" |\n");
+    });
+
 
     // List of available services (heuristic: entries under kb://openapi or sdk names in hints)
-    List<String> services = kb.stream()
-        .filter(e -> e.resource() != null && e.resource().startsWith("kb://openapi"))
-        .map(KnowledgeBaseEntry::resource)
-        .sorted()
-        .toList();
+    Set<String> services = kbService.getServices().map(Map::keySet).orElse(Collections.<String>emptySet());
 
     StringBuilder serviceSummary = new StringBuilder();
     kbService.getServices().ifPresent( entries -> {
@@ -137,9 +140,9 @@ public class OrchestratorImpl implements Orchestrator {
     placeholders.put("tool.retrieveContext.description", "Retrieve knowledge base resources by names or relative paths and return their contents");
     placeholders.put("tool.runTsCode.name", "RunTypescriptSnippet");
     placeholders.put("tool.runTsCode.description", "Execute a short TypeScript snippet in the isolated runtime and return stdout/result");
-    placeholders.put("kb.summary", kbSummary);
-    placeholders.put("kb.serviceSummary", Arrays.stream(serviceSummary.toString().split("\n")).map("    %s"::formatted).collect(Collectors.joining("\n")));
-    placeholders.put("services.summary", String.join("\n", services));
+    placeholders.put("kb.docs.summary", Arrays.stream(docsSummary.toString().split("\n")).map("%s"::formatted).collect(Collectors.joining("\n")));
+    placeholders.put("kb.services.summary", Arrays.stream(serviceSummary.toString().split("\n")).map("    %s"::formatted).collect(Collectors.joining("\n")));
+    placeholders.put("kb.services.list", String.join("\n", services));
     for(Map.Entry<String, String> entry : placeholders.entrySet()) {
       while( base.contains("{{%s}}".formatted(entry.getKey())) ) {
         base = base.replace("{{%s}}".formatted(entry.getKey()), entry.getValue());

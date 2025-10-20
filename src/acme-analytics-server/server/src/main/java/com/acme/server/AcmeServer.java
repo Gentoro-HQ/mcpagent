@@ -1,5 +1,6 @@
 package com.acme.server;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -10,6 +11,10 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -17,7 +22,7 @@ import java.util.stream.Collectors;
 
 /**
  * ACME Analytics Server - Mock server implementing the Sales Analytics API
- * 
+ *
  * This server provides a realistic data analytics API that generates fake data
  * for testing MCP-Agent capabilities. It implements the complete API specification
  * including query filtering, field selection, and aggregations.
@@ -28,7 +33,7 @@ public class AcmeServer {
     private final ObjectMapper objectMapper;
     private final FakeDataGenerator dataGenerator;
     private final Map<String, List<Map<String, Object>>> dataStore;
-    
+
     // Available fields for querying
     private static final Map<String, String> FIELD_TYPES = new HashMap<>();
     static {
@@ -42,7 +47,7 @@ public class AcmeServer {
         FIELD_TYPES.put("sale.shipping_cost", "number");
         FIELD_TYPES.put("sale.payment_method", "string");
         FIELD_TYPES.put("sale.status", "string");
-        
+
         // Product fields
         FIELD_TYPES.put("product.id", "string");
         FIELD_TYPES.put("product.name", "string");
@@ -55,7 +60,7 @@ public class AcmeServer {
         FIELD_TYPES.put("product.rating", "number");
         FIELD_TYPES.put("product.weight", "number");
         FIELD_TYPES.put("product.dimensions", "string");
-        
+
         // Customer fields
         FIELD_TYPES.put("customer.id", "string");
         FIELD_TYPES.put("customer.name", "string");
@@ -71,7 +76,7 @@ public class AcmeServer {
         FIELD_TYPES.put("customer.loyalty_tier", "string");
         FIELD_TYPES.put("customer.total_spent", "number");
         FIELD_TYPES.put("customer.total_orders", "number");
-        
+
         // Time fields
         FIELD_TYPES.put("date.year", "number");
         FIELD_TYPES.put("date.month", "number");
@@ -79,38 +84,38 @@ public class AcmeServer {
         FIELD_TYPES.put("date.week", "number");
         FIELD_TYPES.put("date.day_of_week", "string");
     }
-    
+
     public AcmeServer(int port) {
         this.port = port;
         this.objectMapper = new ObjectMapper();
         this.dataGenerator = new FakeDataGenerator();
         this.dataStore = new ConcurrentHashMap<>();
     }
-    
+
     /**
      * Start the ACME Analytics Server
      */
     public void start() throws IOException {
         server = HttpServer.create(new InetSocketAddress(port), 0);
-        
+
         // Generate fake data
         generateFakeData();
-        
+
         // Set up endpoints
         server.createContext("/query", new QueryHandler());
         server.createContext("/fields", new FieldsHandler());
         server.createContext("/health", new HealthHandler());
-        
+
         server.setExecutor(null);
         server.start();
-        
+
         System.out.println("ACME Analytics Server started on port " + port);
         System.out.println("Available endpoints:");
         System.out.println("  GET  /health - Health check");
         System.out.println("  GET  /fields - Get available fields");
         System.out.println("  POST /query  - Query sales data");
     }
-    
+
     /**
      * Stop the ACME Analytics Server
      */
@@ -120,29 +125,52 @@ public class AcmeServer {
             System.out.println("ACME Analytics Server stopped");
         }
     }
-    
+
     /**
      * Generate fake data for testing
      */
     private void generateFakeData() {
         System.out.println("Generating fake data...");
-        
+
         // Generate customers
         List<Map<String, Object>> customers = dataGenerator.generateCustomers(1000);
         dataStore.put("customers", customers);
-        
+
         // Generate products
         List<Map<String, Object>> products = dataGenerator.generateProducts(500);
         dataStore.put("products", products);
-        
+
         // Generate sales
         List<Map<String, Object>> sales = dataGenerator.generateSales(10000, customers, products);
         dataStore.put("sales", sales);
-        
-        System.out.println("Generated " + customers.size() + " customers, " + 
+
+        System.out.println("Generated " + customers.size() + " customers, " +
                           products.size() + " products, " + sales.size() + " sales");
+
+        dumpDataSource(customers, "customers.csv");
+        dumpDataSource(products, "products.csv");
+        dumpDataSource(sales, "sales.csv");
     }
-    
+
+    private void dumpDataSource ( List<Map<String, Object>> data, String fileName ) {
+      StringBuilder csvContent = new StringBuilder();
+      csvContent.append( String.join(", ", data.getFirst().keySet().stream().map("\"%s\""::formatted).toList()));
+      csvContent.append("\n");
+      data.forEach( r -> {
+        csvContent.append( String.join(", ", r.keySet().stream().map(k ->"\"%s\"".formatted(r.get(k)) ).toList()));
+        csvContent.append("\n");
+      });
+
+      try {
+        Path file = Files.createTempFile(fileName, ".csv");
+        Files.writeString(file, csvContent.toString());
+        System.out.println("Data source saved at " + file.toAbsolutePath());
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+
+    }
+
     /**
      * Query handler for /query endpoint
      */
@@ -153,21 +181,21 @@ public class AcmeServer {
                 sendErrorResponse(exchange, 405, "Method not allowed");
                 return;
             }
-            
+
             try {
                 // Parse request body
                 String requestBody = new String(exchange.getRequestBody().readAllBytes());
                 ObjectNode request = (ObjectNode) objectMapper.readTree(requestBody);
-                
+
                 // Validate request
                 if (!request.has("filter") || !request.has("fields")) {
                     sendErrorResponse(exchange, 400, "Missing required fields: filter and fields");
                     return;
                 }
-                
+
                 // Process query
                 QueryResult result = processQuery(request);
-                
+
                 // Send response
                 ObjectNode response = objectMapper.createObjectNode();
                 response.put("success", true);
@@ -176,9 +204,9 @@ public class AcmeServer {
                 if (result.aggregates != null) {
                     response.set("aggregates", result.aggregates);
                 }
-                
+
                 sendJsonResponse(exchange, 200, response);
-                
+
             } catch (Exception e) {
                 System.err.println("Error processing query: " + e.getMessage());
                 e.printStackTrace();
@@ -186,7 +214,7 @@ public class AcmeServer {
             }
         }
     }
-    
+
     /**
      * Fields handler for /fields endpoint
      */
@@ -197,10 +225,10 @@ public class AcmeServer {
                 sendErrorResponse(exchange, 405, "Method not allowed");
                 return;
             }
-            
+
             ObjectNode response = objectMapper.createObjectNode();
             ArrayNode fields = response.putArray("fields");
-            
+
             FIELD_TYPES.forEach((fieldName, fieldType) -> {
                 ObjectNode field = fields.addObject();
                 field.put("name", fieldName);
@@ -210,11 +238,11 @@ public class AcmeServer {
                 field.put("nullable", true);
                 field.put("example", getFieldExample(fieldName));
             });
-            
+
             sendJsonResponse(exchange, 200, response);
         }
     }
-    
+
     /**
      * Health handler for /health endpoint
      */
@@ -225,16 +253,16 @@ public class AcmeServer {
                 sendErrorResponse(exchange, 405, "Method not allowed");
                 return;
             }
-            
+
             ObjectNode response = objectMapper.createObjectNode();
             response.put("status", "healthy");
             response.put("timestamp", new Date().toString());
             response.put("version", "1.0.0");
-            
+
             sendJsonResponse(exchange, 200, response);
         }
     }
-    
+
     /**
      * Process a query request
      */
@@ -242,39 +270,40 @@ public class AcmeServer {
         List<Map<String, Object>> sales = dataStore.get("sales");
         List<Map<String, Object>> customers = dataStore.get("customers");
         List<Map<String, Object>> products = dataStore.get("products");
-        
-        // Apply filters
-        List<Map<String, Object>> filteredSales = applyFilters(sales, request.get("filter"));
-        
+
         // Join with related data
-        List<Map<String, Object>> enrichedData = enrichData(filteredSales, customers, products);
-        
+        List<Map<String, Object>> enrichedData = enrichData(sales, customers, products);
+
+        // Apply filters
+        List<Map<String, Object>> filteredSales = applyFilters(enrichedData, request.get("filter"));
+
+
         // Select fields
         ArrayNode fieldsArray = (ArrayNode) request.get("fields");
         List<String> requestedFields = new ArrayList<>();
         for (int i = 0; i < fieldsArray.size(); i++) {
             requestedFields.add(fieldsArray.get(i).asText());
         }
-        
-        List<Map<String, Object>> selectedData = selectFields(enrichedData, requestedFields);
-        
+
+        List<Map<String, Object>> selectedData = requestedFields.isEmpty() ? Collections.emptyList() : selectFields(filteredSales, requestedFields);
+
         // Apply limit
         int limit = request.has("limit") ? request.get("limit").asInt() : 1000;
         if (selectedData.size() > limit) {
             selectedData = selectedData.subList(0, limit);
         }
-        
+
         // Process aggregates
         ObjectNode aggregates = null;
         if (request.has("aggregates")) {
             aggregates = processAggregates(enrichedData, request.get("aggregates"));
         }
-        
+
         // Create response
         QueryResult result = new QueryResult();
         result.data = objectMapper.valueToTree(selectedData);
         result.aggregates = aggregates;
-        
+
         // Create metadata
         ObjectNode metadata = objectMapper.createObjectNode();
         metadata.put("total_records", filteredSales.size());
@@ -282,10 +311,10 @@ public class AcmeServer {
         metadata.put("query_id", "qry_" + UUID.randomUUID().toString().substring(0, 8));
         metadata.put("has_more", selectedData.size() >= limit);
         result.metadata = metadata;
-        
+
         return result;
     }
-    
+
     /**
      * Apply filters to the data
      */
@@ -293,45 +322,45 @@ public class AcmeServer {
         if (filters == null || !filters.isArray()) {
             return data;
         }
-        
+
         List<Map<String, Object>> filtered = new ArrayList<>(data);
-        
+
         for (com.fasterxml.jackson.databind.JsonNode filter : filters) {
             String field = filter.get("field").asText();
             String operator = filter.get("operator").asText();
             com.fasterxml.jackson.databind.JsonNode value = filter.get("value");
-            
+
             filtered = filtered.stream()
                 .filter(record -> evaluateFilter(record, field, operator, value))
                 .collect(Collectors.toList());
         }
-        
+
         return filtered;
     }
-    
+
     /**
      * Evaluate a single filter condition
      */
     private boolean evaluateFilter(Map<String, Object> record, String field, String operator, com.fasterxml.jackson.databind.JsonNode value) {
         Object fieldValue = getNestedValue(record, field);
-        
+
         if (fieldValue == null) {
             return "is_null".equals(operator);
         }
-        
+
         switch (operator) {
             case "equals":
                 return Objects.equals(fieldValue.toString(), value.asText());
             case "not_equals":
                 return !Objects.equals(fieldValue.toString(), value.asText());
             case "greater_than":
-                return compareNumbers(fieldValue, value) > 0;
+                return compareNumbers(field, fieldValue, value) > 0;
             case "greater_than_or_equal":
-                return compareNumbers(fieldValue, value) >= 0;
+                return compareNumbers(field, fieldValue, value) >= 0;
             case "less_than":
-                return compareNumbers(fieldValue, value) < 0;
+                return compareNumbers(field, fieldValue, value) < 0;
             case "less_than_or_equal":
-                return compareNumbers(fieldValue, value) <= 0;
+                return compareNumbers(field, fieldValue, value) <= 0;
             case "contains":
                 return fieldValue.toString().toLowerCase().contains(value.asText().toLowerCase());
             case "not_contains":
@@ -348,9 +377,9 @@ public class AcmeServer {
                 return false;
             case "between":
                 if (value.isArray() && value.size() == 2) {
-                    double fieldNum = toNumber(fieldValue);
-                    double min = toNumber(value.get(0));
-                    double max = toNumber(value.get(1));
+                    double fieldNum = toNumber(field, fieldValue);
+                    double min = toNumber(field, getJsonNodeValue(value.get(0)));
+                    double max = toNumber(field, getJsonNodeValue(value.get(1)));
                     return fieldNum >= min && fieldNum <= max;
                 }
                 return false;
@@ -360,84 +389,122 @@ public class AcmeServer {
                 return true;
         }
     }
-    
+
+    private Object getJsonNodeValue (JsonNode node ) {
+      if ( node.isBoolean() ) {
+        return node.asBoolean();
+      } else if ( node.isTextual() ) {
+        return node.asText();
+      } else if ( node.isNumber() ) {
+        return node.asDouble();
+      } else if ( node.isArray() ) {
+        List<Object> list = new ArrayList<>();
+        for ( JsonNode item : node ) {
+          list.add( getJsonNodeValue( item ) );
+        }
+        return list;
+      }
+      throw new IllegalArgumentException("Invalid JSON node type: " + node.getNodeType());
+    }
+
     /**
      * Get nested value from record using dot notation
      */
     private Object getNestedValue(Map<String, Object> record, String field) {
         String[] parts = field.split("\\.");
         Object current = record;
-        
+
         for (String part : parts) {
             if (current instanceof Map) {
                 current = ((Map<?, ?>) current).get(part);
             } else {
-                return null;
+              return record.get(part);
             }
         }
-        
+
         return current;
     }
-    
+
     /**
      * Compare two values as numbers
      */
-    private int compareNumbers(Object fieldValue, com.fasterxml.jackson.databind.JsonNode value) {
-        double fieldNum = toNumber(fieldValue);
-        double valueNum = toNumber(value);
+    private int compareNumbers(String field, Object fieldValue, com.fasterxml.jackson.databind.JsonNode value) {
+        double fieldNum = toNumber(field, fieldValue);
+        double valueNum = toNumber(field, getJsonNodeValue(value));
         return Double.compare(fieldNum, valueNum);
     }
-    
+
     /**
      * Convert value to number
      */
-    private double toNumber(Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).doubleValue();
+    private double toNumber(String fieldName, Object value) {
+        String fieldType = FIELD_TYPES.get(fieldName);
+        if( fieldType == null ) {
+          throw new IllegalArgumentException("Unknown field: " + fieldName);
         }
-        try {
-            return Double.parseDouble(value.toString());
-        } catch (NumberFormatException e) {
-            return 0.0;
+        switch (fieldType) {
+          case "datetime":
+            if (value instanceof String) {
+              return LocalDate.parse(value.toString()).toEpochDay();
+            } else if (value instanceof LocalDate) {
+              return ((LocalDate)value).toEpochDay();
+            }
+            break;
+          case "number":
+            if (value instanceof Number) {
+              return ((Number) value).doubleValue();
+            } else if (value instanceof String) {
+              try {
+                return Double.parseDouble(value.toString());
+              } catch (NumberFormatException e) {
+                return 0.0;
+              }
+            }
+            break;
+          default:
+            break;
         }
+        throw new IllegalArgumentException("Invalid field type: " + fieldType);
     }
-    
+
     /**
      * Enrich sales data with customer and product information
      */
-    private List<Map<String, Object>> enrichData(List<Map<String, Object>> sales, 
-                                                List<Map<String, Object>> customers, 
+    private List<Map<String, Object>> enrichData(List<Map<String, Object>> sales,
+                                                List<Map<String, Object>> customers,
                                                 List<Map<String, Object>> products) {
         Map<String, Map<String, Object>> customerMap = customers.stream()
             .collect(Collectors.toMap(c -> (String) c.get("id"), c -> c));
         Map<String, Map<String, Object>> productMap = products.stream()
             .collect(Collectors.toMap(p -> (String) p.get("id"), p -> p));
-        
+
         return sales.stream().map(sale -> {
-            Map<String, Object> enriched = new HashMap<>(sale);
-            
+            Map<String, Object> enriched = new HashMap<>();
+
+            enriched.put("sale", sale);
+
             // Add customer data
             String customerId = (String) sale.get("customer_id");
             if (customerId != null && customerMap.containsKey(customerId)) {
                 enriched.put("customer", customerMap.get(customerId));
             }
-            
+
             // Add product data
             String productId = (String) sale.get("product_id");
             if (productId != null && productMap.containsKey(productId)) {
                 enriched.put("product", productMap.get(productId));
             }
-            
+
             // Add time fields
             String saleDate = (String) sale.get("date");
             if (saleDate != null) {
                 enriched.put("date", extractTimeFields(saleDate));
             }
-            
+
             return enriched;
         }).collect(Collectors.toList());
     }
-    
+
     /**
      * Extract time fields from date string
      */
@@ -450,7 +517,7 @@ public class AcmeServer {
                 int year = Integer.parseInt(parts[0]);
                 int month = Integer.parseInt(parts[1]);
                 int day = Integer.parseInt(parts[2]);
-                
+
                 timeFields.put("year", year);
                 timeFields.put("month", month);
                 timeFields.put("quarter", "Q" + ((month - 1) / 3 + 1));
@@ -467,7 +534,7 @@ public class AcmeServer {
         }
         return timeFields;
     }
-    
+
     /**
      * Get day of week (simplified)
      */
@@ -475,7 +542,7 @@ public class AcmeServer {
         String[] days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
         return days[day % 7];
     }
-    
+
     /**
      * Select only requested fields from the data
      */
@@ -491,42 +558,48 @@ public class AcmeServer {
             return selected;
         }).collect(Collectors.toList());
     }
-    
+
     /**
      * Process aggregation functions
      */
     private ObjectNode processAggregates(List<Map<String, Object>> data, com.fasterxml.jackson.databind.JsonNode aggregates) {
         ObjectNode result = objectMapper.createObjectNode();
-        
+
         for (com.fasterxml.jackson.databind.JsonNode aggregate : aggregates) {
             String field = aggregate.get("field").asText();
             String function = aggregate.get("function").asText();
             String alias = aggregate.get("alias").asText();
-            
-            List<Object> values = data.stream()
-                .map(record -> getNestedValue(record, field))
-                .filter(Objects::nonNull)
+
+            List<Map.Entry<String, Object>> values = data.stream()
+                .map(record -> Map.entry(field, getNestedValue(record, field)))
+                .filter(e -> e.getValue() != null)
                 .collect(Collectors.toList());
-            
+
             double aggregateValue = calculateAggregate(values, function);
             result.put(alias, aggregateValue);
         }
-        
+
         return result;
     }
-    
+
     /**
      * Calculate aggregate value
      */
-    private double calculateAggregate(List<Object> values, String function) {
+    private double calculateAggregate(List<Map.Entry<String, Object>> values, String function) {
         if (values.isEmpty()) {
             return 0.0;
         }
-        
-        List<Double> numbers = values.stream()
-            .map(this::toNumber)
-            .collect(Collectors.toList());
-        
+
+        List<Double> numbers;
+        if( function.equals("count") ) {
+          numbers =  values.stream()
+              .map( e -> 1.0 )
+              .collect(Collectors.toList());
+        } else {
+          numbers = values.stream()
+              .map( e -> this.toNumber(e.getKey(), e.getValue()))
+              .collect(Collectors.toList());
+        }
         switch (function) {
             case "sum":
                 return numbers.stream().mapToDouble(Double::doubleValue).sum();
@@ -550,7 +623,7 @@ public class AcmeServer {
                 return 0.0;
         }
     }
-    
+
     /**
      * Send JSON response
      */
@@ -562,7 +635,7 @@ public class AcmeServer {
             os.write(responseBody.getBytes());
         }
     }
-    
+
     /**
      * Send error response
      */
@@ -571,17 +644,17 @@ public class AcmeServer {
         error.put("success", false);
         error.put("error", message);
         error.put("timestamp", new Date().toString());
-        
+
         sendJsonResponse(exchange, statusCode, error);
     }
-    
+
     /**
      * Get field description
      */
     private String getFieldDescription(String fieldName) {
         return "Field: " + fieldName;
     }
-    
+
     /**
      * Get field category
      */
@@ -592,7 +665,7 @@ public class AcmeServer {
         if (fieldName.startsWith("date.")) return "date";
         return "other";
     }
-    
+
     /**
      * Get field example
      */
@@ -605,7 +678,7 @@ public class AcmeServer {
             default: return "example";
         }
     }
-    
+
     /**
      * Query result container
      */
@@ -614,7 +687,7 @@ public class AcmeServer {
         ObjectNode metadata;
         ObjectNode aggregates;
     }
-    
+
     /**
      * Main method for Docker invocation
      */
@@ -628,15 +701,15 @@ public class AcmeServer {
                 System.exit(1);
             }
         }
-        
+
         AcmeServer server = new AcmeServer(port);
         try {
             server.start();
-            
+
             // Keep server running
             System.out.println("Press Ctrl+C to stop the server");
             Thread.currentThread().join();
-            
+
         } catch (Exception e) {
             System.err.println("Error starting server: " + e.getMessage());
             e.printStackTrace();

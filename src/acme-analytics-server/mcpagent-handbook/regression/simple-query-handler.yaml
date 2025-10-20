@@ -1,15 +1,14 @@
 tests:
-  - display-name: category and sales
+  - display-name: total sales
     prompt: |
-      Find all electronics sales in California. Return values per sub-category.
+      What is the total sales in 2024?
     assert: |
-      These are all sub-categories of electronics: Audio, Computers, Mobile, Gaming, Cameras, Accessories.
-      Make sure the returned values are correct, and only include the sub-categories.
+      Check if a number is produced.
       
 
   - display-name: revenue by category
     prompt: |
-      Calculate total revenue by product category for 2023.
+      Which customers placed at least one order in May, 2024? Return customer's name and gender.
     assert: |
-      Check if a valid number is produced.
+      Check if names and genders are produced.
       

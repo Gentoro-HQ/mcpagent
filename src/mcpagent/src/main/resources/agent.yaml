@@ -94,18 +94,12 @@ agent:
     ## Knowledge base
     Use the tool `RetrieveContext` to retrieve the complete description of following resources from the knowledge base, as you need it.
     
-    |------------ | ----------------------------------- |
-    | Resource    | Short description                   |
-    |------------ | ----------------------------------- |
-    | `kb://docs/query-examples.md` | The file provides examples of how to use the Sales Analytics API to query for specific business scenarios such as finding high-value sales or filtering sales by region. |
-    | `kb://docs/sales-analytics-overview.md` | This document provides an overview of the Sales Analytics API, detailing its capabilities in providing e-commerce sales data and explaining its dataset structure and query model for sales analysis. |
-    | `kb://docs/data-model.md` | The document outlines the data model for the Sales Analytics API, detailing entity relationships, field categories, and types, essential for engineers developing or maintaining the system. |
-    |------------ | ----------------------------------- |
+    {{kb.docs.summary}}
     
     Each available service also provide domain specific documentation.
     They will be identified by the `kb://openapi` prefix, plus the service name.
     
-    {{kb.serviceSummary}}
+    {{kb.services.summary}}
     
     ---    
     
@@ -290,6 +284,13 @@ agent:
 
       6) Example refusal
          - If asked to manipulate unrelated systems, retrieve private credentials, or run code: “I can’t help with that. I’m limited to using the ACME Sales Analytics API (GET /health, GET /fields, POST /query). If you have a sales analytics question, I can help construct and run a query.”
+
+  inference:
+    model: gpt-5.1-mini
+    options:
+      - name: temperature
+        value: 1
+
 
 # -----------------------------------------------------------------------------
 # Quick start for overrides (foundation/agent.yaml):

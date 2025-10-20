@@ -24,7 +24,7 @@ providers:
     openai:
       apiKey: ${OPENAI_API_KEY:}
       baseUrl: ${OPENAI_BASE_URL:}
-      modelName: ${OPENAI_MODEL_NAME:gpt-4}
+      modelName: ${OPENAI_MODEL_NAME:gpt-5-2025-08-07}
     gemini:
       apiKey: ${GEMINI_API_KEY:}
       endpoint: ${GEMINI_ENDPOINT:}
