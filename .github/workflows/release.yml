@@ -412,3 +412,12 @@ jobs:
         echo "- Created a PR to bump version to ${{ steps.calculate_version.outputs.new_snapshot }}"
         echo ""
         echo "Note: The tag push will trigger the GitHub Release creation automatically."
+
+  deploy-docs:
+    name: Deploy Documentation
+    needs: release
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true')
+    uses: ./.github/workflows/deploy-docs.yml
+    with:
+      environment: production
+    secrets: inherit
