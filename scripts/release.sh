@@ -1,149 +1,73 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Default values
-BUMP="patch"
-DRY_RUN=false
-SKIP_BUILD=false
-SKIP_PUBLISH=false
+# Simple tag-based release script
+# Usage: ./scripts/release.sh [patch|minor|major]
 
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    --dry-run)
-      DRY_RUN=true
-      shift
-      ;;
-    --skip-build)
-      SKIP_BUILD=true
-      shift
-      ;;
-    --skip-publish)
-      SKIP_PUBLISH=true
-      shift
-      ;;
-    major|minor|patch)
-      BUMP="$1"
-      shift
-      ;;
-    *)
-      echo "Unknown option $1"
-      echo "Usage: $0 [major|minor|patch] [--dry-run] [--skip-build] [--skip-publish]"
-      exit 1
-      ;;
-  esac
-done
-
-# Validate bump parameter
-if [[ "$BUMP" != "major" && "$BUMP" != "minor" && "$BUMP" != "patch" ]]; then
-  echo "Invalid bump parameter: $BUMP. Must be 'major', 'minor', or 'patch'"
-  exit 1
-fi
-
+VERSION_TYPE="${1:-patch}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-POM="$ROOT_DIR/src/mcpagent/pom.xml"
 
-# Validate POM exists
-if [[ ! -f "$POM" ]]; then
-  echo "POM file not found: $POM"
+# Get the latest tag
+LATEST_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+
+if [[ -z "$LATEST_TAG" ]]; then
+  echo "❌ No existing version tags found"
   exit 1
 fi
 
-# Check if working directory is clean
-if [[ "$DRY_RUN" == "false" ]]; then
-  if ! git diff --quiet || ! git diff --cached --quiet; then
-    echo "Working directory is not clean. Please commit or stash changes first."
-    git status --porcelain
+echo "Latest tag: $LATEST_TAG"
+
+# Parse version
+VERSION_PART=${LATEST_TAG#v}
+IFS='.' read -r MAJ MIN PAT <<<"$VERSION_PART"
+
+# Calculate new version
+case "$VERSION_TYPE" in
+  major)
+    MAJ=$((MAJ+1)); MIN=0; PAT=0
+    ;;
+  minor)
+    MIN=$((MIN+1)); PAT=0
+    ;;
+  patch)
+    PAT=$((PAT+1))
+    ;;
+  *)
+    echo "❌ Invalid version type: $VERSION_TYPE"
+    echo "Usage: $0 [patch|minor|major]"
     exit 1
-  fi
-fi
+    ;;
+esac
 
-# Get current version
-CURR=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" "$POM" 2>/dev/null || true)
-if [[ -z "$CURR" ]]; then
-  echo "Cannot read version from $POM"
-  exit 1
-fi
+NEW_VERSION="v${MAJ}.${MIN}.${PAT}"
+NEXT_SNAPSHOT="${MAJ}.${MIN}.$((PAT+1))-SNAPSHOT"
 
-echo "Current version: $CURR"
+echo "New version: $NEW_VERSION"
+echo "Next development version: $NEXT_SNAPSHOT"
 
-# Parse version and calculate new version
-IFS='.-' read -r MAJ MIN PAT SNAP <<<"$CURR"
-if [[ -z "$MAJ" || -z "$MIN" || -z "$PAT" ]]; then
-  echo "Invalid version format: $CURR. Expected format: X.Y.Z-SNAPSHOT"
-  exit 1
-fi
-
-if [[ "$BUMP" == "major" ]]; then
-  MAJ=$((MAJ+1)); MIN=0; PAT=0
-elif [[ "$BUMP" == "minor" ]]; then
-  MIN=$((MIN+1)); PAT=0
-else
-  PAT=$((PAT+1))
-fi
-
-NEW="${MAJ}.${MIN}.${PAT}-SNAPSHOT"
-TAG="v${MAJ}.${MIN}.${PAT}"
-
-echo "New version: $NEW"
-echo "Release tag: $TAG"
-
-if [[ "$DRY_RUN" == "true" ]]; then
-  echo "DRY RUN - No changes will be made"
-  echo "Would update POM to: $NEW"
-  echo "Would create tag: $TAG"
-  echo "Would build and publish images"
+# Confirm release
+read -p "Create release $NEW_VERSION? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+  echo "Release cancelled"
   exit 0
 fi
 
-# Update pom version
-echo "Updating POM version to $NEW..."
-if ! mvn -q -f "$ROOT_DIR/src/mcpagent/pom.xml" versions:set -DnewVersion="$NEW" -DgenerateBackupPoms=false; then
-  echo "Failed to update POM version"
-  exit 1
-fi
+# Create and push tag
+echo "Creating tag $NEW_VERSION..."
+git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION"
+git push origin "$NEW_VERSION"
 
-# Commit changes
-echo "Committing version bump..."
-git add "$POM"
-git commit -m "chore(release): bump version to $NEW"
-if [[ $? -ne 0 ]]; then
-  echo "Failed to commit version bump"
-  exit 1
-fi
+echo "✅ Tag $NEW_VERSION created and pushed"
+echo "🚀 Release workflow will now:"
+echo "   - Build and push Docker images"
+echo "   - Create GitHub release"
+echo "   - Deploy documentation"
+echo "   - Update POM version to $NEW_VERSION"
 
-# Create tag
-echo "Creating tag $TAG..."
-git tag -a "$TAG" -m "Release $TAG"
-if [[ $? -ne 0 ]]; then
-  echo "Failed to create tag"
-  exit 1
-fi
-
-if [[ "$SKIP_BUILD" == "false" ]]; then
-  # Build base image
-  echo "Building base image..."
-  if ! "$ROOT_DIR/scripts/docker/build-base.sh" "$TAG"; then
-    echo "Failed to build base image"
-    exit 1
-  fi
-
-  # Build product image
-  echo "Building product image..."
-  if ! "$ROOT_DIR/scripts/docker/build-product.sh" "$TAG"; then
-    echo "Failed to build product image"
-    exit 1
-  fi
-fi
-
-if [[ "$SKIP_PUBLISH" == "false" ]]; then
-  # Publish images
-  echo "Publishing images..."
-  if ! "$ROOT_DIR/scripts/docker/publish.sh" "$TAG"; then
-    echo "Failed to publish images"
-    exit 1
-  fi
-fi
-
-echo "Release complete: $TAG (next snapshot $NEW)"
-echo "To push changes: git push origin main --tags"
+echo ""
+echo "To update to next development version:"
+echo "  mvn -f src/mcpagent/pom.xml versions:set -DnewVersion=\"$NEXT_SNAPSHOT\" -DgenerateBackupPoms=false"
+echo "  git add src/mcpagent/pom.xml"
+echo "  git commit -m \"chore: bump version to $NEXT_SNAPSHOT\""
+echo "  git push origin main"

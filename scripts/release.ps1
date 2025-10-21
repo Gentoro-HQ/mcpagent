@@ -1,133 +1,78 @@
-Param(
-    [string]$Bump="patch",
-    [switch]$DryRun,
-    [switch]$SkipBuild,
-    [switch]$SkipPublish
+# Simple tag-based release script for PowerShell
+# Usage: .\scripts\release.ps1 [patch|minor|major]
+
+param(
+    [string]$VersionType = "patch"
 )
 
 $ErrorActionPreference = "Stop"
 
-# Validate bump parameter
-if ($Bump -notin @("major", "minor", "patch")) {
-    Write-Error "Invalid bump parameter. Must be 'major', 'minor', or 'patch'"
+# Get the latest tag
+$LatestTag = git tag -l | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' } | Sort-Object { [version]($_ -replace '^v', '') } | Select-Object -Last 1
+
+if (-not $LatestTag) {
+    Write-Host "❌ No existing version tags found" -ForegroundColor Red
     exit 1
 }
 
-$ROOT = (Resolve-Path "$PSScriptRoot\..").Path
-$POM = "$ROOT\src\mcpagent\pom.xml"
+Write-Host "Latest tag: $LatestTag" -ForegroundColor Green
 
-# Validate POM exists
-if (-not (Test-Path $POM)) {
-    Write-Error "POM file not found: $POM"
-    exit 1
+# Parse version
+$VersionPart = $LatestTag -replace '^v', ''
+$VersionComponents = $VersionPart -split '\.'
+$MAJ = [int]$VersionComponents[0]
+$MIN = [int]$VersionComponents[1]
+$PAT = [int]$VersionComponents[2]
+
+# Calculate new version
+switch ($VersionType.ToLower()) {
+    "major" {
+        $MAJ++
+        $MIN = 0
+        $PAT = 0
+    }
+    "minor" {
+        $MIN++
+        $PAT = 0
+    }
+    "patch" {
+        $PAT++
+    }
+    default {
+        Write-Host "❌ Invalid version type: $VersionType" -ForegroundColor Red
+        Write-Host "Usage: .\scripts\release.ps1 [patch|minor|major]"
+        exit 1
+    }
 }
 
-# Check if working directory is clean
-$gitStatus = git status --porcelain
-if ($gitStatus -and -not $DryRun) {
-    Write-Error "Working directory is not clean. Please commit or stash changes first."
-    Write-Host "Uncommitted changes:"
-    Write-Host $gitStatus
-    exit 1
-}
+$NewVersion = "v$MAJ.$MIN.$PAT"
+$NextSnapshot = "$MAJ.$MIN.$($PAT + 1)-SNAPSHOT"
 
-# Read current version
-try {
-    [xml]$xml = Get-Content $POM
-    $curr = $xml.project.version
-    Write-Host "Current version: $curr"
-} catch {
-    Write-Error "Failed to read version from POM: $_"
-    exit 1
-}
+Write-Host "New version: $NewVersion" -ForegroundColor Cyan
+Write-Host "Next development version: $NextSnapshot" -ForegroundColor Cyan
 
-# Parse version and calculate new version
-$parts = $curr -split '[-\.]'
-if ($parts.Count -lt 3) {
-    Write-Error "Invalid version format: $curr. Expected format: X.Y.Z-SNAPSHOT"
-    exit 1
-}
-
-$maj = [int]$parts[0]
-$min = [int]$parts[1] 
-$pat = [int]$parts[2]
-
-switch ($Bump) { 
-    "major" { $maj++; $min = 0; $pat = 0 }
-    "minor" { $min++; $pat = 0 }
-    default { $pat++ }
-}
-
-$tag = "v{0}.{1}.{2}" -f $maj, $min, $pat
-$new = "{0}.{1}.{2}-SNAPSHOT" -f $maj, $min, $pat
-
-Write-Host "New version: $new"
-Write-Host "Release tag: $tag"
-
-if ($DryRun) {
-    Write-Host "DRY RUN - No changes will be made"
-    Write-Host "Would update POM to: $new"
-    Write-Host "Would create tag: $tag"
-    Write-Host "Would build and publish images"
+# Confirm release
+$Confirmation = Read-Host "Create release $NewVersion? (y/N)"
+if ($Confirmation -notmatch '^[Yy]$') {
+    Write-Host "Release cancelled" -ForegroundColor Yellow
     exit 0
 }
 
-# Update POM version
-Write-Host "Updating POM version to $new..."
-try {
-    mvn -q -f "$ROOT\src\mcpagent\pom.xml" versions:set -DnewVersion="$new" -DgenerateBackupPoms=false
-    if ($LASTEXITCODE -ne 0) {
-        throw "Maven version update failed"
-    }
-} catch {
-    Write-Error "Failed to update POM version: $_"
-    exit 1
-}
+# Create and push tag
+Write-Host "Creating tag $NewVersion..." -ForegroundColor Blue
+git tag -a $NewVersion -m "Release $NewVersion"
+git push origin $NewVersion
 
-# Commit changes
-Write-Host "Committing version bump..."
-git add $POM
-git commit -m "chore(release): bump version to $new"
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to commit version bump"
-    exit 1
-}
+Write-Host "✅ Tag $NewVersion created and pushed" -ForegroundColor Green
+Write-Host "🚀 Release workflow will now:" -ForegroundColor Blue
+Write-Host "   - Build and push Docker images" -ForegroundColor White
+Write-Host "   - Create GitHub release" -ForegroundColor White
+Write-Host "   - Deploy documentation" -ForegroundColor White
+Write-Host "   - Update POM version to $NewVersion" -ForegroundColor White
 
-# Create tag
-Write-Host "Creating tag $tag..."
-git tag -a $tag -m "Release $tag"
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to create tag"
-    exit 1
-}
-
-if (-not $SkipBuild) {
-    # Build base image
-    Write-Host "Building base image..."
-    & "$ROOT\scripts\docker\build-base.ps1" $tag
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to build base image"
-        exit 1
-    }
-
-    # Build product image
-    Write-Host "Building product image..."
-    & "$ROOT\scripts\docker\build-product.ps1" $tag
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to build product image"
-        exit 1
-    }
-}
-
-if (-not $SkipPublish) {
-    # Publish images
-    Write-Host "Publishing images..."
-    & "$ROOT\scripts\docker\publish.ps1" $tag
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to publish images"
-        exit 1
-    }
-}
-
-Write-Host "Release complete: $tag (next snapshot $new)"
-Write-Host "To push changes: git push origin main --tags"
+Write-Host ""
+Write-Host "To update to next development version:" -ForegroundColor Yellow
+Write-Host "  mvn -f src/mcpagent/pom.xml versions:set -DnewVersion=`"$NextSnapshot`" -DgenerateBackupPoms=false" -ForegroundColor Gray
+Write-Host "  git add src/mcpagent/pom.xml" -ForegroundColor Gray
+Write-Host "  git commit -m `"chore: bump version to $NextSnapshot`"" -ForegroundColor Gray
+Write-Host "  git push origin main" -ForegroundColor Gray

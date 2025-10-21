@@ -253,95 +253,37 @@ jobs:
         # Update version
         mvn -q -f src/mcpagent/pom.xml versions:set -DnewVersion="$NEW_SNAPSHOT" -DgenerateBackupPoms=false
         
+        # Commit the version update
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add src/mcpagent/pom.xml
+        git commit -m "chore: bump version to $NEW_SNAPSHOT for next development cycle"
+        git push origin main
+        
         echo "new_snapshot=$NEW_SNAPSHOT" >> $GITHUB_OUTPUT
+        echo "✅ Version updated to $NEW_SNAPSHOT and committed to main"
       id: version_bump
     
-    - name: Create Pull Request for version bump
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
-      uses: peter-evans/create-pull-request@v6
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: "chore(release): bump version to ${{ steps.calculate_version.outputs.new_snapshot }}"
-        branch: release/bump-version-${{ steps.calculate_version.outputs.new_snapshot }}
-        delete-branch: true
-        title: "chore(release): bump version to ${{ steps.calculate_version.outputs.new_snapshot }}"
-        body: |
-          ## Automated version bump after release
-          
-          This PR bumps the version to `${{ steps.calculate_version.outputs.new_snapshot }}` following the release of `${{ steps.calculate_version.outputs.version }}`.
-          
-          ### Changes
-          - Updated `src/mcpagent/pom.xml` version to `${{ steps.calculate_version.outputs.new_snapshot }}`
-          
-          ### Release Information
-          - Released version: `${{ steps.calculate_version.outputs.version }}`
-          - Next development version: `${{ steps.calculate_version.outputs.new_snapshot }}`
-          
-          ---
-          
-          🤖 This PR was automatically created and will be auto-merged by the release workflow.
-        labels: release, automated
-        assignees: ${{ github.actor }}
-      id: create_pr
-    
-    - name: Auto-merge version bump PR
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
+    - name: Update POM version to match tag
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
       run: |
-        PR_NUMBER="${{ steps.create_pr.outputs.pull-request-number }}"
-        echo "Auto-merging PR #$PR_NUMBER..."
+        VERSION_NUMBER="${{ steps.extract_version.outputs.version_number }}"
+        NEW_SNAPSHOT="${VERSION_NUMBER}.0-SNAPSHOT"
         
-        # Wait a moment for the PR to be fully created
-        sleep 5
+        echo "Updating POM version to match tag ${{ steps.extract_version.outputs.version }}"
+        echo "Next development version will be: $NEW_SNAPSHOT"
         
-        # Check if PR can be merged (no merge conflicts, all checks passed)
-        echo "Checking PR mergeability..."
-        MERGEABLE=$(curl -s -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER" | \
-          jq -r '.mergeable')
+        # Update POM version to match the tag
+        mvn -q -f src/mcpagent/pom.xml versions:set -DnewVersion="$VERSION_NUMBER" -DgenerateBackupPoms=false
         
-        if [ "$MERGEABLE" != "true" ]; then
-          echo "❌ PR #$PR_NUMBER cannot be merged (mergeable: $MERGEABLE)"
-          echo "This is likely due to repository rules requiring reviews or status checks"
-          echo "The PR has been created but requires manual review/approval"
-          exit 0
-        fi
+        # Commit the version update
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add src/mcpagent/pom.xml
+        git commit -m "chore(release): update POM version to $VERSION_NUMBER for release ${{ steps.extract_version.outputs.version }}"
+        git push origin main
         
-        # Attempt to merge the PR
-        echo "Attempting to merge PR #$PR_NUMBER..."
-        MERGE_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
-          -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
-          -d '{
-            "commit_title": "chore(release): bump version to ${{ steps.calculate_version.outputs.new_snapshot }}",
-            "commit_message": "Automatically merged by release workflow",
-            "merge_method": "rebase"
-          }')
-        
-        # Extract HTTP status code and response body
-        HTTP_CODE=$(echo "$MERGE_RESPONSE" | tail -n1)
-        RESPONSE_BODY=$(echo "$MERGE_RESPONSE" | head -n -1)
-        
-        if [ "$HTTP_CODE" = "200" ]; then
-          echo "✅ PR #$PR_NUMBER auto-merged successfully"
-          
-          # Delete the bump branch after successful merge
-          echo "Deleting bump branch after successful merge..."
-          BRANCH_NAME="release/bump-version-${{ steps.calculate_version.outputs.new_snapshot }}"
-          curl -X DELETE \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/git/refs/heads/$BRANCH_NAME"
-          
-          echo "✅ Bump branch '$BRANCH_NAME' deleted successfully"
-        else
-          echo "❌ PR #$PR_NUMBER auto-merge failed (HTTP $HTTP_CODE)"
-          echo "Response: $RESPONSE_BODY"
-          echo "This is likely due to repository rules requiring reviews or status checks"
-          echo "The PR has been created but requires manual review/approval"
-          echo "Bump branch will be deleted when PR is manually merged"
-        fi
+        echo "✅ POM version updated to $VERSION_NUMBER"
     
     - name: Create GitHub Release
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
