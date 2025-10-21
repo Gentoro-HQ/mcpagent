@@ -206,9 +206,7 @@ public class AcmeServer {
                 response.put("success", true);
                 response.set("data", result.data);
                 response.set("metadata", result.metadata);
-                if (result.aggregates != null) {
-                    response.set("aggregates", result.aggregates);
-                }
+                  System.out.println("Query: " + objectMapper.writeValueAsString(result.metadata));
 
                 sendJsonResponse(exchange, 200, response);
 
@@ -299,22 +297,23 @@ public class AcmeServer {
         }
 
         // Process aggregates
-        ObjectNode aggregates = null;
+        JsonNode data = null;
         if (request.has("aggregates")) {
-            aggregates = processAggregates(enrichedData, request.get("aggregates"));
+            data = processAggregates(filteredSales, requestedFields, request.get("aggregates"));
+        } else {
+          data = objectMapper.valueToTree(selectedData);
         }
 
         // Create response
         QueryResult result = new QueryResult();
-        result.data = objectMapper.valueToTree(selectedData);
-        result.aggregates = aggregates;
+        result.data = data;
 
         // Create metadata
         ObjectNode metadata = objectMapper.createObjectNode();
         metadata.put("total_records", filteredSales.size());
         metadata.put("execution_time_ms", ThreadLocalRandom.current().nextInt(10, 100));
         metadata.put("query_id", "qry_" + UUID.randomUUID().toString().substring(0, 8));
-        metadata.put("has_more", selectedData.size() >= limit);
+        metadata.put("has_more", ((ArrayNode)data).size() >= limit);
         result.metadata = metadata;
 
         return result;
@@ -453,7 +452,11 @@ public class AcmeServer {
               try {
                 return LocalDateTime.parse(value.toString()).toLocalDate().toEpochDay();
               } catch ( java.time.format.DateTimeParseException e ) {
-                return LocalDate.parse(value.toString()).toEpochDay();
+                try {
+                  return LocalDate.parse(value.toString()).toEpochDay();
+                } catch ( java.time.format.DateTimeParseException e2 ) {
+                  return FlexibleDateParser.parseFlexible(value.toString()).toEpochMilli();
+                }
               }
             } else if (value instanceof LocalDate) {
               return ((LocalDate)value).toEpochDay();
@@ -571,21 +574,76 @@ public class AcmeServer {
     /**
      * Process aggregation functions
      */
-    private ObjectNode processAggregates(List<Map<String, Object>> data, com.fasterxml.jackson.databind.JsonNode aggregates) {
-        ObjectNode result = objectMapper.createObjectNode();
+    private ArrayNode processAggregates(List<Map<String, Object>> data, List<String> requestedFields, com.fasterxml.jackson.databind.JsonNode aggregates) {
+        ArrayNode result = objectMapper.createArrayNode();
 
-        for (com.fasterxml.jackson.databind.JsonNode aggregate : aggregates) {
+
+        List<Map<String, Object>> localData = new ArrayList<>(data);
+        while( true ) {
+          if( localData.isEmpty() ) {
+            break;
+          }
+
+          Map<String, Object> record = localData.getFirst();
+          Map<String, Object> requestedData = requestedFields.stream()
+              .map(field -> Map.entry(field, getNestedValue(record, field)))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+          List<Map<String, Object>> dataToAggregate = new ArrayList<>();
+          int rowIndex = 0;
+          while( rowIndex < localData.size() ) {
+            final int finalRowIndex = rowIndex;
+            boolean allMatch = requestedData.keySet().stream()
+                .allMatch( field -> Objects.equals(requestedData.get(field), getNestedValue(localData.get(finalRowIndex), field)));
+            if( allMatch ) {
+              Map<String, Object> aggregatedRecord = new HashMap<>();
+              for (com.fasterxml.jackson.databind.JsonNode aggregate : aggregates) {
+                String field = aggregate.get("field").asText();
+                aggregatedRecord.put(field, getNestedValue(localData.get(finalRowIndex), field));
+              }
+              dataToAggregate.add(aggregatedRecord);
+              localData.remove(finalRowIndex);
+            } else {
+              rowIndex++;
+            }
+          }
+
+          ObjectNode recordNode = objectMapper.createObjectNode();
+          requestedData.forEach( (field, value) -> {
+            if( value != null ) {
+              if( value instanceof String ) {
+                recordNode.put(field, value.toString());
+              } else if( value instanceof Number ) {
+                recordNode.put(field, ((Number)value).doubleValue());
+              } else if( value instanceof Boolean ) {
+                recordNode.put(field, (Boolean)value);
+              } else if( value instanceof LocalDate ) {
+                recordNode.put(field, ((LocalDate)value).toEpochDay());
+              } else if( value instanceof LocalDateTime ) {
+                recordNode.put(field, ((LocalDateTime)value).toLocalDate().toEpochDay());
+              } else {
+                throw new IllegalArgumentException("Unsupported field type: " + value.getClass().getName());
+              }
+            }  else {
+              recordNode.putNull(field);
+            }
+          });
+
+          for (com.fasterxml.jackson.databind.JsonNode aggregate : aggregates) {
             String field = aggregate.get("field").asText();
             String function = aggregate.get("function").asText();
             String alias = aggregate.get("alias").asText();
 
-            List<Map.Entry<String, Object>> values = data.stream()
-                .map(record -> Map.entry(field, getNestedValue(record, field)))
-                .filter(e -> e.getValue() != null)
+            List<Object> values = dataToAggregate.stream()
+                .map(aggRecord -> aggRecord.get(field))
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-            double aggregateValue = calculateAggregate(values, function);
-            result.put(alias, aggregateValue);
+            double aggregateValue = calculateAggregate(field, values, function);
+            recordNode.put(alias, aggregateValue);
+          }
+
+          result.add(recordNode);
         }
 
         return result;
@@ -594,7 +652,7 @@ public class AcmeServer {
     /**
      * Calculate aggregate value
      */
-    private double calculateAggregate(List<Map.Entry<String, Object>> values, String function) {
+    private double calculateAggregate(String field, List<Object> values, String function) {
         if (values.isEmpty()) {
             return 0.0;
         }
@@ -606,7 +664,7 @@ public class AcmeServer {
               .collect(Collectors.toList());
         } else {
           numbers = values.stream()
-              .map( e -> this.toNumber(e.getKey(), e.getValue()))
+              .map( e -> this.toNumber(field, e))
               .collect(Collectors.toList());
         }
         switch (function) {
@@ -694,7 +752,6 @@ public class AcmeServer {
     private static class QueryResult {
         com.fasterxml.jackson.databind.JsonNode data;
         ObjectNode metadata;
-        ObjectNode aggregates;
     }
 
     /**

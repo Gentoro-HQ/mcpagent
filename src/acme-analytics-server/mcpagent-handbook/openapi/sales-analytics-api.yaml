@@ -388,13 +388,6 @@ components:
             has_more:
               type: boolean
               description: Whether there are more results available
-        aggregates:
-          type: object
-          description: Aggregated results if any aggregates were requested
-          additionalProperties:
-            oneOf:
-              - type: number
-              - type: string
 
     FieldsResponse:
       type: object

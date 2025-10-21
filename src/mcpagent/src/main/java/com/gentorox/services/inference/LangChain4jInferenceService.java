@@ -6,6 +6,7 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.googleai.GeminiMode;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
@@ -97,6 +98,8 @@ public class LangChain4jInferenceService {
             }
             var builder = GoogleAiGeminiChatModel.builder()
                 .apiKey(settings.getApiKey())
+                .temperature(0.3D)
+                .toolConfig(GeminiMode.ANY)
                 .modelName(settings.getModelName());
 
             yield builder.build();

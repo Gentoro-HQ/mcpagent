@@ -2,6 +2,7 @@ package com.acme.server;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -195,15 +196,16 @@ public class AcmeServerTest {
 
         JsonNode responseBody = objectMapper.readTree(response.body());
         assertTrue(responseBody.get("success").asBoolean());
-        assertTrue(responseBody.has("aggregates"));
+        assertTrue(responseBody.has("data"));
 
-        JsonNode aggregates = responseBody.get("aggregates");
-        assertTrue(aggregates.has("total_revenue"));
-        assertTrue(aggregates.has("total_sales"));
+        ArrayNode aggregates = (ArrayNode) responseBody.get("data");
+        JsonNode aggregate = aggregates.get(0);
+        assertTrue(aggregate.has("total_revenue"));
+        assertTrue(aggregate.has("total_sales"));
 
         // Check that aggregates are numbers
-        assertTrue(aggregates.get("total_revenue").isNumber());
-        assertTrue(aggregates.get("total_sales").isNumber());
+        assertTrue(aggregate.get("total_revenue").isNumber());
+        assertTrue(aggregate.get("total_sales").isNumber());
     }
 
     @Test

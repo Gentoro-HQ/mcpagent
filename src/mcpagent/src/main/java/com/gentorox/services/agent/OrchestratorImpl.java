@@ -78,7 +78,8 @@ public class OrchestratorImpl implements Orchestrator {
 
         // Step 5: call inference service
         return telemetry.inSpan("orchestrator.inference", () -> {
-          String finalPrompt = systemPrompt + "\n\nUser: " + userPrompt;
+          String finalPrompt = systemPrompt;
+          finalPrompt = finalPrompt.replace("{{userRequest}}", userPrompt);
           // For compatibility with tests: call single-arg when options are provided, otherwise invoke varargs with a null element
           if (options != null) {
             return inferenceService.sendRequest(finalPrompt);

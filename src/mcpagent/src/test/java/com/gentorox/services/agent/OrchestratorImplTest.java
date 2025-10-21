@@ -65,7 +65,7 @@ public class OrchestratorImplTest {
   @Test
   @DisplayName("run() builds final prompt with KB, services, tools and calls InferenceService with options passthrough")
   void runBuildsPromptAndCallsInference() {
-    when(agent.systemPrompt()).thenReturn("BASE_SP");
+    when(agent.systemPrompt()).thenReturn("BASE_SP\n{{userRequest}}");
     when(agent.guardrails()).thenReturn("");
 
     // KB has mixed entries; services are those under kb://openapi

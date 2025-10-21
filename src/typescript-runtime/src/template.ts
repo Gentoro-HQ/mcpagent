@@ -25,9 +25,9 @@ const sdk = ${sdkObj};
 type LogEntry = { level: "log" | "error" | "warn"; args: any[] };
 const logs: LogEntry[] = [];
 const safeConsole = {
-  log:  (...args: any[]) => logs.push({ level: "log",  args }),
-  error:(...args: any[]) => logs.push({ level: "error",args }),
-  warn: (...args: any[]) => logs.push({ level: "warn", args }),
+  log:  (...args: any[]) => logs.push({ level: "log", args: safePlain(args || []) }),
+  error:(...args: any[]) => logs.push({ level: "error", args: safePlain(args || []) }),
+  warn: (...args: any[]) => logs.push({ level: "warn", args: safePlain(args || []) }),
 };
 
 function isThenable(v: any): v is Promise<any> { return !!v && typeof v.then === "function"; }

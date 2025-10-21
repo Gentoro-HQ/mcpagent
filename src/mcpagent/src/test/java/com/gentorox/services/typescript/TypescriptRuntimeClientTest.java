@@ -59,7 +59,9 @@ public class TypescriptRuntimeClientTest {
         .contentType(eq(MediaType.APPLICATION_JSON))
         .bodyValue(any())
         .retrieve()
+        .onStatus(any(), any())
         .bodyToMono(eq(String.class))
+        .onErrorResume(any())
         .doOnNext(ArgumentMatchers.<Consumer<String>>any())
         .flatMap(any())
     ).thenReturn(Mono.just(expected));

@@ -1,5 +1,6 @@
 package com.gentorox.services.typescript;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gentorox.tools.RetrieveContextTool;
 import org.slf4j.Logger;
@@ -12,7 +13,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
@@ -59,7 +64,22 @@ public class TypescriptRuntimeClient {
         .contentType(MediaType.APPLICATION_JSON)
         .bodyValue(Map.of("snippet", code))
         .retrieve()
+        .onStatus(s -> !s.is2xxSuccessful(),
+            resp -> resp.bodyToMono(String.class).map(body ->
+                new IllegalStateException("Docs request failed: " + resp.statusCode() + " - " + body)))
         .bodyToMono(String.class)                 // read raw string
+        .onErrorResume(e -> {
+          StringWriter sw = new StringWriter(4096);
+          try (PrintWriter pw = new PrintWriter(sw)) {
+            e.printStackTrace(pw);
+          }
+          try {
+            return Mono.just(new ObjectMapper().writeValueAsString(new TypescriptRuntimeClient.RunResponse(
+                false, null, Collections.emptyList(), sw.toString())));
+          } catch (JsonProcessingException ex) {
+            throw new RuntimeException(ex);
+          }
+        })
         .doOnNext(body -> logger.info("Raw response: {}", body)) // inspect/log it
         .flatMap(body -> {
           try {
