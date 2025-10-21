@@ -17,6 +17,7 @@ unit_tests:
       - "FileKnowledgeBasePersistenceTest"
       - "OrchestratorImplTest"
       - "AgentServiceConfigTest"
+      - "FoundationValidationServiceTest"
   
   acme_analytics_server:
     # All tests are unit tests for this component

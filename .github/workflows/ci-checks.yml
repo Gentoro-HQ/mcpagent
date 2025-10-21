@@ -47,7 +47,7 @@ jobs:
       run: |
         cd src/mcpagent
         echo "Running mcpagent unit tests..."
-        mvn test -Dtest="AgentServiceTest,TelemetryServiceTracingTest,TelemetryServiceMetricsTest,LogContextTest,TelemetryConfigTest,KnowledgeBaseServiceImplTest,FileKnowledgeBasePersistenceTest,OrchestratorImplTest,AgentServiceConfigTest"
+        mvn test -Dtest="AgentServiceTest,TelemetryServiceTracingTest,TelemetryServiceMetricsTest,LogContextTest,TelemetryConfigTest,KnowledgeBaseServiceImplTest,FileKnowledgeBasePersistenceTest,OrchestratorImplTest,AgentServiceConfigTest,FoundationValidationServiceTest"
     
     - name: Test acme-analytics-server
       run: |
