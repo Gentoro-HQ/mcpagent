@@ -17,20 +17,43 @@ Minimal settings to run locally or in Docker. Values shown reflect defaults in t
 
 ## Process Arguments
 
-- --process=mock-server — start a mock server for quick testing
-- --tcp-port=8082 — port for the mock server (map with `-p 8082:8082`)
+- --process=validate — validates foundation data and exits
+- --process=regression — runs regression test suite and exits
+- --process=standard (default) — starts MCP server + orchestrator
 
 These can be passed via `APP_ARGS` in Docker:
 
 ```bash
-docker run --rm -p 8082:8082 \
-	-e APP_ARGS="--process=mock-server --tcp-port=8082" \
-	admingentoro/mcpagent:latest
+# Validation mode
+docker run --rm -e APP_ARGS="--process=validate" admingentoro/gentoro:latest
+
+# Regression mode
+docker run --rm -e APP_ARGS="--process=regression" admingentoro/gentoro:latest
+
+# Standard mode (default)
+docker run --rm -p 8080:8080 admingentoro/gentoro:latest
+```
+
+## Foundation Directory Structure
+
+The process modes expect a foundation directory with the following structure:
+
+```
+foundation/
+├── Agent.md                    # Required: Agent configuration
+├── apis/                       # Optional: OpenAPI specifications
+│   └── *.yaml
+├── docs/                       # Optional: Documentation files
+│   └── *.md
+├── regression/                 # Optional: Regression test files
+│   └── *.yaml
+└── state/                      # Auto-generated: Knowledge base state
+    └── knowledge-base-state.json
 ```
 
 ## MCP Endpoint
 
 - Path: `/mcp` (HTTP stream)
-- Example URL when running mock server: `http://localhost:8082/mcp`
+- Example URL: `http://localhost:8080/mcp`
 
 Client connections must speak the Model Context Protocol over HTTP streaming.

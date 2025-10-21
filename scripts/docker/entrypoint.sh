@@ -67,8 +67,15 @@ Environment variables:
   OTEL_CONFIG                         # OpenTelemetry config file path
   DISABLE_SERVICES                    # Comma-separated list of services to disable
 
+Process modes (via APP_ARGS):
+  --process=validate                  # Validates foundation data and exits
+  --process=regression                # Runs regression test suite and exits
+  --process=standard (default)        # Starts MCP server + orchestrator
+
 Examples:
   docker run -e JAVA_OPTS="-Xmx1g" image app-only
+  docker run -e APP_ARGS="--process=validate" image
+  docker run -e APP_ARGS="--process=regression" image
   docker run -e DISABLE_SERVICES="tsruntime,mockserver" image
   docker run image logs app
   docker run image shell
