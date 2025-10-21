@@ -417,6 +417,9 @@ jobs:
     name: Deploy Documentation
     needs: release
     if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true')
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/deploy-docs.yml
     with:
       environment: production

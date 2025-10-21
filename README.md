@@ -15,8 +15,7 @@ Or with process modes:
 
 ```bash
 java -jar target/mcpagent-0.1.0-SNAPSHOT.jar --process=validate
-java -jar target/mcpagent-0.1.0-SNAPSHOT.jar --process=test_suite
-java -jar target/mcpagent-0.1.0-SNAPSHOT.jar --process=mock-server --tcp-port=8082
+java -jar target/mcpagent-0.1.0-SNAPSHOT.jar --process=regression
 ```
 
 ## Docker
@@ -75,6 +74,58 @@ The product image contains the MCP Agent application built on the base image:
 
 # Or use the publish script to build and push both
 ./scripts/docker/publish.sh v1.0.0
+```
+
+### Run with Process Modes
+
+You can run the container with different process modes using the `APP_ARGS` environment variable:
+
+```bash
+# Validation mode - validates foundation data
+docker run --rm -e APP_ARGS="--process=validate" admingentoro/gentoro:latest
+
+# Regression mode - runs regression test suite
+docker run --rm -e APP_ARGS="--process=regression" admingentoro/gentoro:latest
+
+# Standard mode (default) - starts MCP server + orchestrator
+docker run --rm -p 8080:8080 admingentoro/gentoro:latest
+```
+
+### Foundation Directory Structure
+
+The process modes expect a foundation directory with the following structure:
+
+```
+foundation/
+├── Agent.md                    # Required: Agent configuration
+├── apis/                       # Optional: OpenAPI specifications
+│   └── *.yaml
+├── docs/                       # Optional: Documentation files
+│   └── *.md
+├── regression/                 # Optional: Regression test files
+│   └── *.yaml
+└── state/                      # Auto-generated: Knowledge base state
+    └── knowledge-base-state.json
+```
+
+### Docker Help and Commands
+
+The container provides several built-in commands:
+
+```bash
+# Show help and available commands
+docker run --rm admingentoro/gentoro:latest help
+
+# Show version information
+docker run --rm admingentoro/gentoro:latest version
+
+# Start only specific services
+docker run --rm admingentoro/gentoro:latest app-only
+docker run --rm admingentoro/gentoro:latest otel-only
+docker run --rm admingentoro/gentoro:latest ts-only
+
+# Interactive shell
+docker run --rm -it admingentoro/gentoro:latest shell
 ```
 
 ### Run Container in Dependencies Mode

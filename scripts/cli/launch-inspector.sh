@@ -49,7 +49,7 @@ if curl -s -f "${MCP_URL}" >/dev/null 2>&1; then
 else
     log_warning "MCP Agent is not accessible at ${MCP_URL}"
     log_info "Make sure the MCP Agent is running:"
-    log_info "  docker run --rm -p ${MCP_AGENT_PORT}:${MCP_AGENT_PORT} -e APP_ARGS=\"--process=mock-server --tcp-port=8082\" admingentoro/mcpagent:latest"
+    log_info "  docker run --rm -p ${MCP_AGENT_PORT}:${MCP_AGENT_PORT} -e APP_ARGS=\"--process=mock-server --tcp-port=8082\" admingentoro/gentoro:latest"
     log_info ""
     read -p "Continue anyway? (y/N): " -n 1 -r
     echo

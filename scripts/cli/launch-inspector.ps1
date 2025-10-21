@@ -25,7 +25,7 @@ try {
 } catch {
     Write-Host "⚠️  MCP Agent is not accessible at $MCPUrl" -ForegroundColor Yellow
     Write-Host "Make sure the MCP Agent is running:" -ForegroundColor Blue
-    Write-Host "  docker run --rm -p ${MCPAgentPort}:${MCPAgentPort} -e APP_ARGS=`"--process=mock-server --tcp-port=8082`" admingentoro/mcpagent:latest" -ForegroundColor Blue
+    Write-Host "  docker run --rm -p ${MCPAgentPort}:${MCPAgentPort} -e APP_ARGS=`"--process=mock-server --tcp-port=8082`" admingentoro/gentoro:latest" -ForegroundColor Blue
     Write-Host ""
     $continue = Read-Host "Continue anyway? (y/N)"
     if ($continue -ne "y" -and $continue -ne "Y") {
