@@ -188,9 +188,9 @@ components:
     // result is undefined because the snippet does not return; we assert via logs
     expect(Array.isArray(runResp.data?.logs)).toBe(true);
     const logs = runResp.data?.logs as Array<{ level: string; args: any[] }>;
-    const petsLog = logs.find(l => l.level === 'log' && l.args && l.args[0] === 'pets');
+    const petsLog = logs.find(l => l.level === 'log' && l.args && l.args[0] === '"pets"');
     // second arg should indicate two items. Depending on runtime, logs may stringify objects.
-    const second = petsLog!.args[1];
+    const second = JSON.parse(petsLog!.args[1]);
     if (Array.isArray(second)) {
       expect(second.length).toBe(2);
     } else if (typeof second === 'string') {
