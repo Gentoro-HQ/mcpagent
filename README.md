@@ -93,22 +93,133 @@ docker run --rm -e APP_ARGS="--process=regression" admingentoro/gentoro:latest
 docker run --rm -p 8080:8080 admingentoro/gentoro:latest
 ```
 
+## Foundation Validation
+
+The MCP Agent includes validators to ensure your foundation folder is properly structured before running. This helps prevent runtime issues and provides clear guidance for fixing problems.
+
+### Validate Your Foundation
+
+#### Using Docker (Recommended)
+```bash
+# Validate foundation with custom directory
+docker run --rm \
+  -v $(pwd):/var/foundation \
+  -e APP_ARGS="--process=validate" \
+  admingentoro/gentoro:latest
+```
+
+#### Using Java/Maven (Local Development)
+```bash
+# Navigate to the mcpagent directory
+cd src/mcpagent
+
+# Run validation with custom foundation directory
+FOUNDATION_DIR="/path/to/your/foundation" mvn exec:java \
+  -Dexec.mainClass="com.gentorox.services.indexer.ValidationRunner" -q
+
+# Or validate current directory
+FOUNDATION_DIR="$(pwd)" mvn exec:java \
+  -Dexec.mainClass="com.gentorox.services.indexer.ValidationRunner" -q
+```
+
+**Note**: The local Java version provides enhanced validation output with emojis and detailed error messages. The Docker version will have the same enhanced output once the image is updated.
+
+### Validation Features
+
+The validation system checks for:
+
+#### ✅ **Agent.md Requirements**
+- **Presence**: Must exist and not be empty
+- **Format**: Validates required sections:
+  - Title with "Agent" keyword
+  - Purpose/goal/objective description
+  - Behavioral guidance or rules
+  - Tools or capabilities mention
+- **Content Quality**: Warns if content seems too short or incomplete
+
+#### ✅ **Documentation Requirements**
+- **Presence**: At least one `.md` file in `docs/` directory
+- **Structure**: Suggests adding overview and API documentation
+- **File Types**: Supports `.md` and `.mdx` files
+
+#### ✅ **OpenAPI Specification Requirements**
+- **Presence**: Valid OpenAPI spec in `apis/` directory
+- **Format**: Validates JSON/YAML syntax
+- **Schema**: Checks for required fields:
+  - `openapi` or `swagger` version
+  - `info` section with title and version
+  - `paths` with at least one endpoint
+- **File Types**: Supports `.yaml`, `.yml`, and `.json` files
+
+### Validation Output
+
+The validation provides clear, color-coded output with emojis:
+
+```
+🚀 Starting foundation validation...
+📁 Foundation directory: /var/foundation
+
+============================================================
+🔍 FOUNDATION VALIDATION REPORT
+============================================================
+✅ ✓ Agent.md found and validated
+✅ ✓ Documentation found: 2 file(s)
+✅ ✓ OpenAPI spec api.yaml is valid
+✅ ✓ Valid OpenAPI specification found
+⚠️  Consider adding API documentation in docs/
+------------------------------------------------------------
+✅ VALIDATION PASSED with 1 warnings
+💡 Consider addressing the warnings above for optimal performance
+============================================================
+
+🎯 Your foundation is ready! You can now run the agent with:
+   docker run -v $(pwd):/var/foundation -p 8080:8080 admingentoro/gentoro:latest
+```
+
+### Error Handling
+
+When validation fails, you'll get specific error messages and guidance:
+
+```
+❌ VALIDATION FAILED with 2 errors
+🔧 Please fix the errors above before running the agent
+
+💡 To fix validation errors:
+   1. Ensure Agent.md exists and contains proper agent instructions
+   2. Add at least one .md file in the docs/ directory
+   3. Add valid OpenAPI specification in the apis/ directory
+   4. Check the detailed error messages above for specific issues
+```
+
+### Exit Codes
+
+- **0**: Validation passed (with or without warnings)
+- **1**: Validation failed with errors
+
+This makes it easy to integrate validation into CI/CD pipelines or scripts.
+
 ### Foundation Directory Structure
 
 The process modes expect a foundation directory with the following structure:
 
 ```
 foundation/
-├── Agent.md                    # Required: Agent configuration
-├── apis/                       # Optional: OpenAPI specifications
-│   └── *.yaml
-├── docs/                       # Optional: Documentation files
-│   └── *.md
+├── Agent.md                    # Required: Agent configuration and instructions
+├── apis/                       # Required: OpenAPI specifications
+│   └── *.yaml                   # Valid OpenAPI 3.0+ specs
+├── docs/                       # Required: Documentation files
+│   └── *.md                     # At least one markdown file
 ├── regression/                 # Optional: Regression test files
 │   └── *.yaml
 └── state/                      # Auto-generated: Knowledge base state
     └── knowledge-base-state.json
 ```
+
+**Validation Requirements**:
+- ✅ `Agent.md` must exist with proper format and content
+- ✅ `docs/` directory must contain at least one `.md` file
+- ✅ `apis/` directory must contain valid OpenAPI specification
+- ⚠️ Additional files in `docs/` and `apis/` are recommended for better agent performance
 
 **Default Content**: The Docker image includes default foundation content from the ACME Analytics Server handbook, providing:
 - Agent instructions for sales analytics API queries

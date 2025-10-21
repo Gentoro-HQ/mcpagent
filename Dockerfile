@@ -21,7 +21,7 @@ RUN chmod +x /opt/bin/*.sh
 
 # Copy default foundation content (acme-analytics-server handbook)
 COPY src/acme-analytics-server/mcpagent-handbook/ ${ACME_SERVER_FOUNDATION_DIR}/
-# Rename instructions.md to Agent.md as required by the application
+# Rename instructions.md to Agent.md `as required by the application
 RUN mv ${ACME_SERVER_FOUNDATION_DIR}/instructions.md ${ACME_SERVER_FOUNDATION_DIR}/Agent.md
 # Verify foundation content is copied correctly
 RUN ls -la ${ACME_SERVER_FOUNDATION_DIR}/ && echo "Foundation content copied successfully"
