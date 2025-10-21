@@ -4,6 +4,7 @@ FROM ${BASE_IMAGE}
 
 ARG APP_JAR
 ENV APP_JAR_PATH=/opt/app/mcpagent.jar
+ENV ACME_SERVER_FOUNDATION_DIR=/var/foundation
 RUN mkdir -p /opt/app /var/foundation
 
 # Copy app jar
@@ -19,9 +20,11 @@ COPY scripts/docker/run-mock.sh /opt/bin/run-mock.sh
 RUN chmod +x /opt/bin/*.sh
 
 # Copy default foundation content (acme-analytics-server handbook)
-COPY src/acme-analytics-server/mcpagent-handbook/ /var/foundation/
+COPY src/acme-analytics-server/mcpagent-handbook/ ${ACME_SERVER_FOUNDATION_DIR}/
 # Rename instructions.md to Agent.md as required by the application
-RUN mv /var/foundation/instructions.md /var/foundation/Agent.md
+RUN mv ${ACME_SERVER_FOUNDATION_DIR}/instructions.md ${ACME_SERVER_FOUNDATION_DIR}/Agent.md
+# Verify foundation content is copied correctly
+RUN ls -la ${ACME_SERVER_FOUNDATION_DIR}/ && echo "Foundation content copied successfully"
 
 EXPOSE 8080
 ENTRYPOINT ["/opt/bin/entrypoint.sh"]
