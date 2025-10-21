@@ -18,5 +18,10 @@ COPY scripts/docker/run-ts.sh /opt/bin/run-ts.sh
 COPY scripts/docker/run-mock.sh /opt/bin/run-mock.sh
 RUN chmod +x /opt/bin/*.sh
 
+# Copy default foundation content (acme-analytics-server handbook)
+COPY src/acme-analytics-server/mcpagent-handbook/ /var/foundation/
+# Rename instructions.md to Agent.md as required by the application
+RUN mv /var/foundation/instructions.md /var/foundation/Agent.md
+
 EXPOSE 8080
 ENTRYPOINT ["/opt/bin/entrypoint.sh"]
