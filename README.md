@@ -30,6 +30,8 @@ docker pull admingentoro/gentoro:latest
 docker run -p 8080:8080 -e OPENAI_API_KEY=your-key admingentoro/gentoro:latest
 ```
 
+**Note**: The Docker image includes default foundation content from the ACME Analytics Server handbook, providing a ready-to-use example with agent instructions, documentation, OpenAPI specifications, and sample queries.
+
 ### Build Images Locally
 
 #### 1. Build Base Image
@@ -107,6 +109,13 @@ foundation/
 └── state/                      # Auto-generated: Knowledge base state
     └── knowledge-base-state.json
 ```
+
+**Default Content**: The Docker image includes default foundation content from the ACME Analytics Server handbook, providing:
+- Agent instructions for sales analytics API queries
+- Documentation on data models and query examples
+- OpenAPI specifications for the analytics API
+- Sample queries and regression tests
+- Pre-configured knowledge base state
 
 ### Docker Help and Commands
 
