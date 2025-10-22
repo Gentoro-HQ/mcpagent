@@ -10,6 +10,16 @@ RUN mkdir -p /opt/app /var/foundation
 # Copy app jar
 COPY ${APP_JAR} ${APP_JAR_PATH}
 
+# Build and copy TypeScript runtime
+COPY src/typescript-runtime/package*.json /opt/ts-runtime/
+WORKDIR /opt/ts-runtime
+RUN npm install --production --legacy-peer-deps
+COPY src/typescript-runtime/ /opt/ts-runtime/
+RUN npm run build
+
+# Copy mock server JAR
+COPY src/acme-analytics-server/server/target/acme-analytics-server-1.0.0.jar /opt/mock-server/server.jar
+
 # Copy startup scripts and default otel config
 COPY scripts/docker/otel-collector-config.yaml /etc/otel-collector-config.yaml
 COPY scripts/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf

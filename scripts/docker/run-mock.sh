@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Placeholder for a mock server (Node/Java/etc.). If not present, idle.
-if [[ -f "/opt/mock-server/server.js" ]]; then
-  echo "[run-mock] starting mock server on :8082"
-  exec node /opt/mock-server/server.js
+# ACME Analytics Server - Mock server for testing
+if [[ -f "/opt/mock-server/server.jar" ]]; then
+  echo "[run-mock] starting ACME Analytics Server on :8082"
+  exec java -jar /opt/mock-server/server.jar 8082
 else
   echo "[run-mock] no mock server found, idling"
   while true; do sleep 3600; done

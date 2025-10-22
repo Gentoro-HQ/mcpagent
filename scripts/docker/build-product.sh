@@ -27,6 +27,14 @@ if [[ -z "$JAR_NAME" ]]; then
   # Build app JAR if not already built
   echo "Building application JAR..."
   ( cd "$ROOT_DIR/src/mcpagent" && ./mvnw -q -DskipTests package spring-boot:repackage || mvn -q -DskipTests package spring-boot:repackage )
+  
+  # Build TypeScript runtime
+  echo "Building TypeScript runtime..."
+  ( cd "$ROOT_DIR/src/typescript-runtime" && npm install --legacy-peer-deps && npm run build )
+  
+  # Build mock server (ACME Analytics Server)
+  echo "Building ACME Analytics Server..."
+  ( cd "$ROOT_DIR/src/acme-analytics-server/server" && ./build.sh )
 fi
 
 # Validate JAR exists

@@ -11,13 +11,13 @@ import { z } from "zod";
 import multipart from "@fastify/multipart";
 import * as fs from "node:fs";
 import path from "node:path";
-import {runOpenApiGenerator, runShell} from "./lib/openapi-gen";
+import {runOpenApiGenerator, runShell} from "./lib/openapi-gen.js";
 import { runSnippetTS } from "./runner.js";
 import { EXTERNAL_SDKS_ROOT } from "./config.js";
 import { invalidateExternalSDKCache } from "./sdk-registry.js";
 import { createUniqueSdkFolder } from "./names.js";
 import { getNumber } from "./env.js";
-import {cleanExternalSDKsRoot} from "./startup";
+import {cleanExternalSDKsRoot} from "./startup.js";
 
 function readAllMarkdownFiles(dir: string, baseDir: string) {
     const out: Array<{ path: string; markdown: string }> = [];

@@ -165,7 +165,34 @@ start_supervisord() {
         # For now, just log the information
     fi
     
-    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+    # Start supervisord in background
+    /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &
+    local supervisord_pid=$!
+    
+    # Wait for services to start
+    log_info "Waiting for services to start..."
+    sleep 8
+    
+    # Show service status
+    log_info "Service Status:"
+    supervisorctl status 2>/dev/null || log_warning "Supervisor not responding yet"
+    
+    # Show application logs
+    log_info "Application logs:"
+    echo "=========================================="
+    if [[ -f "/var/log/supervisor/app.out.log" ]]; then
+        cat /var/log/supervisor/app.out.log
+    else
+        log_warning "Application log file not found"
+    fi
+    echo "=========================================="
+    
+    # Keep container running and show live logs
+    log_info "Container is running. To see live logs:"
+    log_info "  docker exec <container> tail -f /var/log/supervisor/app.out.log"
+    
+    # Wait for supervisord to finish (keeps container alive)
+    wait $supervisord_pid
 }
 
 # Main command parsing logic

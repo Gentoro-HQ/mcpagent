@@ -246,6 +246,12 @@ docker run --rm admingentoro/gentoro:latest ts-only
 
 # Interactive shell
 docker run --rm -it admingentoro/gentoro:latest shell
+
+# View application logs
+docker run --rm admingentoro/gentoro:latest logs app
+
+# View service status
+docker run --rm admingentoro/gentoro:latest status
 ```
 
 ### Run Container in Dependencies Mode
