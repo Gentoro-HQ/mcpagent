@@ -258,46 +258,6 @@ jobs:
         
         echo "✅ All images verified successfully"
     
-    - name: Update version for next development cycle
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != true
-      run: |
-        NEW_SNAPSHOT="${{ steps.calculate_version.outputs.new_snapshot }}"
-        
-        # Update version
-        mvn -q -f src/mcpagent/pom.xml versions:set -DnewVersion="$NEW_SNAPSHOT" -DgenerateBackupPoms=false
-        
-        # Commit the version update
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add src/mcpagent/pom.xml
-        git commit -m "chore: bump version to $NEW_SNAPSHOT for next development cycle"
-        git push origin main
-        
-        echo "new_snapshot=$NEW_SNAPSHOT" >> $GITHUB_OUTPUT
-        echo "✅ Version updated to $NEW_SNAPSHOT and committed to main"
-      id: version_bump
-    
-    - name: Update POM version to match tag
-      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-      run: |
-        VERSION_NUMBER="${{ steps.extract_version.outputs.version_number }}"
-        NEW_SNAPSHOT="${VERSION_NUMBER}.0-SNAPSHOT"
-        
-        echo "Updating POM version to match tag ${{ steps.extract_version.outputs.version }}"
-        echo "Next development version will be: $NEW_SNAPSHOT"
-        
-        # Update POM version to match the tag
-        mvn -q -f src/mcpagent/pom.xml versions:set -DnewVersion="$VERSION_NUMBER" -DgenerateBackupPoms=false
-        
-        # Commit the version update
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add src/mcpagent/pom.xml
-        git commit -m "chore(release): update POM version to $VERSION_NUMBER for release ${{ steps.extract_version.outputs.version }}"
-        git push origin main
-        
-        echo "✅ POM version updated to $VERSION_NUMBER"
-    
     - name: Create GitHub Release
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
       uses: actions/create-release@v1
@@ -364,7 +324,6 @@ jobs:
         echo "  - OpenTelemetry Collector (port 4317) - Telemetry data collection"
         echo "  - Mock Server (port 8082, optional) - External mock server"
         echo "  - TypeScript Runtime (port 7070, optional) - Node.js runtime"
-        echo "- Created a PR to bump version to ${{ steps.calculate_version.outputs.new_snapshot }}"
         echo ""
         echo "Note: The tag push will trigger the GitHub Release creation automatically."
 
