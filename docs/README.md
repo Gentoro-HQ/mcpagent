@@ -89,6 +89,33 @@ Output is in `.next/`. Serve locally:
 pnpm run start
 ```
 
+## Configuration
+
+### Analytics Setup
+
+The documentation site uses Google Tag Manager (GTM) for analytics tracking.
+
+#### Local Development
+
+Create a `.env.local` file in the `docs/` directory:
+
+```bash
+NEXT_PUBLIC_GTM_ID=GTM-XXXXXXX
+```
+
+Restart the dev server after adding the variable.
+
+#### Production Deployment
+
+Configure the GTM container ID in GitHub:
+
+1. Go to **Settings** → **Environments** → **production** → **Variables**
+2. Add environment variable:
+   - Name: `NEXT_PUBLIC_GTM_ID`
+   - Value: Your GTM container ID (e.g., `GTM-M5H432R3`)
+
+The workflow will automatically inject this during the build step.
+
 ## Deployment
 
 ### Automated S3 Deployment
@@ -102,6 +129,9 @@ The documentation is deployed to S3 via a manually-triggered GitHub Actions work
    - `AWS_REGION` - AWS region (e.g., `us-east-1`)
    - `DOCS_S3_BUCKET` - S3 bucket name for docs
    - `CLOUDFRONT_DISTRIBUTION_ID` - (Optional) CloudFront distribution ID for cache invalidation
+
+2. **Analytics** (configure in GitHub Environments):
+   - `NEXT_PUBLIC_GTM_ID` - Google Tag Manager container ID (environment variable)
 
 2. **IAM Role Permissions**:
    ```json
