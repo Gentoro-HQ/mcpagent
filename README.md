@@ -1,28 +1,29 @@
-# Gentoro MCP Agent (Product module)
+# Gentoro MCP Agent
 
-This is a ready-to-run Spring Boot project (Java 21) exposing an MCP HTTP Streamable endpoint at `/mcp`,
-with providers for OpenAI, Gemini, and Anthropic using their official Java SDKs.
+A production-ready MCP (Model Context Protocol) server that connects AI models to your applications and data sources. Built with Spring Boot and Java 21, it provides a unified HTTP endpoint for OpenAI, Google Gemini, and Anthropic models with built-in knowledge base management and tool integration.
 
-## Quickstart
+## Prerequisites
 
-```bash
-cd product
-./mvnw -q -DskipTests package
-java -jar target/mcpagent-0.1.0-SNAPSHOT.jar
-```
+- **Docker** (for recommended setup) or **Java 21** and **Maven** (for local development)
+- **Node.js** and **npm** (for MCP Inspector)
+- **API Keys** for at least one of the supported providers:
+  - OpenAI API key
+  - Google Gemini API key  
+  - Anthropic API key
 
-Or with process modes:
+## Foundation
 
-```bash
-java -jar target/mcpagent-0.1.0-SNAPSHOT.jar --process=validate
-java -jar target/mcpagent-0.1.0-SNAPSHOT.jar --process=regression
-```
+The MCP Agent uses a **foundation folder** containing your agent's knowledge base:
+- `Agent.md` - Agent instructions and behavior
+- `docs/` - Documentation files
+- `apis/` - OpenAPI specifications
+- `state/` - Knowledge base state (auto-generated)
 
-## Docker
+The Docker image includes default ACME Analytics Server content, if you simply run with [Using Docker](#using-docker) or you can provide your own foundation folder (see [Using Docker with Custom Foundation Folder](#using-docker-with-custom-foundation-folder) below).
 
-Docker images are available for multiple platforms (amd64, arm64):
+## Quick Start
 
-### Pull and Run Pre-built Images
+### Using Docker
 
 ```bash
 # Pull and run the latest image
@@ -30,341 +31,39 @@ docker pull admingentoro/gentoro:latest
 docker run -p 8080:8080 -e OPENAI_API_KEY=your-key admingentoro/gentoro:latest
 ```
 
-**Note**: The Docker image includes default foundation content from the ACME Analytics Server handbook, providing a ready-to-use example with agent instructions, documentation, OpenAPI specifications, and sample queries.
-
-### Build Images Locally
-
-#### 1. Build Base Image
-The base image contains the runtime environment (JRE 21, Node.js, OpenAPI Generator CLI, OpenTelemetry Collector):
+### Using Docker with Custom Foundation Folder
 
 ```bash
-# Build base image with default version (latest)
-./scripts/docker/build-base.sh
-
-# Build base image with specific version
-./scripts/docker/build-base.sh v1.0.0
-
-# Build for specific platform only
-./scripts/docker/build-base.sh latest "" "" --platform linux/amd64
-
-# Build and push to registry
-./scripts/docker/build-base.sh latest --push
+# Run within your custom foundation folder
+docker run -p 8080:8080 \
+  -v $(pwd):/var/foundation \
+  -e OPENAI_API_KEY=your-key \
+  admingentoro/gentoro:latest
 ```
 
-#### 2. Build Product Image
-The product image contains the MCP Agent application built on the base image:
+**Foundation Validation**: The agent automatically validates your foundation folder structure. You can also validate manually:
 
 ```bash
-# Build product image with default version (dev)
-./scripts/docker/build-product.sh
-
-# Build product image with specific version
-./scripts/docker/build-product.sh v1.0.0
-
-# Build with specific JAR file
-./scripts/docker/build-product.sh v1.0.0 mcpagent-0.1.0-SNAPSHOT.jar
-
-# Build and push to registry
-./scripts/docker/build-product.sh v1.0.0 "" --push
-```
-
-#### 3. Build Both Images
-```bash
-# Build both base and product images
-./scripts/docker/build-base.sh latest
-./scripts/docker/build-product.sh latest
-
-# Or use the publish script to build and push both
-./scripts/docker/publish.sh v1.0.0
-```
-
-### Run with Process Modes
-
-You can run the container with different process modes using the `APP_ARGS` environment variable:
-
-```bash
-# Validation mode - validates foundation data
-docker run --rm -e APP_ARGS="--process=validate" admingentoro/gentoro:latest
-
-# Regression mode - runs regression test suite
-docker run --rm -e APP_ARGS="--process=regression" admingentoro/gentoro:latest
-
-# Standard mode (default) - starts MCP server + orchestrator
-docker run --rm -p 8080:8080 admingentoro/gentoro:latest
-```
-
-## Foundation Validation
-
-The MCP Agent includes validators to ensure your foundation folder is properly structured before running. This helps prevent runtime issues and provides clear guidance for fixing problems.
-
-### Validate Your Foundation
-
-#### Using Docker (Recommended)
-```bash
-# Validate foundation with custom directory
+# Validate foundation before running
 docker run --rm \
   -v $(pwd):/var/foundation \
   -e APP_ARGS="--process=validate" \
   admingentoro/gentoro:latest
 ```
 
-#### Using Java/Maven (Local Development)
-```bash
-# Navigate to the mcpagent directory
-cd src/mcpagent
+If validation fails, check the container logs for specific error messages and guidance.
 
-# Run validation with custom foundation directory
-FOUNDATION_DIR="/path/to/your/foundation" mvn exec:java \
-  -Dexec.mainClass="com.gentorox.services.indexer.ValidationRunner" -q
+## MCP Inspector
 
-# Or validate current directory
-FOUNDATION_DIR="$(pwd)" mvn exec:java \
-  -Dexec.mainClass="com.gentorox.services.indexer.ValidationRunner" -q
-```
-
-**Note**: The local Java version provides enhanced validation output with emojis and detailed error messages. The Docker version will have the same enhanced output once the image is updated.
-
-### Validation Features
-
-The validation system checks for:
-
-#### ✅ **Agent.md Requirements**
-- **Presence**: Must exist and not be empty
-- **Format**: Validates required sections:
-  - Title with "Agent" keyword
-  - Purpose/goal/objective description
-  - Behavioral guidance or rules
-  - Tools or capabilities mention
-- **Content Quality**: Warns if content seems too short or incomplete
-
-#### ✅ **Documentation Requirements**
-- **Presence**: At least one `.md` file in `docs/` directory
-- **Structure**: Suggests adding overview and API documentation
-- **File Types**: Supports `.md` and `.mdx` files
-
-#### ✅ **OpenAPI Specification Requirements**
-- **Presence**: Valid OpenAPI spec in `apis/` directory
-- **Format**: Validates JSON/YAML syntax
-- **Schema**: Checks for required fields:
-  - `openapi` or `swagger` version
-  - `info` section with title and version
-  - `paths` with at least one endpoint
-- **File Types**: Supports `.yaml`, `.yml`, and `.json` files
-
-### Validation Output
-
-The validation provides clear, color-coded output with emojis:
-
-```
-🚀 Starting foundation validation...
-📁 Foundation directory: /var/foundation
-
-============================================================
-🔍 FOUNDATION VALIDATION REPORT
-============================================================
-✅ ✓ Agent.md found and validated
-✅ ✓ Documentation found: 2 file(s)
-✅ ✓ OpenAPI spec api.yaml is valid
-✅ ✓ Valid OpenAPI specification found
-⚠️  Consider adding API documentation in docs/
-------------------------------------------------------------
-✅ VALIDATION PASSED with 1 warnings
-💡 Consider addressing the warnings above for optimal performance
-============================================================
-
-🎯 Your foundation is ready! You can now run the agent with:
-   docker run -v $(pwd):/var/foundation -p 8080:8080 admingentoro/gentoro:latest
-```
-
-### Error Handling
-
-When validation fails, you'll get specific error messages and guidance:
-
-```
-❌ VALIDATION FAILED with 2 errors
-🔧 Please fix the errors above before running the agent
-
-💡 To fix validation errors:
-   1. Ensure Agent.md exists and contains proper agent instructions
-   2. Add at least one .md file in the docs/ directory
-   3. Add valid OpenAPI specification in the apis/ directory
-   4. Check the detailed error messages above for specific issues
-```
-
-### Exit Codes
-
-- **0**: Validation passed (with or without warnings)
-- **1**: Validation failed with errors
-
-This makes it easy to integrate validation into CI/CD pipelines or scripts.
-
-### Foundation Directory Structure
-
-The process modes expect a foundation directory with the following structure:
-
-```
-foundation/
-├── Agent.md                    # Required: Agent configuration and instructions
-├── apis/                       # Required: OpenAPI specifications
-│   └── *.yaml                   # Valid OpenAPI 3.0+ specs
-├── docs/                       # Required: Documentation files
-│   └── *.md                     # At least one markdown file
-├── regression/                 # Optional: Regression test files
-│   └── *.yaml
-└── state/                      # Auto-generated: Knowledge base state
-    └── knowledge-base-state.json
-```
-
-**Validation Requirements**:
-- ✅ `Agent.md` must exist with proper format and content
-- ✅ `docs/` directory must contain at least one `.md` file
-- ✅ `apis/` directory must contain valid OpenAPI specification
-- ⚠️ Additional files in `docs/` and `apis/` are recommended for better agent performance
-
-**Default Content**: The Docker image includes default foundation content from the ACME Analytics Server handbook, providing:
-- Agent instructions for sales analytics API queries
-- Documentation on data models and query examples
-- OpenAPI specifications for the analytics API
-- Sample queries and regression tests
-- Pre-configured knowledge base state
-
-### Docker Help and Commands
-
-The container provides several built-in commands:
+Use the MCP Inspector to interact with your agent:
 
 ```bash
-# Show help and available commands
-docker run --rm admingentoro/gentoro:latest help
-
-# Show version information
-docker run --rm admingentoro/gentoro:latest version
-
-# Start only specific services
-docker run --rm admingentoro/gentoro:latest app-only
-docker run --rm admingentoro/gentoro:latest otel-only
-docker run --rm admingentoro/gentoro:latest ts-only
-
-# Interactive shell
-docker run --rm -it admingentoro/gentoro:latest shell
-
-# View application logs
-docker run --rm admingentoro/gentoro:latest logs app
-
-# View service status
-docker run --rm admingentoro/gentoro:latest status
+# Launch the MCP Inspector
+npx @modelcontextprotocol/inspector@latest --port 3001 --open
 ```
 
-### Run Container in Dependencies Mode
-
-For local development, you can run the container in dependencies mode to start only the supporting services (OpenTelemetry Collector, TypeScript Runtime, ACME Analytics Service) while running the main MCP Agent application locally.
-
-#### Start Dependencies Container
-```bash
-# Run container with only dependencies (excludes the main app)
-docker run -d \
-  --name mcpagent-deps \
-  -p 4317:4317 \    # OpenTelemetry Collector OTLP gRPC
-  -p 4318:4318 \    # OpenTelemetry Collector OTLP HTTP
-  -p 7070:7070 \    # TypeScript Runtime
-  -p 8082:8082 \    # ACME Analytics Service (mock server)
-  admingentoro/gentoro:latest otel-only ts-only mock-only
-```
-
-#### Alternative: Use Environment Variables
-```bash
-# Run with specific services disabled
-docker run -d \
-  --name mcpagent-deps \
-  -p 4317:4317 \
-  -p 4318:4318 \
-  -p 7070:7070 \
-  -p 8082:8082 \
-  -e DISABLE_SERVICES=app \
-  admingentoro/gentoro:latest
-```
-
-#### Run MCP Agent Locally
-With the dependencies container running, you can now run the MCP Agent application locally:
-
-```bash
-# Set environment variables to use containerized dependencies
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-export TS_RUNTIME_URL=http://localhost:7070
-
-# Run the application locally
-cd src/mcpagent
-./mvnw spring-boot:run
-```
-
-#### Port Mappings
-- **4317**: OpenTelemetry Collector OTLP gRPC endpoint
-- **4318**: OpenTelemetry Collector OTLP HTTP endpoint  
-- **7070**: TypeScript Runtime service
-- **8082**: ACME Analytics Service (mock server)
-- **8080**: Main MCP Agent application (when running full container)
-
-#### Stop Dependencies Container
-```bash
-# Stop and remove the dependencies container
-docker stop mcpagent-deps
-docker rm mcpagent-deps
-```
-
-### Test Services
-```bash
-# Test all services in the container
-./scripts/docker/validate-containers.sh latest linux/amd64
-```
-
-## Environment
-
-- `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`
-- `OTEL_EXPORTER_OTLP_ENDPOINT` (default `http://localhost:4317`)
-- `TS_RUNTIME_URL` (default `http://localhost:7070`)
-- `FOUNDATION_DIR` (default `/var/foundation`)
-
-## Telemetry
-
-Logback forwards logs to OpenTelemetry via the `OpenTelemetryAppender` and console output.
-Traces/metrics/logs are exported to OTLP.
-
-## MCP
-
-The tool `gentoro.run` accepts `{ provider, model, messages, options }` and returns `{ content, toolCall, traceId }`.
-
-## CI/CD Pipeline
-
-This project uses GitHub Actions for continuous integration and deployment. The pipeline includes:
-
-### Pipeline Stages
-
-1. **Unit Tests** - Fast feedback for code quality across all projects
-2. **Integration Tests** - Test component interactions (mcpagent ↔ TypeScript runtime)
-3. **Build & Service Validation** - Build artifacts and validate full system deployment
-4. **Docker Build & Container Validation** - Build and test containerized deployment for both AMD64 and ARM64
-
-### Pipeline Features
-
-- **Multi-platform support**: Tests both `linux/amd64` and `linux/arm64` architectures
-- **Resilient design**: Integration and service validation stages are optional to prevent external dependency failures
-- **Artifact management**: Build artifacts are shared between stages for efficiency
-- **Container validation**: Automated testing of Docker container functionality
-
-### Running Locally
-
-To run the same tests locally:
-
-```bash
-# Unit tests
-cd src/mcpagent && mvn test
-cd src/acme-analytics-server/server && mvn test  
-cd src/typescript-runtime && npm test
-
-# Integration tests
-cd src/typescript-runtime && npm run dev &
-cd src/mcpagent && mvn test -Dtest="*IntegrationTest"
-
-# Container validation
-./scripts/docker/validate-containers.sh 0.1.0 linux/amd64
-```
+When the inspector opens:
+1. MCP URL should be set to `http://localhost:8080/mcp` 
+2. Tweak configuration based on your preference and requirements
+3. Click "Connect"
 
