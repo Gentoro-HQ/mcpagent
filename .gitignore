@@ -47,4 +47,7 @@ coverage/
 package-lock.json
 
 # Local test env files (never commit)
-src/mcpagent/.env.local
+.env.local
+
+# Docs
+docs/out/

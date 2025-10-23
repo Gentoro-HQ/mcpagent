@@ -22,6 +22,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     permissions:
       id-token: write
       contents: read
@@ -53,6 +54,7 @@ jobs:
         run: pnpm run build
         env:
           NODE_ENV: production
+          NEXT_PUBLIC_GTM_ID: ${{ vars.NEXT_PUBLIC_GTM_ID }}
 
       - name: Verify build output
         working-directory: docs
