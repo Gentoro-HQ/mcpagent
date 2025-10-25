@@ -48,6 +48,7 @@ package-lock.json
 
 # Local test env files (never commit)
 .env.local
+src/mcpagent/src/main/resources/application-dev.yaml
 
 # Docs
 docs/out/
