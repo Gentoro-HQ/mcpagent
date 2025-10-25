@@ -2,7 +2,7 @@
 <configuration scan="true">
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%d{ISO8601} %-5level [%thread] %logger - %msg trace_id=%X{trace_id} span_id=%X{span_id} session_id=%X{sessionId}%n</pattern>
+      <pattern>%d{ISO8601} %-5level [%thread] %logger - %msg%n</pattern>
     </encoder>
   </appender>
 
@@ -15,11 +15,11 @@
     <captureExperimentalAttributes>true</captureExperimentalAttributes>
   </appender>
 
+    <logger name="dev.langchain4j" level="TRACE" additivity="true"/>
+    <logger name="dev.langchain4j.model.googleai" level="TRACE" additivity="true"/>
+    <logger name="com.gentorox" level="TRACE" additivity="true"/>
 
-  <logger name="dev.langchain4j" level="WARN"/>
-  <logger name="com.gentorox" level="ALL"/>
-  <root level="INFO">
-    <appender-ref ref="CONSOLE"/>
-    <appender-ref ref="OTEL"/>
-  </root>
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
 </configuration>

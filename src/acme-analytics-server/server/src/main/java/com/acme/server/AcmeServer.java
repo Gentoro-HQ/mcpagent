@@ -186,6 +186,7 @@ public class AcmeServer {
             try {
                 // Parse request body
                 String requestBody = new String(exchange.getRequestBody().readAllBytes());
+                System.out.println("Received query request: " + requestBody);
                 ObjectNode request = (ObjectNode) objectMapper.readTree(requestBody);
 
                 if( !request.has("fields") ) {
@@ -282,10 +283,12 @@ public class AcmeServer {
 
 
         // Select fields
-        ArrayNode fieldsArray = (ArrayNode) request.get("fields");
         List<String> requestedFields = new ArrayList<>();
-        for (int i = 0; i < fieldsArray.size(); i++) {
+        if( request.has("fields") && request.get("fields").isArray() ) {
+          ArrayNode fieldsArray = (ArrayNode) request.get("fields");
+          for (int i = 0; i < fieldsArray.size(); i++) {
             requestedFields.add(fieldsArray.get(i).asText());
+          }
         }
 
         List<Map<String, Object>> selectedData = requestedFields.isEmpty() ? Collections.emptyList() : selectFields(filteredSales, requestedFields);
@@ -417,16 +420,22 @@ public class AcmeServer {
     private Object getNestedValue(Map<String, Object> record, String field) {
         String[] parts = field.split("\\.");
         Object current = record;
-
+        boolean found = false;
         for (String part : parts) {
             if (current instanceof Map) {
                 current = ((Map<?, ?>) current).get(part);
+              found = true;
             } else {
-              return record.get(part);
+              current = record.get(part);
+              found = true;
+              break;
             }
         }
+        if( !found ) {
+          throw new IllegalArgumentException("Invalid field: " + field);
+        }
 
-        return current;
+        return Objects.requireNonNullElse(current, "[NULL]");
     }
 
     /**
@@ -577,29 +586,40 @@ public class AcmeServer {
     private ArrayNode processAggregates(List<Map<String, Object>> data, List<String> requestedFields, com.fasterxml.jackson.databind.JsonNode aggregates) {
         ArrayNode result = objectMapper.createArrayNode();
 
+      Set<String> requestedFieldsSet = new HashSet<>(requestedFields);
+      for (com.fasterxml.jackson.databind.JsonNode aggregate : aggregates) {
+        String field = aggregate.get("field").asText();
+        requestedFieldsSet.add(field);
+      }
 
-        List<Map<String, Object>> localData = new ArrayList<>(data);
+      List<Map<String, Object>> localData = new ArrayList<>();
+      data.forEach( record -> {
+        Map<String, Object> selected = new HashMap<>();
+        for (String field : requestedFieldsSet) {
+          selected.put(field, getNestedValue(record, field));
+        }
+        localData.add(selected);
+      } );
+
+
         while( true ) {
           if( localData.isEmpty() ) {
             break;
           }
 
-          Map<String, Object> record = localData.getFirst();
-          Map<String, Object> requestedData = requestedFields.stream()
-              .map(field -> Map.entry(field, getNestedValue(record, field)))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
+          final Map<String, Object> record = localData.getFirst();
           List<Map<String, Object>> dataToAggregate = new ArrayList<>();
           int rowIndex = 0;
           while( rowIndex < localData.size() ) {
             final int finalRowIndex = rowIndex;
-            boolean allMatch = requestedData.keySet().stream()
-                .allMatch( field -> Objects.equals(requestedData.get(field), getNestedValue(localData.get(finalRowIndex), field)));
+            boolean allMatch = requestedFields.stream()
+                .allMatch( field -> Objects.equals(record.get(field),
+                    localData.get(finalRowIndex).get(field)));
             if( allMatch ) {
               Map<String, Object> aggregatedRecord = new HashMap<>();
               for (com.fasterxml.jackson.databind.JsonNode aggregate : aggregates) {
                 String field = aggregate.get("field").asText();
-                aggregatedRecord.put(field, getNestedValue(localData.get(finalRowIndex), field));
+                aggregatedRecord.put(field, record.get(field));
               }
               dataToAggregate.add(aggregatedRecord);
               localData.remove(finalRowIndex);
@@ -609,7 +629,8 @@ public class AcmeServer {
           }
 
           ObjectNode recordNode = objectMapper.createObjectNode();
-          requestedData.forEach( (field, value) -> {
+          requestedFields.forEach( (field) -> {
+            Object value = record.get(field);
             if( value != null ) {
               if( value instanceof String ) {
                 recordNode.put(field, value.toString());
