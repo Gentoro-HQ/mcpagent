@@ -28,7 +28,7 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:9080
+  - url: http://localhost:8082
     description: Production server
 
 paths:
