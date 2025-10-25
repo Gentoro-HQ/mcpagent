@@ -2,6 +2,56 @@
 
 This document provides practical examples of how to use the Sales Analytics API for common business scenarios.
 
+## Query flow
+
+### Format the query filter and use the /query endpoint to issue the query
+```json
+{
+  "filter": [
+    {
+      "field": "date.year",
+      "operator": "equals",
+      "value": 2024
+    }
+  ],
+  "fields": ["date.month", "date.year"]
+  ,
+  "aggregates": [
+    {
+      "field": "sale.amount",
+      "function": "sum",
+      "alias": "total_sales"
+    }
+  ]
+}
+```
+
+### The response will include the query results and metadata
+```json
+{
+    "success": true, // true if the query was successful, false otherwise
+    "data": [ // array of all query results, including aggregations. Note that for aggregations, the field name is the alias
+        {
+            "date.year": 2024.0,
+            "date.month": 2.0,
+            "total_sales": 460013.52
+        },
+        {
+            "date.year": 2024.0,
+            "date.month": 12.0,
+            "total_sales": 447181.2
+        },
+        ...
+    ],
+    "metadata": { // metadata about the query results
+        "total_records": 4960,
+        "execution_time_ms": 66,
+        "query_id": "qry_21491e4c",
+        "has_more": false
+    }
+}
+```
+  
 ## Basic Filtering Examples
 
 ### Find High-Value Sales
