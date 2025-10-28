@@ -1,11 +1,67 @@
 ---
-description: Start the agent locally with the mock server using Docker.
+description: Run MCP Agent with Docker using various process modes and configurations.
 ---
 
 # Run with Docker
 
-Start the MCP Agent with the built-in mock server:
+Docker images are available for multiple platforms (amd64, arm64) and can be run in various modes depending on your needs.
 
+## Quick Start
+
+### Pull and Run
+
+```bash
+# Pull and run the latest image
+docker pull admingentoro/gentoro:latest
+docker run -p 8080:8080 -e OPENAI_API_KEY=your-key admingentoro/gentoro:latest
+```
+
+**Note**: The Docker image includes default foundation content from the ACME Analytics Server handbook, providing a ready-to-use example with agent instructions, documentation, OpenAPI specifications, and sample queries.
+
+### Run with Custom Foundation
+
+```bash
+# Run with your own foundation directory
+docker run -p 8080:8080 \
+  -v $(pwd):/var/foundation \
+  -e OPENAI_API_KEY=your-key \
+  admingentoro/gentoro:latest
+```
+
+## Process Modes
+
+The container supports different process modes using the `APP_ARGS` environment variable:
+
+### Standard Mode (Default)
+Starts MCP server + orchestrator:
+```bash
+docker run --rm -p 8080:8080 \
+  -e OPENAI_API_KEY=your-key \
+  admingentoro/gentoro:latest
+```
+
+### Validation Mode
+Validates foundation data structure:
+```bash
+docker run --rm \
+  -v $(pwd):/var/foundation \
+  -e APP_ARGS="--process=validate" \
+  admingentoro/gentoro:latest
+```
+
+See the [Foundation Validation](/docs/guides/foundation-validation) guide for details.
+
+### Regression Mode
+Runs regression test suite:
+```bash
+docker run --rm \
+  -v $(pwd):/var/foundation \
+  -e APP_ARGS="--process=regression" \
+  admingentoro/gentoro:latest
+```
+
+### Mock Server Mode
+Starts the built-in ACME Analytics mock server:
 ```bash
 docker run --rm \
   -p 8082:8082 \
@@ -13,14 +69,162 @@ docker run --rm \
   admingentoro/gentoro:latest
 ```
 
-Expose your own Foundation:
+MCP URL: `http://localhost:8082/mcp`
+
+## Docker Commands
+
+The container provides several built-in commands:
+
+### Help and Information
+```bash
+# Show help and available commands
+docker run --rm admingentoro/gentoro:latest help
+
+# Show version information
+docker run --rm admingentoro/gentoro:latest version
+```
+
+### Service Management
+```bash
+# Start only specific services
+docker run --rm admingentoro/gentoro:latest app-only
+docker run --rm admingentoro/gentoro:latest otel-only
+docker run --rm admingentoro/gentoro:latest ts-only
+
+# Interactive shell
+docker run --rm -it admingentoro/gentoro:latest shell
+
+# View application logs
+docker run --rm admingentoro/gentoro:latest logs app
+
+# View service status
+docker run --rm admingentoro/gentoro:latest status
+```
+
+## Dependencies Mode (Local Development)
+
+For local development, you can run the container in dependencies mode to start only the supporting services while running the main MCP Agent application locally.
+
+### Start Dependencies Container
 
 ```bash
-docker run --rm \
+# Run container with only dependencies (excludes the main app)
+docker run -d \
+  --name mcpagent-deps \
+  -p 4317:4317 \
+  -p 4318:4318 \
+  -p 7070:7070 \
   -p 8082:8082 \
-  -v "${PWD}:/var/foundation" \
-  -e APP_ARGS="--process=mock-server --tcp-port=8082" \
+  admingentoro/gentoro:latest otel-only ts-only mock-only
+```
+
+Alternative using environment variables:
+```bash
+docker run -d \
+  --name mcpagent-deps \
+  -p 4317:4317 \
+  -p 4318:4318 \
+  -p 7070:7070 \
+  -p 8082:8082 \
+  -e DISABLE_SERVICES=app \
   admingentoro/gentoro:latest
 ```
 
-MCP URL: `http://localhost:8082/mcp`.
+### Port Mappings
+
+- **4317**: OpenTelemetry Collector OTLP gRPC endpoint
+- **4318**: OpenTelemetry Collector OTLP HTTP endpoint  
+- **7070**: TypeScript Runtime service
+- **8082**: ACME Analytics Service (mock server)
+- **8080**: Main MCP Agent application (when running full container)
+
+### Run MCP Agent Locally
+
+With the dependencies container running, run the application locally:
+
+```bash
+# Set environment variables to use containerized dependencies
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export TS_RUNTIME_URL=http://localhost:7070
+
+# Run the application locally
+cd src/mcpagent
+./mvnw spring-boot:run
+```
+
+### Stop Dependencies Container
+
+```bash
+docker stop mcpagent-deps
+docker rm mcpagent-deps
+```
+
+## Environment Variables
+
+- `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` - API keys for AI providers
+- `OTEL_EXPORTER_OTLP_ENDPOINT` - OpenTelemetry endpoint (default: `http://localhost:4317`)
+- `TS_RUNTIME_URL` - TypeScript Runtime URL (default: `http://localhost:7070`)
+- `FOUNDATION_DIR` - Foundation directory path (default: `/var/foundation`)
+- `APP_ARGS` - Additional arguments passed to the application
+
+## Building Images Locally
+
+### Build Base Image
+
+The base image contains the runtime environment (JRE 21, Node.js, OpenAPI Generator CLI, OpenTelemetry Collector):
+
+```bash
+# Build base image with default version (latest)
+./scripts/docker/build-base.sh
+
+# Build base image with specific version
+./scripts/docker/build-base.sh v1.0.0
+
+# Build for specific platform only
+./scripts/docker/build-base.sh latest "" "" --platform linux/amd64
+
+# Build and push to registry
+./scripts/docker/build-base.sh latest --push
+```
+
+### Build Product Image
+
+The product image contains the MCP Agent application built on the base image:
+
+```bash
+# Build product image with default version (dev)
+./scripts/docker/build-product.sh
+
+# Build product image with specific version
+./scripts/docker/build-product.sh v1.0.0
+
+# Build with specific JAR file
+./scripts/docker/build-product.sh v1.0.0 mcpagent-0.1.0-SNAPSHOT.jar
+
+# Build and push to registry
+./scripts/docker/build-product.sh v1.0.0 "" --push
+```
+
+### Build Both Images
+
+```bash
+# Build both base and product images
+./scripts/docker/build-base.sh latest
+./scripts/docker/build-product.sh latest
+
+# Or use the publish script to build and push both
+./scripts/docker/publish.sh v1.0.0
+```
+
+### Test Services
+
+```bash
+# Test all services in the container
+./scripts/docker/validate-containers.sh latest linux/amd64
+```
+
+## Next Steps
+
+- Learn about [Foundation Validation](/docs/guides/foundation-validation)
+- Configure [Telemetry](/docs/guides/telemetry)
+- Review [Configuration Reference](/docs/reference/configuration)

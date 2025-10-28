@@ -1,0 +1,253 @@
+---
+description: CI/CD pipeline overview and local testing instructions.
+---
+
+# CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment. The pipeline provides comprehensive testing across all components and platforms.
+
+## Pipeline Stages
+
+The CI/CD pipeline consists of four main stages:
+
+### 1. Unit Tests
+Fast feedback for code quality across all projects:
+- **mcpagent** (Java/Spring Boot)
+- **acme-analytics-server** (Java mock server)
+- **typescript-runtime** (Node.js/TypeScript)
+
+**Trigger**: Every push and pull request
+
+### 2. Integration Tests
+Test component interactions (mcpagent ↔ TypeScript runtime):
+- Starts TypeScript runtime service
+- Runs integration test suite
+- Validates cross-service communication
+
+**Status**: Optional (prevents external dependency failures from blocking the pipeline)
+
+### 3. Build & Service Validation
+Build artifacts and validate full system deployment:
+- Builds all Java services
+- Packages TypeScript runtime
+- Validates services can start and communicate
+- Tests end-to-end system functionality
+
+**Status**: Optional (resilient to transient failures)
+
+### 4. Docker Build & Container Validation
+Build and test containerized deployment:
+- Builds Docker images for both AMD64 and ARM64
+- Validates container functionality on both architectures
+- Tests all service modes (app, otel, typescript runtime)
+- Verifies multi-platform compatibility
+
+**Platforms**: `linux/amd64`, `linux/arm64`
+
+## Pipeline Features
+
+### Multi-platform Support
+The pipeline tests both AMD64 and ARM64 architectures to ensure compatibility across different deployment environments (cloud servers, Apple Silicon, etc.).
+
+### Resilient Design
+Integration and service validation stages are optional to prevent external dependency failures from blocking the entire pipeline. Critical stages (unit tests, Docker build) are required.
+
+### Artifact Management
+Build artifacts are shared between stages for efficiency:
+- Java JARs are built once and reused
+- Node.js packages are cached
+- Docker layers are cached for faster builds
+
+### Container Validation
+Automated testing of Docker container functionality:
+- Service startup validation
+- Health check verification
+- Inter-service communication testing
+- Process mode validation (validate, regression, etc.)
+
+## Running Locally
+
+To run the same tests that run in CI/CD locally:
+
+### Unit Tests
+
+```bash
+# Java services
+cd src/mcpagent && mvn test
+cd src/acme-analytics-server/server && mvn test
+
+# TypeScript runtime
+cd src/typescript-runtime && npm test
+```
+
+### Integration Tests
+
+```bash
+# Start TypeScript runtime
+cd src/typescript-runtime && npm run dev &
+
+# Run integration tests
+cd src/mcpagent && mvn test -Dtest="*IntegrationTest"
+
+# Stop TypeScript runtime
+pkill -f "npm run dev"
+```
+
+### Service Validation
+
+```bash
+# Build all services
+cd src/mcpagent && mvn package -DskipTests
+cd src/acme-analytics-server/server && mvn package -DskipTests
+cd src/typescript-runtime && npm run build
+
+# Start services
+java -jar src/mcpagent/target/mcpagent-*.jar &
+java -jar src/acme-analytics-server/server/target/acme-analytics-*.jar &
+cd src/typescript-runtime && npm start &
+
+# Wait for services to start
+sleep 10
+
+# Test services (add your own validation commands)
+curl http://localhost:8080/actuator/health
+curl http://localhost:8082/api/health
+curl http://localhost:7070/health
+
+# Stop services
+pkill -f "java -jar"
+pkill -f "npm start"
+```
+
+### Container Validation
+
+```bash
+# Build Docker images
+./scripts/docker/build-base.sh latest
+./scripts/docker/build-product.sh latest
+
+# Validate containers
+./scripts/docker/validate-containers.sh latest linux/amd64
+
+# For ARM64 (on Apple Silicon)
+./scripts/docker/validate-containers.sh latest linux/arm64
+```
+
+## CI/CD Best Practices
+
+### Pull Request Workflow
+
+1. **Create feature branch**: `git checkout -b feature/my-feature`
+2. **Make changes and commit**: Follow conventional commit format
+3. **Push and create PR**: CI pipeline runs automatically
+4. **Review results**: Check all stages pass
+5. **Merge after approval**: Squash and merge to main
+
+### Commit Message Format
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat(component): add new feature
+fix(component): fix bug
+docs(component): update documentation
+test(component): add tests
+chore(component): maintenance tasks
+```
+
+Examples:
+```
+feat(agent): add support for Claude 3.5 Sonnet
+fix(runtime): resolve TypeScript compilation error
+docs(guides): add foundation validation guide
+test(integration): add MCP endpoint integration tests
+```
+
+### Debugging Pipeline Failures
+
+#### Unit Test Failures
+```bash
+# Run tests locally with verbose output
+cd src/mcpagent && mvn test -X
+
+# Run specific test
+mvn test -Dtest=MyTestClass#myTestMethod
+```
+
+#### Integration Test Failures
+```bash
+# Check TypeScript runtime logs
+cd src/typescript-runtime && npm run dev
+
+# Run integration tests with debug logging
+cd src/mcpagent && mvn test -Dtest="*IntegrationTest" -X
+```
+
+#### Docker Build Failures
+```bash
+# Build with verbose output
+docker build --progress=plain -f Dockerfile .
+
+# Check specific platform
+docker buildx build --platform linux/amd64 -f Dockerfile .
+```
+
+#### Container Validation Failures
+```bash
+# Run validation with debug mode
+./scripts/docker/validate-containers.sh latest linux/amd64 --debug
+
+# Check container logs
+docker logs <container-id>
+
+# Interactive shell for debugging
+docker run -it --entrypoint /bin/bash admingentoro/gentoro:latest
+```
+
+## GitHub Actions Configuration
+
+The pipeline is defined in `.github/workflows/` directory:
+
+- `ci.yml` - Main CI/CD pipeline
+- `deploy-docs.yml` - Documentation deployment
+
+### Secrets Required
+
+Configure these secrets in GitHub repository settings:
+
+- `OPENAI_API_KEY` - For integration tests (optional)
+- `GEMINI_API_KEY` - For integration tests (optional)
+- `ANTHROPIC_API_KEY` - For integration tests (optional)
+- `DOCKER_HUB_USERNAME` - For Docker image publishing
+- `DOCKER_HUB_TOKEN` - For Docker image publishing
+
+### Environment Variables
+
+Configure these in GitHub Environments:
+
+- `NEXT_PUBLIC_GTM_ID` - Google Tag Manager ID for docs site
+
+## Monitoring and Metrics
+
+### Pipeline Metrics
+
+Track these metrics to monitor pipeline health:
+
+- **Build time**: Total time for all stages
+- **Success rate**: Percentage of successful runs
+- **Flaky tests**: Tests that fail intermittently
+- **Cache hit rate**: Docker layer and dependency cache effectiveness
+
+### Viewing Results
+
+- **GitHub Actions**: Repository → Actions tab
+- **Test Reports**: Available as artifacts in each run
+- **Coverage Reports**: Published to workflow summary
+- **Docker Image Tags**: Check Docker Hub for published images
+
+## Next Steps
+
+- Review [Configuration](/docs/reference/configuration)
+- Learn about [Foundation Validation](/docs/guides/foundation-validation)
+- Explore [Docker Guide](/docs/guides/run-with-docker)
+

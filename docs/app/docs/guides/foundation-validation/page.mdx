@@ -1,0 +1,297 @@
+---
+description: Validate your foundation folder structure before running the MCP Agent.
+---
+
+# Foundation Validation
+
+The MCP Agent includes validators to ensure your foundation folder is properly structured before running. This helps prevent runtime issues and provides clear guidance for fixing problems.
+
+## Why Validate?
+
+Validation catches common issues before they cause runtime errors:
+- Missing required files (Agent.md, docs, APIs)
+- Invalid OpenAPI specifications
+- Malformed configuration files
+- Incomplete agent instructions
+
+Running validation first saves time debugging and ensures a smooth agent startup.
+
+## Running Validation
+
+### Using Docker (Recommended)
+
+```bash
+# Validate foundation in current directory
+docker run --rm \
+  -v $(pwd):/var/foundation \
+  -e APP_ARGS="--process=validate" \
+  admingentoro/gentoro:latest
+```
+
+### Using Java/Maven (Local Development)
+
+```bash
+# Navigate to the mcpagent directory
+cd src/mcpagent
+
+# Validate specific foundation directory
+FOUNDATION_DIR="/path/to/your/foundation" mvn exec:java \
+  -Dexec.mainClass="com.gentorox.services.indexer.ValidationRunner" -q
+
+# Validate current directory
+FOUNDATION_DIR="$(pwd)" mvn exec:java \
+  -Dexec.mainClass="com.gentorox.services.indexer.ValidationRunner" -q
+```
+
+**Note**: The local Java version provides enhanced validation output with emojis and detailed error messages.
+
+## What Gets Validated
+
+### ✅ Agent.md Requirements
+
+**Checks performed:**
+- **Presence**: File must exist and not be empty
+- **Format**: Validates required sections:
+  - Title containing "Agent" keyword
+  - Purpose/goal/objective description
+  - Behavioral guidance or rules
+  - Tools or capabilities mention
+- **Content Quality**: Warns if content is too short or incomplete
+
+**Common issues:**
+- Missing Agent.md file
+- Empty or minimal content
+- No clear purpose statement
+- Missing behavioral guidelines
+
+### ✅ Documentation Requirements
+
+**Checks performed:**
+- **Presence**: At least one `.md` file in `docs/` directory
+- **File Types**: Validates `.md` and `.mdx` files
+- **Structure**: Suggests adding overview and API documentation
+
+**Common issues:**
+- Empty docs/ directory
+- No markdown files found
+- Missing recommended documentation
+
+**Recommendations:**
+- Add at least 2-3 documentation files
+- Include an overview/introduction
+- Document your APIs and services
+- Provide troubleshooting guides
+
+### ✅ OpenAPI Specification Requirements
+
+**Checks performed:**
+- **Presence**: Valid OpenAPI spec in `apis/` directory
+- **Format**: Validates JSON/YAML syntax
+- **Schema**: Checks for required fields:
+  - `openapi` or `swagger` version
+  - `info` section with title and version
+  - `paths` with at least one endpoint
+- **File Types**: Supports `.yaml`, `.yml`, and `.json`
+
+**Common issues:**
+- No OpenAPI files in apis/
+- Invalid YAML/JSON syntax
+- Missing required fields (info, paths)
+- No endpoints defined
+
+## Understanding Validation Output
+
+### Success with Warnings
+
+```
+🚀 Starting foundation validation...
+📁 Foundation directory: /var/foundation
+
+============================================================
+🔍 FOUNDATION VALIDATION REPORT
+============================================================
+✅ ✓ Agent.md found and validated
+✅ ✓ Documentation found: 2 file(s)
+✅ ✓ OpenAPI spec api.yaml is valid
+✅ ✓ Valid OpenAPI specification found
+⚠️  Consider adding API documentation in docs/
+------------------------------------------------------------
+✅ VALIDATION PASSED with 1 warnings
+💡 Consider addressing the warnings above for optimal performance
+============================================================
+
+🎯 Your foundation is ready! You can now run the agent with:
+   docker run -v $(pwd):/var/foundation -p 8080:8080 admingentoro/gentoro:latest
+```
+
+**What this means:**
+- All required files are present and valid
+- Foundation will work, but improvements recommended
+- Warnings suggest best practices (not blocking)
+
+### Validation Failure
+
+```
+❌ VALIDATION FAILED with 2 errors
+🔧 Please fix the errors above before running the agent
+
+💡 To fix validation errors:
+   1. Ensure Agent.md exists and contains proper agent instructions
+   2. Add at least one .md file in the docs/ directory
+   3. Add valid OpenAPI specification in the apis/ directory
+   4. Check the detailed error messages above for specific issues
+```
+
+**What this means:**
+- Required files are missing or invalid
+- Agent will not start properly
+- Must fix errors before proceeding
+
+## Exit Codes
+
+The validation command uses standard exit codes for scripting:
+
+- **0**: Validation passed (with or without warnings)
+- **1**: Validation failed with errors
+
+This makes it easy to integrate validation into scripts and CI/CD pipelines.
+
+## Integration with CI/CD
+
+### GitHub Actions Example
+
+```yaml
+name: Validate Foundation
+
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate Foundation
+        run: |
+          docker run --rm \
+            -v $(pwd):/var/foundation \
+            -e APP_ARGS="--process=validate" \
+            admingentoro/gentoro:latest
+```
+
+### Shell Script Example
+
+```bash
+#!/bin/bash
+set -e
+
+echo "Validating foundation..."
+docker run --rm \
+  -v "$(pwd):/var/foundation" \
+  -e APP_ARGS="--process=validate" \
+  admingentoro/gentoro:latest
+
+if [ $? -eq 0 ]; then
+  echo "✅ Foundation validation passed"
+  echo "Starting agent..."
+  docker run -d \
+    -v "$(pwd):/var/foundation" \
+    -p 8080:8080 \
+    -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+    admingentoro/gentoro:latest
+else
+  echo "❌ Foundation validation failed"
+  exit 1
+fi
+```
+
+### Makefile Example
+
+```makefile
+.PHONY: validate run
+
+validate:
+	@echo "Validating foundation..."
+	@docker run --rm \
+		-v $(PWD):/var/foundation \
+		-e APP_ARGS="--process=validate" \
+		admingentoro/gentoro:latest
+
+run: validate
+	@echo "Starting agent..."
+	@docker run -d \
+		-v $(PWD):/var/foundation \
+		-p 8080:8080 \
+		-e OPENAI_API_KEY=$(OPENAI_API_KEY) \
+		admingentoro/gentoro:latest
+```
+
+## Troubleshooting Validation Errors
+
+### "Agent.md not found"
+
+**Solution:**
+```bash
+# Create Agent.md with minimal content
+cat > Agent.md << 'EOF'
+# My Agent
+
+## Purpose
+Assist users with...
+
+## Behavior
+- Be helpful and professional
+- Use available tools appropriately
+
+## Tools
+- tool_name: Description
+EOF
+```
+
+### "No documentation files found"
+
+**Solution:**
+```bash
+# Create docs directory with overview
+mkdir -p docs
+echo "# Overview" > docs/overview.md
+echo "Documentation for my service." >> docs/overview.md
+```
+
+### "No valid OpenAPI specification found"
+
+**Solution:**
+```bash
+# Create minimal OpenAPI spec
+mkdir -p apis
+cat > apis/api.yaml << 'EOF'
+openapi: 3.0.0
+info:
+  title: My API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+EOF
+```
+
+### "Invalid YAML syntax in OpenAPI spec"
+
+**Solution:**
+```bash
+# Validate YAML syntax
+python3 -c "import yaml; yaml.safe_load(open('apis/api.yaml'))"
+
+# Or use online validator
+# https://www.yamllint.com/
+```
+
+## Next Steps
+
+- [Create a foundation](/docs/guides/ingest-foundation) if you don't have one
+- [Run with Docker](/docs/guides/run-with-docker) after validation passes
+- Review [CI/CD integration](/docs/reference/ci-cd) for automated validation

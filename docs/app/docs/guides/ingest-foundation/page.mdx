@@ -1,44 +1,216 @@
 ---
-description: Minimal checklist to prepare Agent.md, docs, and API specs for the agent.
+description: Create and prepare a foundation folder for your MCP Agent.
 ---
+
 import { FileTree } from 'nextra/components'
 
 # Creating a Foundation Folder
 
-Use a local folder as the agent’s source of truth. The agent indexes these files to ground planning and execution.
+A foundation folder is your agent's source of truth. The agent indexes these files to ground planning and execution with your domain knowledge, APIs, and rules.
 
-## Minimal Checklist
+## Quick Start
 
-- Agent.md — Your high-level agent/system prompt and operating principles
-- docs/ — Markdown docs with domain knowledge (optional but recommended)
-- apis/ — OpenAPI specs (YAML/JSON) for the services you want the agent to call
-- rules/ — Any business rules or constraints (freeform MD/YAML)
+### Use Default Foundation
 
-## Directory Example
+The Docker image includes default foundation content from the ACME Analytics Server handbook:
+
+```bash
+# Run with included example foundation
+docker run -p 8080:8080 \
+  -e OPENAI_API_KEY=your-key \
+  admingentoro/gentoro:latest
+```
+
+This provides:
+- Agent instructions for sales analytics API queries
+- Documentation on data models and query examples
+- OpenAPI specifications for the analytics API
+- Sample queries and regression tests
+- Pre-configured knowledge base state
+
+### Create Your Own Foundation
+
+Create a new directory with the required structure:
+
+```bash
+mkdir my-foundation
+cd my-foundation
+```
+
+## Required Files
+
+### 1. Agent.md (Required)
+
+Your high-level agent instructions and operating principles:
+
+```markdown
+# Customer Support Agent
+
+## Purpose
+Assist customers with product inquiries and troubleshooting.
+
+## Behavior
+- Always be polite and professional
+- Gather context before suggesting solutions
+- Use available tools to look up account information
+
+## Tools
+- search_knowledge_base: Find relevant documentation
+- get_account_info: Retrieve customer account details
+- create_ticket: Create support tickets when needed
+```
+
+### 2. docs/ Directory (Required)
+
+Markdown documentation with domain knowledge:
+
+```bash
+mkdir docs
+echo "# Product Overview" > docs/overview.md
+echo "# API Documentation" > docs/api-guide.md
+```
+
+At least one `.md` or `.mdx` file is required. Add:
+- Product/service overviews
+- Domain concepts and terminology
+- How-to guides
+- FAQs and troubleshooting
+
+### 3. apis/ Directory (Required)
+
+OpenAPI specifications (YAML or JSON) for services the agent should call:
+
+```bash
+mkdir apis
+# Add your OpenAPI spec file
+cp my-service.openapi.yaml apis/
+```
+
+Requirements:
+- Valid OpenAPI 3.0+ or Swagger 2.0
+- At least one endpoint defined
+- Proper `info` section with title and version
+
+### 4. rules/ Directory (Optional)
+
+Business rules, policies, or constraints:
+
+```bash
+mkdir rules
+echo "# Refund Policy" > rules/refunds.md
+echo "# Data Privacy Rules" > rules/privacy.md
+```
+
+Use freeform Markdown or YAML to document:
+- Business policies
+- Compliance requirements
+- Operational constraints
+- Decision-making rules
+
+### 5. regression/ Directory (Optional)
+
+Test cases for regression testing:
+
+```bash
+mkdir regression
+```
+
+Add YAML files with test queries and expected behaviors.
+
+## Complete Directory Structure
+
 <FileTree>
-  <FileTree.Folder name="foundation" defaultOpen>
+  <FileTree.Folder name="my-foundation" defaultOpen>
     <FileTree.File name="Agent.md" />
-    <FileTree.Folder name="docs">
-      <FileTree.File name="Overview.md" />
+    <FileTree.Folder name="docs" defaultOpen>
+      <FileTree.File name="overview.md" />
+      <FileTree.File name="api-guide.md" />
+      <FileTree.File name="troubleshooting.md" />
     </FileTree.Folder>
-    <FileTree.Folder name="apis">
-      <FileTree.File name="service.openapi.yaml" />
+    <FileTree.Folder name="apis" defaultOpen>
+      <FileTree.File name="customer-api.openapi.yaml" />
+      <FileTree.File name="product-api.openapi.yaml" />
     </FileTree.Folder>
-    <FileTree.Folder name="rules">
-      <FileTree.File name="policies.md" />
-    </FileTree.Folder>  </FileTree.Folder>
+    <FileTree.Folder name="rules" defaultOpen>
+      <FileTree.File name="refund-policy.md" />
+      <FileTree.File name="privacy-rules.md" />
+    </FileTree.Folder>
+    <FileTree.Folder name="regression" defaultOpen>
+      <FileTree.File name="customer-queries.yaml" />
+    </FileTree.Folder>
+    <FileTree.Folder name="state">
+      <FileTree.File name="knowledge-base-state.json" />
+    </FileTree.Folder>
+  </FileTree.Folder>
 </FileTree>
+
+**Note**: The `state/` directory is auto-generated when the agent runs and contains the indexed knowledge base state.
 
 ## Run With Your Foundation
 
-Mount your folder at `/var/foundation` so it replaces mocked content:
+Mount your foundation folder at `/var/foundation`:
 
 ```bash
 docker run --rm \
-	-p 8082:8082 \
-	-v "${PWD}:/var/foundation" \
-	-e APP_ARGS="--process=mock-server --tcp-port=8082" \
-	admingentoro/gentoro:latest
+  -p 8080:8080 \
+  -v "$(pwd):/var/foundation" \
+  -e OPENAI_API_KEY=your-key \
+  admingentoro/gentoro:latest
 ```
 
-The agent will index these files on startup and use them during planning, retrieval, and tool execution.
+The agent will:
+1. Index all files on startup
+2. Build a knowledge base from your docs
+3. Parse OpenAPI specs for tool generation
+4. Use this context during planning and execution
+
+## Best Practices
+
+### Agent.md Tips
+- Be specific about the agent's purpose and scope
+- Define clear behavioral guidelines
+- List available tools and when to use them
+- Include example scenarios if helpful
+
+### Documentation Tips
+- Organize by topic or service
+- Use clear headings and structure
+- Include examples and code snippets
+- Keep docs up-to-date with your services
+
+### OpenAPI Spec Tips
+- Use descriptive operation IDs and summaries
+- Include detailed parameter descriptions
+- Provide example requests/responses
+- Document error responses
+
+### Rules Tips
+- Keep rules concise and actionable
+- Use examples to clarify edge cases
+- Organize by category (compliance, business logic, etc.)
+- Update rules as policies change
+
+## Validate Your Foundation
+
+Before running your agent, validate your foundation structure:
+
+```bash
+docker run --rm \
+  -v "$(pwd):/var/foundation" \
+  -e APP_ARGS="--process=validate" \
+  admingentoro/gentoro:latest
+```
+
+This checks for:
+- Required files (Agent.md, docs/, apis/)
+- Valid OpenAPI specifications
+- Proper file formats
+- Common issues and warnings
+
+See the [Foundation Validation](/docs/guides/foundation-validation) guide for details.
+
+## Next Steps
+
+- [Validate your foundation](/docs/guides/foundation-validation)
+- [Run with Docker](/docs/guides/run-with-docker)
+- Learn about [Retrieval concepts](/docs/concepts/retrieval)
