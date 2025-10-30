@@ -1,0 +1,363 @@
+/**
+ * Interactive setup wizard for first-time configuration
+ */
+import inquirer from 'inquirer';
+import chalk from 'chalk';
+import boxen from 'boxen';
+import { configManager } from '../config/manager.js';
+import { paths } from '../config/paths.js';
+import { GlobalConfig, ModelProvider } from '../types.js';
+import fs from 'fs-extra';
+
+export class SetupWizard {
+  /**
+   * Run the complete setup wizard
+   */
+  async run(): Promise<void> {
+    console.log(
+      boxen(chalk.bold.cyan('Gentoro MCP Agent Setup'), {
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+      })
+    );
+
+    console.log(chalk.dim('━'.repeat(60)));
+    console.log();
+
+    // Step 1: Choose model provider
+    const provider = await this.selectProvider();
+    const apiKey = await this.getApiKey(provider);
+
+    // Step 2: Choose starting mode
+    const mode = await this.selectMode();
+
+    let handbookDir = paths.handbooksDir;
+    let serviceConfig = null;
+
+    if (mode === 'own') {
+      // Step 3: Handbook configuration
+      handbookDir = await this.configureHandbook();
+
+      // Step 4: Service authentication
+      serviceConfig = await this.configureService();
+    }
+
+    // Save global configuration
+    const config: GlobalConfig = {
+      provider,
+      apiKey,
+      defaultPort: 8080,
+      handbookDir,
+      logDir: paths.logDir,
+    };
+
+    await configManager.saveGlobalConfig(config);
+    console.log(chalk.green('✅  Configuration saved successfully!'));
+
+    // Save service configuration if provided
+    if (serviceConfig) {
+      await configManager.saveServiceConfig(serviceConfig.service, serviceConfig);
+      console.log(chalk.green(`✅  Service configuration saved to ${serviceConfig.service}.yaml`));
+    }
+
+    // Show next steps
+    this.showNextSteps(mode === 'mock');
+  }
+
+  /**
+   * Select model provider
+   */
+  private async selectProvider(): Promise<ModelProvider> {
+    console.log(chalk.bold('Step 1 — Choose a model provider:'));
+    console.log();
+
+    const { provider } = await inquirer.prompt<{ provider: ModelProvider }>([
+      {
+        type: 'list',
+        name: 'provider',
+        message: 'Select provider',
+        choices: [
+          { name: 'OpenAI', value: 'openai' },
+          { name: 'Google Gemini', value: 'gemini' },
+          { name: 'Anthropic Claude', value: 'anthropic' },
+        ],
+      },
+    ]);
+
+    return provider;
+  }
+
+  /**
+   * Get API key for selected provider
+   */
+  private async getApiKey(provider: ModelProvider): Promise<string> {
+    const providerNames = {
+      openai: 'OpenAI',
+      gemini: 'Google Gemini',
+      anthropic: 'Anthropic',
+    };
+
+    const { apiKey } = await inquirer.prompt([
+      {
+        type: 'password',
+        name: 'apiKey',
+        message: `Enter your ${providerNames[provider]} API key:`,
+        validate: (input: string) => {
+          if (!input || input.trim() === '') {
+            return 'API key is required';
+          }
+          return true;
+        },
+      },
+    ]);
+
+    return apiKey;
+  }
+
+  /**
+   * Select starting mode
+   */
+  private async selectMode(): Promise<'mock' | 'own'> {
+    console.log();
+    console.log(chalk.bold('Step 2 — Choose how to start:'));
+    console.log();
+
+    const { mode } = await inquirer.prompt<{ mode: 'mock' | 'own' }>([
+      {
+        type: 'list',
+        name: 'mode',
+        message: 'Select mode',
+        choices: [
+          {
+            name: 'Start with mock Acme Analytics (recommended)',
+            value: 'mock',
+          },
+          {
+            name: 'Connect your own API service',
+            value: 'own',
+          },
+        ],
+      },
+    ]);
+
+    return mode;
+  }
+
+  /**
+   * Configure handbook directory
+   */
+  private async configureHandbook(): Promise<string> {
+    console.log();
+    console.log(chalk.bold('Step 3 — Specify a handbook directory'));
+    console.log();
+
+    const { handbookPath } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'handbookPath',
+        message: 'Handbook directory',
+        default: './handbook',
+      },
+    ]);
+
+    const fullPath = handbookPath.startsWith('/')
+      ? handbookPath
+      : paths.getHandbookPath(handbookPath.replace('./', ''));
+
+    // Check if directory exists
+    const exists = await fs.pathExists(fullPath);
+
+    if (!exists) {
+      const { create } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'create',
+          message: `Directory not found — create it?`,
+          default: true,
+        },
+      ]);
+
+      if (create) {
+        await this.createHandbook(fullPath);
+        console.log(chalk.green(`✅  Created handbook at ${fullPath}`));
+      } else {
+        console.log(chalk.yellow('⚠️  Using non-existent directory. Create it before starting.'));
+      }
+    }
+
+    return fullPath;
+  }
+
+  /**
+   * Create handbook structure
+   */
+  private async createHandbook(dir: string): Promise<void> {
+    await fs.ensureDir(dir);
+    await fs.ensureDir(`${dir}/apis`);
+    await fs.ensureDir(`${dir}/docs`);
+    await fs.ensureDir(`${dir}/regression`);
+    await fs.ensureDir(`${dir}/state`);
+
+    // Create basic Agent.md
+    const agentMd = `# Agent Instructions
+
+This is your MCP Agent handbook. Configure your agent's behavior here.
+
+## Purpose
+
+Describe what your agent does and its primary responsibilities.
+
+## Available APIs
+
+List the APIs your agent can interact with.
+
+## Behavior Guidelines
+
+Define how your agent should respond to requests.
+`;
+
+    await fs.writeFile(`${dir}/Agent.md`, agentMd, 'utf-8');
+
+    // Create example documentation
+    const exampleDoc = `# Example Documentation
+
+Add your API documentation and guides here.
+`;
+
+    await fs.writeFile(`${dir}/docs/getting-started.md`, exampleDoc, 'utf-8');
+
+    // Create service.yaml template
+    const serviceYaml = `# Service configuration will be created when you configure authentication
+`;
+
+    await fs.writeFile(`${dir}/service.yaml`, serviceYaml, 'utf-8');
+  }
+
+  /**
+   * Configure service authentication
+   */
+  private async configureService(): Promise<any> {
+    console.log();
+    console.log(chalk.bold('Step 4 — Configure service authentication'));
+    console.log();
+
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'serviceName',
+        message: 'Service name:',
+        default: 'my-service',
+        validate: (input: string) => {
+          if (!input || input.trim() === '') {
+            return 'Service name is required';
+          }
+          if (!/^[a-z0-9-]+$/.test(input)) {
+            return 'Service name must contain only lowercase letters, numbers, and hyphens';
+          }
+          return true;
+        },
+      },
+      {
+        type: 'input',
+        name: 'baseUrl',
+        message: 'Service base URL:',
+        default: 'https://api.example.com',
+        validate: (input: string) => {
+          if (!input || input.trim() === '') {
+            return 'Base URL is required';
+          }
+          try {
+            new URL(input);
+            return true;
+          } catch {
+            return 'Please enter a valid URL';
+          }
+        },
+      },
+      {
+        type: 'input',
+        name: 'header',
+        message: 'Header name:',
+        default: 'Authorization',
+      },
+      {
+        type: 'input',
+        name: 'pattern',
+        message: 'Pattern:',
+        default: 'Bearer {token}',
+        validate: (input: string) => {
+          if (!input.includes('{token}')) {
+            return 'Pattern must include {token} placeholder';
+          }
+          return true;
+        },
+      },
+      {
+        type: 'password',
+        name: 'token',
+        message: 'Access token:',
+        validate: (input: string) => {
+          if (!input || input.trim() === '') {
+            return 'Access token is required';
+          }
+          return true;
+        },
+      },
+    ]);
+
+    return {
+      service: answers.serviceName,
+      baseUrl: answers.baseUrl,
+      header: answers.header,
+      pattern: answers.pattern,
+      token: answers.token,
+    };
+  }
+
+  /**
+   * Show next steps after setup
+   */
+  private showNextSteps(mockMode: boolean): void {
+    console.log();
+    console.log(chalk.dim('━'.repeat(60)));
+    console.log();
+    console.log(chalk.bold.green('✅  Setup Complete!'));
+    console.log();
+
+    if (mockMode) {
+      console.log(chalk.bold('Mock Mode'));
+      console.log('The agent will start with the built-in Acme Analytics mock service.');
+      console.log();
+      console.log(chalk.cyan('Acme Analytics provides four data entities:'));
+      console.log('  • Sales       — transactions and totals');
+      console.log('  • Products    — categories and pricing');
+      console.log('  • Customers   — segments and lifetime value');
+      console.log('  • Regions     — geographic performance');
+      console.log();
+    }
+
+    console.log(chalk.bold('Next Steps:'));
+    console.log();
+    console.log(chalk.cyan('1. Start the agent:'));
+    console.log('   $ mcpagent start' + (mockMode ? ' --mock' : ''));
+    console.log();
+    console.log(chalk.cyan('2. Open chat mode:'));
+    console.log('   $ mcpagent chat');
+    console.log();
+    console.log(chalk.cyan('3. Check status:'));
+    console.log('   $ mcpagent status');
+    console.log();
+  }
+
+  /**
+   * Check if setup is needed
+   */
+  static async isSetupNeeded(): Promise<boolean> {
+    return !(await configManager.hasConfiguration());
+  }
+}
+
+export const setupWizard = new SetupWizard();
+
