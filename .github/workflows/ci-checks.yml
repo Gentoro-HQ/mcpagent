@@ -38,7 +38,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.npm
-        key: ${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json') }}
+        key: ${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json', 'cli/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-npm-
           ${{ runner.os }}-
@@ -63,6 +63,14 @@ jobs:
         echo "Running typescript-runtime tests..."
         npm test
     
+    - name: Test CLI
+      run: |
+        cd cli
+        echo "Installing CLI dependencies..."
+        npm install
+        echo "Running CLI tests..."
+        npm test
+    
     - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
@@ -72,6 +80,7 @@ jobs:
           src/mcpagent/target/surefire-reports/
           src/acme-analytics-server/server/target/surefire-reports/
           src/typescript-runtime/coverage/
+          cli/coverage/
         retention-days: 7
 
   # Stage 2: Integration Tests - Test component interactions (optional)
@@ -105,7 +114,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.npm
-        key: ${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json') }}
+        key: ${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json', 'cli/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-npm-
           ${{ runner.os }}-
@@ -219,7 +228,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.npm
-        key: ${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json') }}
+        key: ${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json', 'cli/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-npm-
           ${{ runner.os }}-
@@ -730,7 +739,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.npm
-        key: ${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json') }}
+        key: ${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json', 'cli/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-npm-
           ${{ runner.os }}-

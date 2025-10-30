@@ -25,11 +25,23 @@ You can provide your own foundation folder (see [Using Docker with Custom Founda
 
 ## Quick Start
 
+### CLI Tool (recommended)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
+```
+
+For detailed CLI documentation, all commands, and advanced features, see the [CLI README](cli/README.md).
+
 ### Using Docker
 
 ```bash
-# Pull and run the latest image
+# Pull latest image
 docker pull admingentoro/gentoro:latest
+```
+
+```bash
+# Run with OPENAI API
 docker run --name mcpagent -p 8080:8080 -e OPENAI_API_KEY=your-key admingentoro/gentoro:latest
 ```
 
