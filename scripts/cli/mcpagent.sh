@@ -137,13 +137,33 @@ start_spinner() {
 
 stop_spinner() {
     if [[ -n "${ANIM_PID:-}" ]] && kill -0 "${ANIM_PID}" 2>/dev/null; then
+        # try killing the child and its process group to avoid lingering frames
         kill "${ANIM_PID}" 2>/dev/null || true
+        kill -TERM -"${ANIM_PID}" 2>/dev/null || true
+        # as a fallback, kill by process group id resolved via ps
+        local pgid
+        pgid=$(ps -o pgid= "${ANIM_PID}" 2>/dev/null | tr -d ' ' || true)
+        if [[ -n "${pgid:-}" ]]; then
+            kill -TERM -"${pgid}" 2>/dev/null || true
+        fi
         wait "${ANIM_PID}" 2>/dev/null || true
     fi
     ANIM_PID=""
     printf "\r\033[2K" # clear line
     tput cnorm 2>/dev/null || true
 }
+
+# Ensure spinner is stopped and cursor restored on interrupts and normal exit
+cleanup() {
+    stop_spinner || true
+    stty sane 2>/dev/null || true
+    tput cnorm 2>/dev/null || true
+    printf "\r\033[2K" 2>/dev/null || true
+}
+
+trap 'cleanup' EXIT
+trap 'cleanup; echo; exit 130' INT TERM
+trap 'cleanup' ERR
 
 # Ensure agent JAR exists by building locally or downloading from Releases
 ensure_agent_jar() {
@@ -655,6 +675,10 @@ chat_with_agent() {
     
     while true; do
         read -p "> " query
+        if [[ "${query}" == "exit" || "${query}" == "quit" || "${query}" == "q" ]]; then
+            echo "Exiting chat."
+            break
+        fi
         if [[ -z "${query}" ]]; then
             continue
         fi
