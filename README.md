@@ -33,6 +33,21 @@ docker pull admingentoro/gentoro:latest
 docker run --name mcpagent -p 8080:8080 -e OPENAI_API_KEY=your-key admingentoro/gentoro:latest
 ```
 
+### Using the CLI (downloads JAR from Releases)
+
+```bash
+# Install the CLI wrapper
+curl -sSL https://raw.githubusercontent.com/hakki-gtr/mcpagent/main/install.sh | bash
+
+# Start the agent (first run will fetch the JAR to ~/.mcpagent/)
+mcpagent start
+```
+
+Notes:
+- Requires Java 21
+- Pin a version: `MCPAGENT_VERSION=X.Y.Z mcpagent start`
+- Override repo owner/name via `MCPAGENT_REPO_OWNER` and `MCPAGENT_REPO_NAME`
+
 ### Using Docker with Custom Foundation Folder
 
 ```bash

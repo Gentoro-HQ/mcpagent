@@ -49,6 +49,69 @@ log_step() {
     echo -e "${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
+# Ensure agent JAR exists by building locally or downloading from Releases
+ensure_agent_jar() {
+    local desired_jar_path="${CONFIG_DIR}/mcpagent.jar"
+    local local_repo_jar1="src/mcpagent/target/mcpagent-${VERSION}.jar"
+    local local_repo_jar2="target/mcpagent-${VERSION}.jar"
+
+    local repo_owner="${MCPAGENT_REPO_OWNER:-hakki-gtr}"
+    local repo_name="${MCPAGENT_REPO_NAME:-mcpagent}"
+    local jar_version="${MCPAGENT_VERSION:-${VERSION}}"
+    local release_url_base="https://github.com/${repo_owner}/${repo_name}/releases/download/v${jar_version}"
+    local download_url_release="${release_url_base}/mcpagent-${jar_version}.jar"
+    local download_url_checksum="${download_url_release}.sha256"
+
+    # Already cached
+    if [[ -f "${desired_jar_path}" ]]; then
+        echo "${desired_jar_path}"
+        return 0
+    fi
+
+    # Copy from local build if available
+    if [[ -f "${local_repo_jar1}" ]]; then
+        mkdir -p "${CONFIG_DIR}"
+        cp "${local_repo_jar1}" "${desired_jar_path}"
+        echo "${desired_jar_path}"
+        return 0
+    fi
+    if [[ -f "${local_repo_jar2}" ]]; then
+        mkdir -p "${CONFIG_DIR}"
+        cp "${local_repo_jar2}" "${desired_jar_path}"
+        echo "${desired_jar_path}"
+        return 0
+    fi
+
+    # Build with Maven if project present
+    if command -v mvn >/dev/null 2>&1 && [[ -f "src/mcpagent/pom.xml" ]]; then
+        log_info "Building MCP Agent with Maven (this may take a minute)..."
+        (cd src/mcpagent && mvn -q -DskipTests clean package) || true
+        if [[ -f "${local_repo_jar1}" ]]; then
+            mkdir -p "${CONFIG_DIR}"
+            cp "${local_repo_jar1}" "${desired_jar_path}"
+            echo "${desired_jar_path}"
+            return 0
+        fi
+    fi
+
+    # Download from GitHub Releases (fork by default)
+    mkdir -p "${CONFIG_DIR}"
+    if curl -fsSL "${download_url_release}" -o "${desired_jar_path}"; then
+        if curl -fsSL "${download_url_checksum}" -o "${desired_jar_path}.sha256"; then
+            if command -v sha256sum >/dev/null 2>&1; then
+                (cd "${CONFIG_DIR}" && sha256sum -c "$(basename "${desired_jar_path}").sha256" >/dev/null 2>&1) || true
+            fi
+        fi
+        echo "${desired_jar_path}"
+        return 0
+    fi
+
+    log_error "Cannot acquire mcpagent JAR automatically."
+    log_info "Set MCPAGENT_REPO_OWNER/NAME/VERSION to control download, or build locally."
+    log_info "Manual build: cd src/mcpagent && mvn clean package"
+    exit 1
+}
+
 # Configuration management
 load_config() {
     if [[ -f "${CONFIG_FILE}" ]]; then
@@ -357,19 +420,9 @@ start_agent() {
     
     export SERVER_PORT="${default_port:-8080}"
     
-    # Find the JAR file
-    local jar_path=""
-    if [[ -f "src/mcpagent/target/mcpagent-${VERSION}.jar" ]]; then
-        jar_path="src/mcpagent/target/mcpagent-${VERSION}.jar"
-    elif [[ -f "target/mcpagent-${VERSION}.jar" ]]; then
-        jar_path="target/mcpagent-${VERSION}.jar"
-    elif [[ -f "${CONFIG_DIR}/mcpagent.jar" ]]; then
-        jar_path="${CONFIG_DIR}/mcpagent.jar"
-    else
-        log_error "Cannot find mcpagent JAR file. Please build the project first."
-        log_info "Run: cd src/mcpagent && mvn clean package"
-        exit 1
-    fi
+    # Ensure JAR is available (download/build if missing)
+    local jar_path
+    jar_path=$(ensure_agent_jar)
     
     log_info "Starting MCP Agent..."
     log_info "JAR: ${jar_path}"
