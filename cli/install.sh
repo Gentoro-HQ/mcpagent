@@ -167,10 +167,10 @@ clone_repository() {
 
 build_java_app() {
     log_info "Building MCP Agent (Java)..."
-    
+
     cd "$INSTALL_DIR/src/mcpagent"
-    mvn clean package -DskipTests -q
-    
+    mvn clean package spring-boot:repackage -DskipTests -q
+
     if [ $? -eq 0 ]; then
         log_success "MCP Agent built successfully"
     else

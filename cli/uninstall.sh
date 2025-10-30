@@ -259,18 +259,19 @@ confirm_uninstall() {
     echo "  • Configuration files"
     echo "  • Handbooks"
     echo ""
-    
+
     if [ -n "$AUTO_YES" ]; then
         REPLY="y"
+    elif [ -t 0 ]; then
+        # Interactive mode - ask for confirmation
+        read -p "Continue with uninstallation? [y/N]: " -n 1 -r
+        echo
     else
-        if [ -t 0 ]; then
-            read -p "Continue with uninstallation? [y/N]: " -n 1 -r
-            echo
-        else
-            REPLY="n"
-            echo
-        fi
+        # Non-interactive mode (e.g., via curl) - default to proceed
+        log_info "Running in non-interactive mode, proceeding with uninstallation..."
+        REPLY="y"
     fi
+
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         log_info "Uninstallation cancelled"
         exit 0

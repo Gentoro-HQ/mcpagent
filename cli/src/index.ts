@@ -91,6 +91,9 @@ program
       console.log(chalk.dim('Use "mcpagent chat" to interact with the agent'));
       console.log(chalk.dim('Use "mcpagent logs" to view logs'));
       console.log(chalk.dim('Use "mcpagent stop" to stop the agent'));
+
+      // Ensure process exits cleanly
+      process.exit(0);
     } catch (error: any) {
       spinner.fail('Failed to start MCP Agent');
       console.error(chalk.red(error.message));
