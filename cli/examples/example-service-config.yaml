@@ -1,0 +1,35 @@
+# Example service configuration
+# Location: ~/.mcpagent/services/example-service.yaml
+
+# Service identifier (used for referencing this configuration)
+service: example-service
+
+# Base URL of your API service
+baseUrl: https://api.example.com
+
+# Authentication header configuration
+# The header name (e.g., Authorization, X-API-Key, etc.)
+header: Authorization
+
+# Pattern for constructing the header value
+# Must include {token} placeholder which will be replaced with the actual token
+# Common patterns:
+#   - "Bearer {token}"          (OAuth2/JWT)
+#   - "ApiKey {token}"          (API Key)
+#   - "{token}"                 (Plain token)
+#   - "Basic {token}"           (Basic auth with base64 encoded credentials)
+pattern: Bearer {token}
+
+# The actual access token
+# This should be your service's API token or access token
+token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Optional: Token expiration time (ISO 8601 format)
+# When the CLI detects a 401 response, it will prompt for token renewal
+expiresAt: 2025-12-31T23:59:59Z
+
+# Optional: Additional metadata (not used by CLI but useful for documentation)
+description: Production API service
+environment: production
+owner: team-name@company.com
+

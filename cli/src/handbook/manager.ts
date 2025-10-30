@@ -1,0 +1,264 @@
+/**
+ * Handbook management utilities
+ */
+import fs from 'fs-extra';
+import chalk from 'chalk';
+import { paths } from '../config/paths.js';
+
+export class HandbookManager {
+  /**
+   * Initialize a new handbook directory
+   */
+  async init(name: string, targetDir?: string): Promise<string> {
+    const dir = targetDir || paths.getHandbookPath(name);
+
+    if (await fs.pathExists(dir)) {
+      throw new Error(`Handbook directory already exists: ${dir}`);
+    }
+
+    console.log(chalk.blue(`Creating handbook at ${dir}...`));
+
+    // Create directory structure
+    await fs.ensureDir(dir);
+    await fs.ensureDir(`${dir}/apis`);
+    await fs.ensureDir(`${dir}/docs`);
+    await fs.ensureDir(`${dir}/regression`);
+    await fs.ensureDir(`${dir}/state`);
+    await fs.ensureDir(`${dir}/config`);
+
+    // Create Agent.md
+    const agentMd = this.getDefaultAgentInstructions(name);
+    await fs.writeFile(`${dir}/Agent.md`, agentMd, 'utf-8');
+
+    // Create README
+    const readme = this.getDefaultReadme(name);
+    await fs.writeFile(`${dir}/README.md`, readme, 'utf-8');
+
+    // Create example documentation
+    const exampleDoc = `# Getting Started
+
+This handbook contains the configuration and documentation for your MCP Agent.
+
+## Structure
+
+- **Agent.md** - Agent behavior and instructions
+- **apis/** - OpenAPI specifications for your services
+- **docs/** - Additional documentation and guides
+- **config/** - Configuration files
+- **regression/** - Test definitions (optional)
+- **state/** - Runtime state (auto-generated)
+
+## Next Steps
+
+1. Add your OpenAPI specifications to the \`apis/\` directory
+2. Add documentation to the \`docs/\` directory
+3. Update \`Agent.md\` with your agent's instructions
+4. Configure service authentication with \`mcpagent service auth <service-name>\`
+`;
+    await fs.writeFile(`${dir}/docs/getting-started.md`, exampleDoc, 'utf-8');
+
+    // Create .gitignore
+    const gitignore = `state/
+*.log
+.DS_Store
+`;
+    await fs.writeFile(`${dir}/.gitignore`, gitignore, 'utf-8');
+
+    console.log(chalk.green(`✅  Handbook initialized at ${dir}`));
+
+    return dir;
+  }
+
+  /**
+   * Validate handbook structure
+   */
+  async validate(dir: string): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Check if directory exists
+    if (!(await fs.pathExists(dir))) {
+      errors.push(`Handbook directory does not exist: ${dir}`);
+      return { valid: false, errors, warnings };
+    }
+
+    // Check required files
+    const agentMdPath = `${dir}/Agent.md`;
+    if (!(await fs.pathExists(agentMdPath))) {
+      errors.push('Missing required file: Agent.md');
+    }
+
+    // Check required directories
+    const requiredDirs = ['apis', 'docs', 'state'];
+    for (const reqDir of requiredDirs) {
+      if (!(await fs.pathExists(`${dir}/${reqDir}`))) {
+        warnings.push(`Missing recommended directory: ${reqDir}/`);
+      }
+    }
+
+    // Check for OpenAPI specs
+    const apisDir = `${dir}/apis`;
+    if (await fs.pathExists(apisDir)) {
+      const files = await fs.readdir(apisDir);
+      const specFiles = files.filter(
+        (f) => f.endsWith('.yaml') || f.endsWith('.yml') || f.endsWith('.json')
+      );
+      if (specFiles.length === 0) {
+        warnings.push('No OpenAPI specifications found in apis/ directory');
+      }
+    }
+
+    // Check for documentation
+    const docsDir = `${dir}/docs`;
+    if (await fs.pathExists(docsDir)) {
+      const files = await fs.readdir(docsDir);
+      const docFiles = files.filter((f) => f.endsWith('.md'));
+      if (docFiles.length === 0) {
+        warnings.push('No documentation files found in docs/ directory');
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    };
+  }
+
+  /**
+   * List all handbooks
+   */
+  async list(): Promise<Array<{ name: string; path: string; valid: boolean }>> {
+    await paths.ensureDirectories();
+
+    const entries = await fs.readdir(paths.handbooksDir, { withFileTypes: true });
+    const handbooks = entries.filter((e) => e.isDirectory());
+
+    const results = [];
+    for (const handbook of handbooks) {
+      const handbookPath = paths.getHandbookPath(handbook.name);
+      const validation = await this.validate(handbookPath);
+      results.push({
+        name: handbook.name,
+        path: handbookPath,
+        valid: validation.valid,
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Get default Agent.md content
+   */
+  private getDefaultAgentInstructions(name: string): string {
+    return `# ${name} Agent Instructions
+
+## Purpose
+
+Define your agent's purpose and primary responsibilities here.
+
+## Scope
+
+Describe what your agent can and cannot do:
+- What APIs it can access
+- What operations are allowed
+- What data it can work with
+
+## Tools
+
+Your agent has access to the following tools:
+- **RetrieveContext** - Retrieve documentation from the knowledge base
+- **RunTypescriptSnippet** - Execute TypeScript code to interact with APIs
+
+## Behavioral Guidelines
+
+Define how your agent should behave:
+- Be precise and factual
+- Validate inputs against API specifications
+- Ask for clarification when requests are ambiguous
+- Refuse requests outside of scope
+
+## Response Format
+
+Define the expected response format for your agent's outputs.
+
+## Safety Rules
+
+- Never expose sensitive data
+- Always validate API schemas
+- Handle errors gracefully
+- Log all operations for audit
+`;
+  }
+
+  /**
+   * Get default README content
+   */
+  private getDefaultReadme(name: string): string {
+    return `# ${name}
+
+MCP Agent handbook for ${name}.
+
+## Setup
+
+1. Add your OpenAPI specifications to \`apis/\`
+2. Add documentation to \`docs/\`
+3. Configure Agent.md with your instructions
+
+## Usage
+
+Start the agent with this handbook:
+
+\`\`\`bash
+mcpagent start --handbook ./${name}
+\`\`\`
+
+Or use it as your default:
+
+\`\`\`bash
+mcpagent config set handbookDir ~/handbooks/${name}
+\`\`\`
+
+## Testing
+
+Run validation:
+
+\`\`\`bash
+mcpagent handbook validate ./${name}
+\`\`\`
+
+## Documentation
+
+See the \`docs/\` directory for additional documentation.
+`;
+  }
+
+  /**
+   * Copy example handbook
+   */
+  async copyExample(targetDir: string): Promise<void> {
+    // Copy the ACME Analytics example
+    const exampleSource = '../src/acme-analytics-server/mcpagent-handbook';
+    const resolvedSource = require('path').resolve(__dirname, '../../..', exampleSource);
+
+    if (!(await fs.pathExists(resolvedSource))) {
+      throw new Error('Example handbook not found');
+    }
+
+    await fs.copy(resolvedSource, targetDir);
+
+    // Rename instructions.md to Agent.md if needed
+    const instructionsPath = `${targetDir}/instructions.md`;
+    const agentPath = `${targetDir}/Agent.md`;
+
+    if (await fs.pathExists(instructionsPath)) {
+      await fs.move(instructionsPath, agentPath, { overwrite: true });
+    }
+
+    console.log(chalk.green(`✅  Example handbook copied to ${targetDir}`));
+  }
+}
+
+export const handbookManager = new HandbookManager();
+
