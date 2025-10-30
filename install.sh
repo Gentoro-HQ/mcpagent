@@ -53,18 +53,63 @@ fi
 
 chmod +x "${INSTALL_DIR}/mcpagent"
 
-# Optionally build and cache the agent JAR if we have the sources locally
+# Fetch runtime artifacts from GitHub Releases (preferred)
 CONFIG_DIR="${HOME}/.mcpagent"
 JAR_CACHE="${CONFIG_DIR}/mcpagent.jar"
+TS_DIR="${CONFIG_DIR}/ts-runtime"
+REPO_OWNER="${MCPAGENT_REPO_OWNER:-hakki-gtr}"
+REPO_NAME="${MCPAGENT_REPO_NAME:-mcpagent}"
+VERSION_TAG="${MCPAGENT_VERSION:-}"
+
+mkdir -p "${CONFIG_DIR}"
+
+resolve_latest_tag() {
+    # Try GitHub API; fall back silently if it fails
+    local api_url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
+    local tag
+    tag=$(curl -fsSL "$api_url" 2>/dev/null | sed -n 's/.*"tag_name" *: *"\([^"]*\)".*/\1/p' | head -n1 || true)
+    if [[ -n "$tag" ]]; then echo "$tag"; fi
+}
+
+if [[ -z "${VERSION_TAG}" ]]; then
+    VERSION_TAG=$(resolve_latest_tag || true)
+fi
+
+if [[ -n "${VERSION_TAG}" ]]; then
+    log_info "Fetching runtime artifacts for ${VERSION_TAG}..."
+    REL_BASE="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${VERSION_TAG}"
+
+    # Download agent jar
+    if curl -fsSL "${REL_BASE}/mcpagent-${VERSION_TAG#v}.jar" -o "${JAR_CACHE}"; then
+        log_success "Downloaded agent JAR to ${JAR_CACHE}"
+    else
+        log_warning "Could not download agent JAR for ${VERSION_TAG}. You can build locally instead."
+    fi
+
+    # Download and unpack TS runtime (optional)
+    mkdir -p "${TS_DIR}"
+    TS_TGZ="${CONFIG_DIR}/ts-runtime-${VERSION_TAG#v}.tgz"
+    if curl -fsSL "${REL_BASE}/ts-runtime-${VERSION_TAG#v}.tgz" -o "${TS_TGZ}"; then
+        tar -C "${TS_DIR}" -xzf "${TS_TGZ}"
+        rm -f "${TS_TGZ}"
+        log_success "Installed TypeScript runtime to ${TS_DIR}"
+    else
+        log_info "TypeScript runtime artifact not found for ${VERSION_TAG}; skipping."
+    fi
+else
+    log_warning "No MCPAGENT_VERSION provided and latest tag could not be resolved."
+    log_info "You can set MCPAGENT_VERSION=vX.Y.Z to pin a version, or build locally."
+fi
+
+# Optionally build and cache the agent JAR if we have the sources locally (fallback)
 LOCAL_POM="src/mcpagent/pom.xml"
-if [[ -f "${LOCAL_POM}" ]]; then
-log_info "Building agent JAR from local sources (Spring Boot fat jar)..."
-    mkdir -p "${CONFIG_DIR}"
+if [[ ! -f "${JAR_CACHE}" && -f "${LOCAL_POM}" ]]; then
+    log_info "Building agent JAR from local sources (Spring Boot fat jar) as fallback..."
     if command -v mvn >/dev/null 2>&1; then
-        # Skip compiling and running tests to avoid test constructor mismatch during install
         (cd src/mcpagent && mvn -q -Dmaven.test.skip=true clean package spring-boot:repackage)
-        if [[ -f "src/mcpagent/target/mcpagent-0.1.0-SNAPSHOT.jar" ]]; then
-            cp "src/mcpagent/target/mcpagent-0.1.0-SNAPSHOT.jar" "${JAR_CACHE}"
+        SNAP_JAR=$(ls -1 src/mcpagent/target/mcpagent-*.jar 2>/dev/null | head -n1 || true)
+        if [[ -f "${SNAP_JAR}" ]]; then
+            cp "${SNAP_JAR}" "${JAR_CACHE}"
             log_success "Cached agent JAR at ${JAR_CACHE}"
         else
             log_warning "Built jar not found; skipping cache"

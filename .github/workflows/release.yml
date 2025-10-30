@@ -207,30 +207,6 @@ jobs:
         VERSION="${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}"
         ./scripts/docker/build-base.sh "$VERSION" --push
     
-    - name: Build product JAR
-      if: github.event_name == 'push' || github.event.inputs.dry_run != true
-      run: |
-        cd src/mcpagent
-        ./mvnw -q -DskipTests package spring-boot:repackage || mvn -q -DskipTests package spring-boot:repackage
-
-    - name: Compute JAR checksum
-      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-      id: jar_sums
-      run: |
-        JAR=$(ls -1 src/mcpagent/target/mcpagent-*.jar | head -n1)
-        echo "jar_path=$JAR" >> $GITHUB_OUTPUT
-        sha256sum "$JAR" | tee "$JAR.sha256"
-
-    - name: Upload JAR to GitHub Release
-      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          ${{ steps.jar_sums.outputs.jar_path }}
-          ${{ steps.jar_sums.outputs.jar_path }}.sha256
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
     - name: Build ACME Analytics Server
       if: github.event_name == 'push' || github.event.inputs.dry_run != true
       run: |

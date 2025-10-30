@@ -74,6 +74,44 @@ jobs:
           src/typescript-runtime/coverage/
         retention-days: 7
 
+    # --- Begin: Artifact packaging ---
+    - name: Build product JAR (for packaging)
+      run: |
+        cd src/mcpagent
+        ./mvnw -q -DskipTests package spring-boot:repackage || mvn -q -DskipTests package spring-boot:repackage
+
+    - name: Compute JAR checksum
+      id: jar_sums_ci
+      run: |
+        JAR=$(ls -1 src/mcpagent/target/mcpagent-*.jar | head -n1)
+        echo "jar_path=$JAR" >> $GITHUB_OUTPUT
+        sha256sum "$JAR" | tee "$JAR.sha256"
+
+    - name: Build TypeScript Runtime (for packaging)
+      run: |
+        cd src/typescript-runtime
+        npm install --legacy-peer-deps
+        npm run build
+
+    - name: Package TS runtime tarball
+      run: |
+        ./scripts/ts/build-artifact.sh
+        ART=$(ls -1 dist/ts-runtime/ts-runtime-*.tgz | head -n1)
+        echo "ARTIFACT_TS=$ART" >> $GITHUB_ENV
+        shasum -a 256 "$ART" | tee "$ART.sha256"
+
+    - name: Upload packaged artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: packaged-runtime-artifacts
+        path: |
+          ${{ steps.jar_sums_ci.outputs.jar_path }}
+          ${{ steps.jar_sums_ci.outputs.jar_path }}.sha256
+          ${{ env.ARTIFACT_TS }}
+          ${{ env.ARTIFACT_TS }}.sha256
+        retention-days: 7
+    # --- End: Artifact packaging ---
+
   # Stage 2: Integration Tests - Test component interactions (optional)
   integration-tests:
     name: Integration Tests
