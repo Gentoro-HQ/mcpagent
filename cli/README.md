@@ -62,7 +62,7 @@ git clone https://github.com/Gentoro-HQ/mcpagent.git && cd mcpagent/cli && npm i
 To completely remove MCP Agent CLI:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/gentoro/mcpagent/main/cli/uninstall.sh | bash
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | bash
 ```
 
 Or if you have the source:

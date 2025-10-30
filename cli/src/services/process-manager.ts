@@ -88,11 +88,22 @@ export class ProcessManager extends EventEmitter {
     proc.stderr?.pipe(logStream);
 
     // Handle process events
-    proc.on('error', (error) => {
+    proc.on('error', (error: NodeJS.ErrnoException) => {
+      // Enhance error message with helpful context
+      let enhancedError = error;
+      if (error.code === 'ENOENT') {
+        const errorMsg = `Command '${config.command}' not found. ` +
+          `Please ensure it is installed and available in your PATH.\n` +
+          `Command: ${config.command}\n` +
+          `Args: ${config.args.join(' ')}`;
+        enhancedError = new Error(errorMsg) as NodeJS.ErrnoException;
+        enhancedError.code = error.code;
+      }
+
       // Emit error for required services only
       const optionalServices = ['otel'];
       if (!optionalServices.includes(config.name || '')) {
-        this.emit('error', { name, error });
+        this.emit('error', { name, error: enhancedError });
       } else {
         console.warn(`Optional service ${name} failed to start: ${error.message}`);
       }
@@ -132,29 +143,70 @@ export class ProcessManager extends EventEmitter {
    * Stop a process
    */
   async stop(name: string, force = false): Promise<void> {
+    const pidPath = paths.getPidFilePath(name);
+    
+    // Try to get PID from in-memory process first
+    let pid: number | undefined;
     const proc = this.processes.get(name);
-    if (!proc || !proc.pid) {
-      // Try to clean up PID file anyway
-      const pidPath = paths.getPidFilePath(name);
+    if (proc && proc.pid) {
+      pid = proc.pid;
+    } else {
+      // Process not in memory, try to read from PID file
+      try {
+        if (await fs.pathExists(pidPath)) {
+          const pidStr = await fs.readFile(pidPath, 'utf-8');
+          pid = parseInt(pidStr.trim(), 10);
+          if (isNaN(pid)) {
+            pid = undefined;
+          }
+        }
+      } catch (error) {
+        // PID file doesn't exist or can't be read
+        console.warn(`Could not read PID file for ${name}`);
+      }
+    }
+
+    // If no PID found, just clean up and return
+    if (!pid) {
       await fs.remove(pidPath);
       return;
     }
 
+    // Check if process actually exists
+    try {
+      process.kill(pid, 0);
+    } catch (e: any) {
+      if (e.code === 'ESRCH') {
+        // Process doesn't exist, just clean up PID file
+        await fs.remove(pidPath);
+        this.processes.delete(name);
+        this.startTimes.delete(name);
+        return;
+      }
+    }
+
+    // Kill the process
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error(`Timeout stopping process ${name}`));
       }, 10000);
 
-      kill(proc.pid!, force ? 'SIGKILL' : 'SIGTERM', (err) => {
+      kill(pid!, force ? 'SIGKILL' : 'SIGTERM', (err) => {
         clearTimeout(timeout);
         if (err) {
-          reject(err);
+          // If we get ESRCH (process not found), that's okay
+          if ((err as any).code === 'ESRCH') {
+            this.processes.delete(name);
+            this.startTimes.delete(name);
+            fs.remove(pidPath).then(() => resolve()).catch(() => resolve());
+          } else {
+            reject(err);
+          }
         } else {
           this.processes.delete(name);
           this.startTimes.delete(name);
           
           // Clean up PID file
-          const pidPath = paths.getPidFilePath(name);
           fs.remove(pidPath).then(() => resolve()).catch(() => resolve());
         }
       });
@@ -253,7 +305,37 @@ export class ProcessManager extends EventEmitter {
    * Stop all processes
    */
   async stopAll(): Promise<void> {
-    const names = Array.from(this.processes.keys());
+    // Get all service names from both in-memory processes and PID files
+    const names = new Set<string>();
+    
+    // Add in-memory processes
+    for (const name of this.processes.keys()) {
+      names.add(name);
+    }
+    
+    // Add registered configs (may not be running but need to be checked)
+    for (const name of this.configs.keys()) {
+      names.add(name);
+    }
+    
+    // Also check for PID files in the state directory
+    try {
+      const stateDir = paths.stateDir;
+      if (await fs.pathExists(stateDir)) {
+        const files = await fs.readdir(stateDir);
+        for (const file of files) {
+          if (file.endsWith('.pid')) {
+            const serviceName = file.replace('.pid', '');
+            names.add(serviceName);
+          }
+        }
+      }
+    } catch (error) {
+      // Ignore errors reading state directory
+      console.warn('Error reading state directory:', error);
+    }
+    
+    // Stop all services
     for (const name of names) {
       try {
         await this.stop(name);
