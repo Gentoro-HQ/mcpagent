@@ -36,6 +36,8 @@ INSTALL_DIR="${HOME}/.local/bin"
 CLI_BINARY="${INSTALL_DIR}/mcpagent"
 CONFIG_DIR="${HOME}/.mcpagent"
 PID_FILE="${CONFIG_DIR}/agent.pid"
+CURRENT_PORT_FILE="${CONFIG_DIR}/current_port"
+TS_RUNTIME_PID_FILE="${CONFIG_DIR}/ts-runtime.pid"
 
 # Check if CLI is installed
 if [[ ! -f "${CLI_BINARY}" ]]; then
@@ -61,6 +63,43 @@ if [[ -f "${PID_FILE}" ]]; then
         rm "${PID_FILE}"
         log_success "Agent stopped"
     fi
+fi
+
+# Stop TS runtime if running
+if [[ -f "${TS_RUNTIME_PID_FILE}" ]]; then
+    ts_pid=$(cat "${TS_RUNTIME_PID_FILE}" 2>/dev/null || echo "")
+    if [[ -n "${ts_pid}" ]] && kill -0 "${ts_pid}" 2>/dev/null; then
+        log_info "Stopping TypeScript runtime (PID: ${ts_pid})..."
+        kill "${ts_pid}" 2>/dev/null || true
+        rm -f "${TS_RUNTIME_PID_FILE}" 2>/dev/null || true
+        log_success "TypeScript runtime stopped"
+    fi
+fi
+
+# Clean up port listeners if agent PID missing but port file exists
+if [[ -f "${CURRENT_PORT_FILE}" ]]; then
+    port=$(cat "${CURRENT_PORT_FILE}" 2>/dev/null | tr -d '\n')
+    if [[ -n "${port}" ]]; then
+        if lsof -Pi :"${port}" -sTCP:LISTEN -t &>/dev/null; then
+            echo ""
+            log_warning "Processes are listening on port ${port}."
+            read -p "Attempt to terminate these processes? [y/N]: " kill_port
+            if [[ "${kill_port}" == "y" || "${kill_port}" == "Y" ]]; then
+                pids=$(lsof -Pi :"${port}" -sTCP:LISTEN -t || true)
+                if [[ -n "${pids}" ]]; then
+                    log_info "Terminating PIDs: ${pids}"
+                    # shellcheck disable=SC2086
+                    kill ${pids} 2>/dev/null || true
+                    sleep 1
+                    # Force kill if still alive
+                    # shellcheck disable=SC2086
+                    kill -9 ${pids} 2>/dev/null || true
+                    log_success "Port ${port} listeners terminated"
+                fi
+            fi
+        fi
+    fi
+    rm -f "${CURRENT_PORT_FILE}" 2>/dev/null || true
 fi
 
 # Remove CLI binary

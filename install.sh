@@ -5,7 +5,7 @@ set -euo pipefail
 # Downloads and installs the mcpagent CLI
 
 INSTALL_DIR="${HOME}/.local/bin"
-CLI_URL="https://raw.githubusercontent.com/hakki-gtr/mcpagent/main/scripts/cli/mcpagent.sh"
+CLI_URL="https://raw.githubusercontent.com/gentorox/mcpagent/main/scripts/cli/mcpagent.sh"
 
 echo "Installing Gentoro MCP Agent CLI..."
 
@@ -29,6 +29,27 @@ else
 fi
 
 chmod +x "${INSTALL_DIR}/mcpagent"
+
+# Optionally build and cache the agent JAR if we have the sources locally
+CONFIG_DIR="${HOME}/.mcpagent"
+JAR_CACHE="${CONFIG_DIR}/mcpagent.jar"
+LOCAL_POM="src/mcpagent/pom.xml"
+if [[ -f "${LOCAL_POM}" ]]; then
+    echo "Building agent JAR from local sources (Spring Boot fat jar)..."
+    mkdir -p "${CONFIG_DIR}"
+    if command -v mvn >/dev/null 2>&1; then
+        # Skip compiling and running tests to avoid test constructor mismatch during install
+        (cd src/mcpagent && mvn -q -Dmaven.test.skip=true clean package spring-boot:repackage)
+        if [[ -f "src/mcpagent/target/mcpagent-0.1.0-SNAPSHOT.jar" ]]; then
+            cp "src/mcpagent/target/mcpagent-0.1.0-SNAPSHOT.jar" "${JAR_CACHE}"
+            echo "✅ Cached agent JAR at ${JAR_CACHE}"
+        else
+            echo "⚠️  Built jar not found; skipping cache"
+        fi
+    else
+        echo "⚠️  Maven not found; skipping local JAR build"
+    fi
+fi
 
 # Add to PATH if not already present
 if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then

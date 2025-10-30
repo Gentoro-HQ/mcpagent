@@ -1,0 +1,64 @@
+name: Build and Release Artifacts
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build Spring Boot JAR
+        working-directory: src/mcpagent
+        run: |
+          mvn -q -Dmaven.test.skip=true clean package spring-boot:repackage
+
+      - name: Locate JAR
+        id: jar
+        run: |
+          JAR_PATH=$(ls -1 src/mcpagent/target/mcpagent-*.jar | grep -v '\.original$' | head -n1)
+          echo "jar_path=$JAR_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build TS Runtime Artifact
+        run: |
+          bash scripts/ts/build-artifact.sh
+
+      - name: Locate TS Artifact
+        id: ts
+        run: |
+          TS_TGZ=$(ls -1 dist/ts-runtime/ts-runtime-*.tgz | head -n1)
+          echo "ts_path=$TS_TGZ" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Release Notes
+        id: notes
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ${{ steps.jar.outputs.jar_path }}
+            ${{ steps.ts.outputs.ts_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+

@@ -36,16 +36,20 @@ import java.util.List;
 public class TypescriptRuntimeClient {
   private static final Logger logger = LoggerFactory.getLogger(TypescriptRuntimeClient.class);
   private final WebClient web;
+  private final boolean enabled;
 
   /**
    * Creates a new TypescriptRuntimeClient.
    *
    * @param baseUrl the base URL of the runtime service, e.g. http://localhost:7070
    */
-  public TypescriptRuntimeClient(@Value("${typescriptRuntime.baseUrl:http://localhost:7070}") String baseUrl) {
+  public TypescriptRuntimeClient(
+      @Value("${typescriptRuntime.baseUrl:http://localhost:7070}") String baseUrl,
+      @Value("${typescriptRuntime.enabled:true}") boolean enabled) {
     this.web = WebClient.builder()
         .baseUrl(baseUrl)
         .build();
+    this.enabled = enabled;
   }
 
   /**
@@ -58,6 +62,10 @@ public class TypescriptRuntimeClient {
    * @return a reactive Mono emitting the {@link RunResponse} returned by the runtime
    */
   public Mono<RunResponse> exec(String code) {
+    if (!enabled) {
+      return Mono.just(new RunResponse(false, null, Collections.emptyList(),
+          "TypeScript runtime is disabled (typescriptRuntime.enabled=false)."));
+    }
     logger.info("Executing snippet: {}", code);
     return web.post()
         .uri("/run")

@@ -195,6 +195,7 @@ Stored in `~/.mcpagent/config.yaml`:
 provider: openai
 default_port: 8080
 handbook_dir: ~/.mcpagent/handbooks
+api_key: sk-...your-provider-api-key...
 ```
 
 ### Service Configuration

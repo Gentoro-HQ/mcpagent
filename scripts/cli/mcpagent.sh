@@ -18,13 +18,30 @@ CONFIG_DIR="${HOME}/.mcpagent"
 CONFIG_FILE="${CONFIG_DIR}/config.yaml"
 SERVICES_DIR="${CONFIG_DIR}/services"
 LOG_DIR="${CONFIG_DIR}/logs"
+CURRENT_PORT_FILE="${CONFIG_DIR}/current_port"
 HANDBOOK_DIR="${HANDBOOK_DIR:-./handbook}"
 VERSION="0.1.0-SNAPSHOT"
+api_key=""
 
 # Initialize directories
 init_directories() {
     mkdir -p "${CONFIG_DIR}" "${SERVICES_DIR}" "${LOG_DIR}"
 }
+# Resolve absolute path for a given directory argument
+abs_dir() {
+    local d="$1"
+    if [[ -z "$d" ]]; then echo ""; return; fi
+    # expand ~ to $HOME (literal tilde only at start)
+    d="${d/#~/$HOME}"
+    # normalize trailing slash
+    d="${d%/}"
+    # if relative, prefix with current directory
+    if [[ "$d" != /* ]]; then
+        d="$PWD/${d#./}"
+    fi
+    echo "$d"
+}
+
 
 # Logging functions
 log_info() {
@@ -47,6 +64,85 @@ log_step() {
     echo -e "${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}$1${NC}"
     echo -e "${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# JSON helpers (avoid external deps for request payloads)
+json_escape() {
+    local s=$1
+    s=${s//\\/\\\\}   # backslash
+    s=${s//\"/\\\"}   # double quote
+    s=${s//$'\n'/\\n}   # newline
+    s=${s//$'\r'/\\r}   # carriage return
+    s=${s//$'\t'/\\t}   # tab
+    echo -n "$s"
+}
+
+# Port utilities
+is_port_in_use() {
+    local port=$1
+    lsof -Pi :"${port}" -sTCP:LISTEN -t &>/dev/null
+}
+
+find_available_port() {
+    local start=${1:-8080}
+    local max_tries=${2:-20}
+    local port=${start}
+    for _ in $(seq 1 "${max_tries}"); do
+        if ! is_port_in_use "${port}"; then
+            echo "${port}"
+            return 0
+        fi
+        port=$((port + 1))
+    done
+    echo "" # none found
+    return 1
+}
+
+# Process/health helpers
+is_pid_running() {
+    local pid=$1
+    kill -0 "${pid}" 2>/dev/null
+}
+
+wait_for_port() {
+    local port=$1
+    local timeout=${2:-10}
+    local waited=0
+    while [[ ${waited} -lt ${timeout} ]]; do
+        if lsof -Pi :"${port}" -sTCP:LISTEN -t &>/dev/null; then
+            return 0
+        fi
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    return 1
+}
+
+# Lightweight terminal spinner for async-looking progress (kept subtle)
+ANIM_PID=""
+start_spinner() {
+    local msg=${1:-"Processing"}
+    local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+    local idx=0
+    tput civis 2>/dev/null || true
+    (
+        while true; do
+            printf "\r${CYAN}%s ${NC}%s" "${msg}" "${frames[$idx]}"
+            idx=$(( (idx + 1) % ${#frames[@]} ))
+            sleep 0.08
+        done
+    ) &
+    ANIM_PID=$!
+}
+
+stop_spinner() {
+    if [[ -n "${ANIM_PID:-}" ]] && kill -0 "${ANIM_PID}" 2>/dev/null; then
+        kill "${ANIM_PID}" 2>/dev/null || true
+        wait "${ANIM_PID}" 2>/dev/null || true
+    fi
+    ANIM_PID=""
+    printf "\r\033[2K" # clear line
+    tput cnorm 2>/dev/null || true
 }
 
 # Ensure agent JAR exists by building locally or downloading from Releases
@@ -119,10 +215,12 @@ load_config() {
         provider=$(grep "^provider:" "${CONFIG_FILE}" 2>/dev/null | cut -d' ' -f2 | tr -d '"' || echo "")
         default_port=$(grep "^default_port:" "${CONFIG_FILE}" 2>/dev/null | cut -d' ' -f2 | tr -d '"' || echo "8080")
         handbook_dir=$(grep "^handbook_dir:" "${CONFIG_FILE}" 2>/dev/null | cut -d' ' -f2 | tr -d '"' || echo "~/.mcpagent/handbooks")
+        api_key=$(grep "^api_key:" "${CONFIG_FILE}" 2>/dev/null | cut -d' ' -f2- | tr -d '"' || echo "")
     else
         provider=""
         default_port="8080"
         handbook_dir="~/.mcpagent/handbooks"
+        api_key=""
     fi
 }
 
@@ -131,6 +229,7 @@ save_config() {
 provider: ${provider}
 default_port: ${default_port}
 handbook_dir: ${handbook_dir}
+api_key: ${api_key}
 EOF
     log_success "Configuration saved."
 }
@@ -142,6 +241,8 @@ is_setup_needed() {
 
 # Check if agent can start (requires both config and API key)
 can_start_agent() {
+    # Try to ensure provider env var from config api_key if not already set
+    ensure_provider_key_from_config
     [[ -f "${CONFIG_FILE}" ]] && [[ -n "${provider}" ]] && has_provider_key "${provider}"
 }
 
@@ -178,6 +279,21 @@ get_provider_key_env_var() {
     esac
 }
 
+# If api_key exists in config, export it to the expected env var for the selected provider
+ensure_provider_key_from_config() {
+    if [[ -n "${provider:-}" ]] && [[ -z "${api_key:-}" ]]; then
+        # reload to ensure latest value
+        load_config || true
+    fi
+    if [[ -n "${provider:-}" ]] && [[ -n "${api_key:-}" ]]; then
+        local key_env
+        key_env=$(get_provider_key_env_var "${provider}")
+        if [[ -n "${key_env}" ]] && [[ -z "${!key_env:-}" ]]; then
+            export "${key_env}"="${api_key}"
+        fi
+    fi
+}
+
 # Setup wizard
 run_setup_wizard() {
     log_step "Gentoro MCP Agent Setup"
@@ -211,25 +327,6 @@ run_setup_wizard() {
     read -sp "Enter your $(echo "${provider}" | tr '[:lower:]' '[:upper:]') API key: " api_key
     echo ""
     export "${key_env}"="${api_key}"
-    
-    # Save API key to shell profile so it persists
-    echo ""
-    log_info "API key will be saved to your shell profile for persistence."
-    read -p "Add to shell profile (~/.bashrc or ~/.zshrc)? ') [Y/n]: " save_to_profile
-    if [[ "${save_to_profile}" != "n" && "${save_to_profile}" != "N" ]]; then
-        export_line="export ${key_env}=\"${api_key}\""
-        if [[ -f "${HOME}/.bashrc" ]] && ! grep -q "export ${key_env}=" "${HOME}/.bashrc"; then
-            echo "${export_line}" >> "${HOME}/.bashrc"
-            log_success "Added to ~/.bashrc"
-        fi
-        if [[ -f "${HOME}/.zshrc" ]] && ! grep -q "export ${key_env}=" "${HOME}/.zshrc"; then
-            echo "${export_line}" >> "${HOME}/.zshrc"
-            log_success "Added to ~/.zshrc"
-        fi
-        log_info "Please run: source ~/.bashrc (or source ~/.zshrc) to load the API key"
-    else
-        log_warning "API key not saved. You'll need to set ${key_env} environment variable manually."
-    fi
     
     log_success "Provider configuration saved."
     
@@ -414,11 +511,42 @@ start_agent() {
     fi
     
     load_config
-    
+
+    # Determine port (auto-bump if busy)
+    local desired_port=${default_port:-8080}
+    local chosen_port="${desired_port}"
+    if is_port_in_use "${desired_port}"; then
+        log_warning "Port ${desired_port} is in use; searching for a free port..."
+        local alt_port
+        alt_port=$(find_available_port "$((desired_port + 1))" 20)
+        if [[ -n "${alt_port}" ]]; then
+            chosen_port="${alt_port}"
+            log_info "Using available port ${chosen_port}"
+        else
+            log_error "No available ports found near ${desired_port}. Please free a port or update default_port in ${CONFIG_FILE}."
+            exit 1
+        fi
+    fi
+
+    # Prepare foundation directory
+    local foundation_abs
+    # If mock and path looks relative, prefer config-scoped default to avoid CWD issues
+    if [[ "${mode}" == "mock" ]] && [[ ! "${handbook_path}" == /* ]] && [[ ! "${handbook_path}" == ~* ]]; then
+        handbook_path="${CONFIG_DIR}/handbook"
+    fi
+    foundation_abs=$(abs_dir "${handbook_path}")
+    if [[ "${mode}" == "mock" ]] && [[ ! -d "${foundation_abs}" ]]; then
+        log_info "Initializing default handbook at ${foundation_abs}..."
+        mkdir -p "${foundation_abs}/apis" "${foundation_abs}/docs" "${foundation_abs}/state" "${foundation_abs}/regression"
+        if [[ ! -f "${foundation_abs}/Agent.md" ]]; then
+            echo "# Agent Instructions" > "${foundation_abs}/Agent.md"
+        fi
+    fi
+
     # Set environment variables
-    export FOUNDATION_DIR="${handbook_path}"
-    
-    export SERVER_PORT="${default_port:-8080}"
+    export FOUNDATION_DIR="${foundation_abs}"
+    export SERVER_PORT="${chosen_port}"
+    echo -n "${SERVER_PORT}" > "${CURRENT_PORT_FILE}" 2>/dev/null || true
     
     # Ensure JAR is available (download/build if missing)
     local jar_path
@@ -443,12 +571,25 @@ start_agent() {
         log_info "Starting agent in background..."
         
         # Start Java application in background
+        OTEL_SDK_DISABLED=${OTEL_SDK_DISABLED:-true} \
+        JAVA_TOOL_OPTIONS="-DtypescriptRuntime.enabled=${TYPESCRIPT_RUNTIME_ENABLED:-true} ${JAVA_TOOL_OPTIONS:-}" \
         nohup java -jar "${jar_path}" ${JAVA_OPTS:-} > "${LOG_DIR}/agent.log" 2>&1 &
         local pid=$!
         echo "${pid}" > "${CONFIG_DIR}/agent.pid"
-        
-        log_success "MCP Agent started (PID: ${pid})"
-        log_success "MCP Agent running at http://localhost:${SERVER_PORT}/mcp"
+
+        # Wait for port readiness; report accurate status
+        if wait_for_port "${SERVER_PORT}" 10; then
+            log_success "MCP Agent started (PID: ${pid})"
+            log_success "MCP Agent running at http://localhost:${SERVER_PORT}/mcp"
+        else
+            if is_pid_running "${pid}"; then
+                log_warning "Agent process is running but port ${SERVER_PORT} is not listening yet."
+            else
+                log_error "Agent failed to start (see logs)."
+            fi
+            echo ""; log_info "Recent logs:"; tail -n 50 "${LOG_DIR}/agent.log" || true
+            exit 1
+        fi
         log_info ""
         log_info "You can now type queries:"
         echo "  > Show me electronics sales in California last quarter."
@@ -461,25 +602,52 @@ start_agent() {
         log_info "Starting MCP Agent with custom handbook at ${handbook_path}"
         
         # Start Java application in background
+        OTEL_SDK_DISABLED=${OTEL_SDK_DISABLED:-true} \
+        JAVA_TOOL_OPTIONS="-DtypescriptRuntime.enabled=${TYPESCRIPT_RUNTIME_ENABLED:-true} ${JAVA_TOOL_OPTIONS:-}" \
         nohup java -jar "${jar_path}" ${JAVA_OPTS:-} > "${LOG_DIR}/agent.log" 2>&1 &
         local pid=$!
         echo "${pid}" > "${CONFIG_DIR}/agent.pid"
-        
-        log_success "MCP Agent started (PID: ${pid})"
-        log_success "MCP Agent running at http://localhost:${SERVER_PORT}/mcp"
+
+        if wait_for_port "${SERVER_PORT}" 10; then
+            log_success "MCP Agent started (PID: ${pid})"
+            log_success "MCP Agent running at http://localhost:${SERVER_PORT}/mcp"
+        else
+            if is_pid_running "${pid}"; then
+                log_warning "Agent process is running but port ${SERVER_PORT} is not listening yet."
+            else
+                log_error "Agent failed to start (see logs)."
+            fi
+            echo ""; log_info "Recent logs:"; tail -n 50 "${LOG_DIR}/agent.log" || true
+            exit 1
+        fi
     fi
 }
 
 # Chat with agent
 chat_with_agent() {
-    local port=${1:-8080}
+    local arg_port=${1:-}
+    local port
+    if [[ -f "${CURRENT_PORT_FILE}" ]]; then
+        port=$(cat "${CURRENT_PORT_FILE}" 2>/dev/null | tr -d '\n' )
+    elif [[ -n "${arg_port}" ]]; then
+        port="${arg_port}"
+    else
+        port="${default_port:-8080}"
+    fi
     local mcp_url="http://localhost:${port}/mcp"
+    local chat_url="http://localhost:${port}/api/chat"
     
     log_info "Connecting to MCP Agent at ${mcp_url}..."
     
-    if ! curl -s -f "${mcp_url}" >/dev/null 2>&1; then
-        log_error "MCP Agent is not running. Please start it first with: mcpagent start"
-        exit 1
+    # Prefer the lightweight REST shim if available; otherwise fall back to MCP reachability check
+    local http_code
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" "${chat_url}" || echo "000")
+    if [[ "${http_code}" == "404" || "${http_code}" == "405" || "${http_code}" == "000" ]]; then
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" "${mcp_url}" || echo "000")
+        if [[ "${http_code}" == "000" ]]; then
+            log_error "Agent is not reachable at ${mcp_url}. Please start it first with: mcpagent start"
+            exit 1
+        fi
     fi
     
     log_info "Interactive chat mode (press Ctrl+C to exit)"
@@ -491,8 +659,37 @@ chat_with_agent() {
             continue
         fi
         
-        # TODO: Implement actual MCP chat integration
+        # Try REST shim first; if not present, just simulate until MCP client is implemented
         log_info "Processing query: ${query}"
+
+        # Subtle progress animation while waiting on response
+        start_spinner "Analyzing"
+        # Attempt REST call; fall back to simulated processing
+        local response
+        # Build JSON without requiring jq; safely escape the prompt
+        local payload
+        payload="{\"prompt\":\"$(json_escape "${query}")\",\"options\":{}}"
+        response=$(curl -s -X POST "${chat_url}" \
+            -H 'Content-Type: application/json' \
+            -d "${payload}" 2>/dev/null || true)
+        if [[ -n "${response}" ]]; then
+            stop_spinner
+            echo ""
+            # Pretty print if jq exists
+            if command -v jq >/dev/null 2>&1; then
+                echo "${response}" | jq -r '.content // .'
+            else
+                echo "${response}"
+            fi
+            continue
+        fi
+        # Simulated fallback
+        sleep 2
+        stop_spinner
+
+        # Placeholder response
+        echo ""
+        log_info "(preview) Results will appear here once chat is wired."
     done
 }
 
@@ -736,7 +933,7 @@ main() {
     
     case "${command}" in
         start)
-            start_agent "${HANDBOOK_DIR:-./handbook}" "${1:-mock}"
+            start_agent "${handbook_dir:-${HANDBOOK_DIR:-./handbook}}" "${1:-mock}"
             ;;
         chat)
             chat_with_agent "${default_port:-8080}"
