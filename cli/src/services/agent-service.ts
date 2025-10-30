@@ -1,7 +1,8 @@
 /**
  * MCP Agent service manager
  */
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { processManager } from './process-manager.js';
 import { configManager } from '../config/manager.js';
 import { paths } from '../config/paths.js';
@@ -21,6 +22,53 @@ export class AgentService {
   private initialized = false;
 
   /**
+   * Find the project root directory
+   */
+  private findProjectRoot(): string {
+    // Check if MCPAGENT_ROOT environment variable is set
+    if (process.env.MCPAGENT_ROOT) {
+      return process.env.MCPAGENT_ROOT;
+    }
+
+    // Try to find project root by looking for known markers
+    const cwd = process.cwd();
+    const possibleRoots = [
+      cwd, // Current directory (when running from repo root)
+      join(cwd, '..'), // Parent directory (if running from cli/)
+    ];
+
+    // Add installed path derived from this module location (works for install.sh)
+    try {
+      const thisFile = fileURLToPath(import.meta.url); // .../cli/dist/services/agent-service.js
+      const servicesDir = dirname(thisFile); // .../cli/dist/services
+      const distDir = dirname(servicesDir);  // .../cli/dist
+      const cliDir = dirname(distDir);       // .../cli
+      const repoRoot = dirname(cliDir);      // ... (project root)
+      possibleRoots.push(repoRoot);
+    } catch {
+      // ignore if import.meta.url is unavailable
+    }
+
+    // Also check MCPAGENT_SRC if it's set (for development)
+    if (process.env.MCPAGENT_SRC) {
+      possibleRoots.unshift(process.env.MCPAGENT_SRC);
+    }
+
+    for (const root of possibleRoots) {
+      const tsRuntimePath = join(root, 'src/typescript-runtime/dist/server.js');
+      const mcpAgentPath = join(root, 'src/mcpagent/target/mcpagent-0.1.0-SNAPSHOT.jar');
+      
+      if (fs.existsSync(tsRuntimePath) && fs.existsSync(mcpAgentPath)) {
+        return root;
+      }
+    }
+
+    throw new Error(
+      'Could not find MCP Agent installation. Please ensure you are running from the project directory or set MCPAGENT_ROOT environment variable.'
+    );
+  }
+
+  /**
    * Initialize service definitions
    */
   private async initialize(): Promise<void> {
@@ -29,6 +77,9 @@ export class AgentService {
     // Get configuration
     const config = await configManager.getGlobalConfig();
     const port = config?.defaultPort || 8080;
+
+    // Find project root
+    const projectRoot = this.findProjectRoot();
 
     // Register OpenTelemetry Collector
     processManager.register({
@@ -43,33 +94,30 @@ export class AgentService {
     });
 
     // Register TypeScript Runtime
-    // Try to find the TypeScript runtime in the project structure
-    const projectRoot = process.cwd().includes('/cli') 
-      ? join(process.cwd(), '..')
-      : process.cwd();
+    const tsRuntimeServer = join(projectRoot, 'src/typescript-runtime/dist/server.js');
+    const tsRuntimeDir = join(projectRoot, 'src/typescript-runtime');
     
     processManager.register({
       name: 'ts-runtime',
       command: 'node',
-      args: [join(projectRoot, 'src/typescript-runtime/dist/server.js')],
+      args: [tsRuntimeServer],
       env: {
         PORT: '7070',
         NODE_ENV: 'production',
       },
-      cwd: join(projectRoot, 'src/typescript-runtime'),
+      cwd: tsRuntimeDir,
       port: 7070,
       healthCheckUrl: 'http://localhost:7070/health',
       dependsOn: [],
     });
 
     // Register MCP Agent (Java application)
+    const mcpAgentJar = join(projectRoot, 'src/mcpagent/target/mcpagent-0.1.0-SNAPSHOT.jar');
+    
     processManager.register({
       name: 'app',
       command: 'java',
-      args: [
-        '-jar',
-        join(projectRoot, 'src/mcpagent/target/mcpagent-0.1.0-SNAPSHOT.jar'),
-      ],
+      args: ['-jar', mcpAgentJar],
       env: {
         SERVER_PORT: port.toString(),
         FOUNDATION_DIR: config?.handbookDir || paths.handbooksDir,
@@ -86,14 +134,12 @@ export class AgentService {
     });
 
     // Register Mock Server (ACME Analytics)
+    const mockServerJar = join(projectRoot, 'src/acme-analytics-server/server/target/acme-analytics-server-1.0.0.jar');
+    
     processManager.register({
       name: 'mock',
       command: 'java',
-      args: [
-        '-jar',
-        join(projectRoot, 'src/acme-analytics-server/server/target/acme-analytics-server-1.0.0.jar'),
-        '8082',
-      ],
+      args: ['-jar', mockServerJar, '8082'],
       port: 8082,
       healthCheckUrl: 'http://localhost:8082/health',
     });
@@ -110,6 +156,20 @@ export class AgentService {
     const config = await configManager.getGlobalConfig();
     if (!config && !options.mockMode) {
       throw new Error('No configuration found. Please run setup first or use --mock flag.');
+    }
+
+    // Validate environment before starting
+    const validation = await this.validateEnvironment();
+    if (!validation.valid) {
+      const missingList = validation.missing.join(', ');
+      throw new Error(
+        `Missing required dependencies: ${missingList}\n` +
+        'Please install the required dependencies:\n' +
+        '  - Java 21+: https://adoptium.net/\n' +
+        '  - Node.js 20+: https://nodejs.org/\n' +
+        '  - Maven: https://maven.apache.org/install.html\n' +
+        'Then run "mcpagent doctor" to verify your installation.'
+      );
     }
 
     // Update environment for processes if options provided
@@ -283,27 +343,28 @@ export class AgentService {
    */
   async buildProject(): Promise<void> {
     const { execa } = await import('execa');
+    const projectRoot = this.findProjectRoot();
     
     console.log('Building MCP Agent...');
     
     // Build Java application
     console.log('Building Java application...');
     await execa('mvn', ['clean', 'package', '-DskipTests'], {
-      cwd: join(process.cwd(), '../src/mcpagent'),
+      cwd: join(projectRoot, 'src/mcpagent'),
       stdio: 'inherit',
     });
 
     // Build TypeScript runtime
     console.log('Building TypeScript runtime...');
     await execa('npm', ['run', 'build'], {
-      cwd: join(process.cwd(), '../src/typescript-runtime'),
+      cwd: join(projectRoot, 'src/typescript-runtime'),
       stdio: 'inherit',
     });
 
     // Build Mock server
     console.log('Building Mock server...');
     await execa('mvn', ['clean', 'package', '-DskipTests'], {
-      cwd: join(process.cwd(), '../src/acme-analytics-server/server'),
+      cwd: join(projectRoot, 'src/acme-analytics-server/server'),
       stdio: 'inherit',
     });
 

@@ -17,6 +17,14 @@ INSTALL_DIR="$HOME/.mcpagent-src"
 CONFIG_DIR="$HOME/.mcpagent"
 LOCAL_BIN="$HOME/.local/bin/mcpagent"
 
+# Non-interactive controls (env overrides)
+# - MCPAGENT_YES=1                     → auto-confirm prompts
+# - MCPAGENT_REMOVE_CONFIG=1           → remove ~/.mcpagent without prompting
+# - MCPAGENT_REMOVE_HANDBOOKS=1        → remove ~/handbooks without prompting
+AUTO_YES="${MCPAGENT_YES:-}"
+REMOVE_CONFIG_FLAG="${MCPAGENT_REMOVE_CONFIG:-}"
+REMOVE_HANDBOOKS_FLAG="${MCPAGENT_REMOVE_HANDBOOKS:-}"
+
 log_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
 }
@@ -70,7 +78,10 @@ stop_services() {
     
     # Kill OTEL collector (if started by our CLI)
     pkill -f "otelcol.*mcpagent" 2>/dev/null || true
-    
+
+    # Remove stale PID files
+    rm -f "$CONFIG_DIR/state/"*.pid 2>/dev/null || true
+
     log_success "All services stopped"
 }
 
@@ -130,15 +141,17 @@ remove_config() {
     
     echo ""
     
-    if [ -t 0 ]; then
-        read -p "Remove configuration directory? [y/N]: " -n 1 -r
+    DO_REMOVE=""
+    if [ -n "$AUTO_YES" ] || [ -n "$REMOVE_CONFIG_FLAG" ]; then
+        DO_REMOVE="y"
+    elif [ -t 0 ]; then
+        read -p "Remove configuration directory? [y/N]: " -n 1 -r; echo
+        DO_REMOVE="$REPLY"
     else
-        read -p "Remove configuration directory? [y/N]: " -n 1 -r </dev/tty 2>/dev/null || \
-        read -p "Remove configuration directory? [y/N]: " -n 1 -r
+        DO_REMOVE="n"
     fi
-    echo
-    
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+
+    if [[ $DO_REMOVE =~ ^[Yy]$ ]]; then
         if [ -d "$CONFIG_DIR" ]; then
             rm -rf "$CONFIG_DIR"
             log_success "Configuration removed"
@@ -172,15 +185,17 @@ remove_handbooks() {
     
     echo ""
     
-    if [ -t 0 ]; then
-        read -p "Remove handbooks directory? [y/N]: " -n 1 -r
+    DO_REMOVE=""
+    if [ -n "$AUTO_YES" ] || [ -n "$REMOVE_HANDBOOKS_FLAG" ]; then
+        DO_REMOVE="y"
+    elif [ -t 0 ]; then
+        read -p "Remove handbooks directory? [y/N]: " -n 1 -r; echo
+        DO_REMOVE="$REPLY"
     else
-        read -p "Remove handbooks directory? [y/N]: " -n 1 -r </dev/tty 2>/dev/null || \
-        read -p "Remove handbooks directory? [y/N]: " -n 1 -r
+        DO_REMOVE="n"
     fi
-    echo
-    
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+
+    if [[ $DO_REMOVE =~ ^[Yy]$ ]]; then
         if [ -d "$handbooks_dir" ]; then
             rm -rf "$handbooks_dir"
             log_success "Handbooks removed"
@@ -245,14 +260,17 @@ confirm_uninstall() {
     echo "  • Handbooks"
     echo ""
     
-    # Try to read from TTY if available, otherwise stdin
-    if [ -t 0 ]; then
-        read -p "Continue with uninstallation? [y/N]: " -n 1 -r
+    if [ -n "$AUTO_YES" ]; then
+        REPLY="y"
     else
-        read -p "Continue with uninstallation? [y/N]: " -n 1 -r </dev/tty 2>/dev/null || \
-        read -p "Continue with uninstallation? [y/N]: " -n 1 -r
+        if [ -t 0 ]; then
+            read -p "Continue with uninstallation? [y/N]: " -n 1 -r
+            echo
+        else
+            REPLY="n"
+            echo
+        fi
     fi
-    echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         log_info "Uninstallation cancelled"
         exit 0

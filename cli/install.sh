@@ -5,7 +5,7 @@ set -euo pipefail
 # 
 # Usage:
 #   # Default (main branch from official repo):
-#   curl -sSL https://raw.githubusercontent.com/gentoro/mcpagent/main/cli/install.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
 #
 #   # Specific branch or fork:
 #   curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
