@@ -92,7 +92,7 @@ export class ProcessManager extends EventEmitter {
       // Enhance error message with helpful context
       let enhancedError = error;
       if (error.code === 'ENOENT') {
-        const errorMsg = `Command '${config.command}' not found. ` +
+        const errorMsg = `[${error.code}] Command '${config.command}' not found. ` +
           `Please ensure it is installed and available in your PATH.\n` +
           `Command: ${config.command}\n` +
           `Args: ${config.args.join(' ')}`;
