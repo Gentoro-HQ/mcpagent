@@ -210,13 +210,18 @@ MCP Agent handbook for ${name}.
 
 ## Usage
 
-Start the agent with this handbook:
+Start chatting with this handbook by setting it as your default or using the handbook directory:
 
 \`\`\`bash
-mcpagent start --handbook ./${name}
+# Set as default handbook
+mcpagent
+# Then run chat
+mcpagent chat
+
+# Or specify handbook directly (future feature)
 \`\`\`
 
-Or use it as your default:
+For now, set this as your default handbook:
 
 \`\`\`bash
 mcpagent config set handbookDir ~/handbooks/${name}

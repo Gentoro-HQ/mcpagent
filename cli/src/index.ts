@@ -39,67 +39,6 @@ program
     }
   });
 
-/**
- * Start command
- */
-program
-  .command('start')
-  .description('Start the MCP Agent')
-  .option('-p, --port <port>', 'Port to run on', '8080')
-  .option('-h, --handbook <dir>', 'Handbook directory')
-  .option('--mock', 'Start with mock server')
-  .option('--build', 'Build project before starting')
-  .option('--disable <services>', 'Comma-separated list of services to disable')
-  .action(async (options) => {
-    const spinner = ora('Starting MCP Agent...').start();
-
-    try {
-      // Check if setup is needed
-      if (await SetupWizard.isSetupNeeded()) {
-        spinner.stop();
-        console.log(chalk.yellow('No configuration found. Please run setup first:'));
-        console.log(chalk.cyan('  mcpagent'));
-        return;
-      }
-
-      // Build if requested
-      if (options.build) {
-        spinner.text = 'Building project...';
-        await agentService.buildProject();
-      }
-
-      // Ensure OTEL config
-      await agentService.ensureOtelConfig();
-
-      // Parse options
-      const startOptions = {
-        port: parseInt(options.port),
-        handbookDir: options.handbook,
-        mockMode: options.mock,
-        disableServices: options.disable ? options.disable.split(',') : [],
-      };
-
-      // Start services
-      await agentService.start(startOptions);
-
-      spinner.succeed('MCP Agent started successfully!');
-      console.log();
-      console.log(chalk.green('✅  All services are running'));
-      console.log();
-      console.log(chalk.cyan(`MCP URL: http://localhost:${startOptions.port}/mcp`));
-      console.log();
-      console.log(chalk.dim('Use "mcpagent chat" to interact with the agent'));
-      console.log(chalk.dim('Use "mcpagent logs" to view logs'));
-      console.log(chalk.dim('Use "mcpagent stop" to stop the agent'));
-
-      // Ensure process exits cleanly
-      process.exit(0);
-    } catch (error: any) {
-      spinner.fail('Failed to start MCP Agent');
-      console.error(chalk.red(error.message));
-      process.exit(1);
-    }
-  });
 
 /**
  * Stop command
@@ -138,6 +77,46 @@ program
   .description('Open interactive chat mode')
   .action(async () => {
     try {
+      // Check if setup is needed
+      if (await SetupWizard.isSetupNeeded()) {
+        console.log(chalk.yellow('No configuration found. Running setup wizard...'));
+        console.log();
+        await setupWizard.run();
+      }
+
+      // Check if agent is running
+      const agentStatus = await agentService.getStatus();
+      if (!agentStatus.running) {
+        console.log(chalk.dim('Starting MCP Agent services...'));
+        console.log();
+
+        // Ensure OTEL config
+        await agentService.ensureOtelConfig();
+
+        // Determine if we should start in mock mode
+        const config = await configManager.getGlobalConfig();
+        const mockMode = !config?.handbookDir || config.handbookDir.includes('acme-analytics');
+
+        const startOptions = {
+          mockMode,
+        };
+
+        // Start services with logging
+        console.log(chalk.dim('🔄 Starting services...'));
+
+        try {
+          await agentService.start(startOptions);
+          console.log(chalk.dim('✅ Services started successfully'));
+          console.log();
+        } catch (error: any) {
+          console.error(chalk.red('❌ Failed to start services:'), error.message);
+          console.log();
+          console.log(chalk.yellow('Try running "mcpagent doctor" to check your environment'));
+          process.exit(1);
+        }
+      }
+
+      // Start chat mode
       await chatMode.start();
     } catch (error: any) {
       console.error(chalk.red('Error:'), error.message);
@@ -314,7 +293,8 @@ handbookCmd
       console.log(chalk.cyan(`  1. Add OpenAPI specs to ${dir}/apis/`));
       console.log(chalk.cyan(`  2. Add documentation to ${dir}/docs/`));
       console.log(chalk.cyan(`  3. Update ${dir}/Agent.md`));
-      console.log(chalk.cyan(`  4. Start agent: mcpagent start --handbook ${dir}`));
+      console.log(chalk.cyan(`  4. Set as default: mcpagent config set handbookDir ${dir}`));
+      console.log(chalk.cyan(`  5. Start chatting: mcpagent chat`));
     } catch (error: any) {
       console.error(chalk.red('Error:'), error.message);
       process.exit(1);
