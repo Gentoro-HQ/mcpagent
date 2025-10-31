@@ -9,7 +9,7 @@ set -euo pipefail
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+BLUE='\033[1;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
@@ -144,8 +144,14 @@ remove_config() {
     DO_REMOVE=""
     if [ -n "$AUTO_YES" ] || [ -n "$REMOVE_CONFIG_FLAG" ]; then
         DO_REMOVE="y"
-    elif [ -t 0 ]; then
-        read -p "Remove configuration directory? [y/N]: " -n 1 -r; echo
+    elif [ -t 1 ]; then
+        # Interactive mode - stdout is a TTY, so user is present
+        # If stdin is piped, read from /dev/tty instead
+        if [ -t 0 ]; then
+            read -p "Remove configuration directory? [y/N]: " -n 1 -r; echo
+        else
+            read -p "Remove configuration directory? [y/N]: " -n 1 -r < /dev/tty; echo
+        fi
         DO_REMOVE="$REPLY"
     else
         DO_REMOVE="n"
@@ -188,8 +194,14 @@ remove_handbooks() {
     DO_REMOVE=""
     if [ -n "$AUTO_YES" ] || [ -n "$REMOVE_HANDBOOKS_FLAG" ]; then
         DO_REMOVE="y"
-    elif [ -t 0 ]; then
-        read -p "Remove handbooks directory? [y/N]: " -n 1 -r; echo
+    elif [ -t 1 ]; then
+        # Interactive mode - stdout is a TTY, so user is present
+        # If stdin is piped, read from /dev/tty instead
+        if [ -t 0 ]; then
+            read -p "Remove handbooks directory? [y/N]: " -n 1 -r; echo
+        else
+            read -p "Remove handbooks directory? [y/N]: " -n 1 -r < /dev/tty; echo
+        fi
         DO_REMOVE="$REPLY"
     else
         DO_REMOVE="n"
@@ -262,12 +274,18 @@ confirm_uninstall() {
 
     if [ -n "$AUTO_YES" ]; then
         REPLY="y"
-    elif [ -t 0 ]; then
-        # Interactive mode - ask for confirmation
-        read -p "Continue with uninstallation? [y/N]: " -n 1 -r
-        echo
+    elif [ -t 1 ]; then
+        # Interactive mode - stdout is a TTY, so user is present
+        # If stdin is piped, read from /dev/tty instead
+        if [ -t 0 ]; then
+            read -p "Continue with uninstallation? [y/N]: " -n 1 -r
+            echo
+        else
+            read -p "Continue with uninstallation? [y/N]: " -n 1 -r < /dev/tty
+            echo
+        fi
     else
-        # Non-interactive mode (e.g., via curl) - default to proceed
+        # Non-interactive mode - no TTY available
         log_info "Running in non-interactive mode, proceeding with uninstallation..."
         REPLY="y"
     fi

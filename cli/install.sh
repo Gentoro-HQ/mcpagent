@@ -23,7 +23,7 @@ set -euo pipefail
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+BLUE='\033[1;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
@@ -151,7 +151,8 @@ clone_repository() {
         cd "$INSTALL_DIR"
         git fetch origin
         git checkout "$REPO_BRANCH"
-        git pull origin "$REPO_BRANCH" || {
+        # Reset to remote branch to ensure clean state
+        git reset --hard "origin/$REPO_BRANCH" || {
             log_warning "Failed to update. Removing and re-cloning..."
             cd ..
             rm -rf "$INSTALL_DIR"
@@ -166,13 +167,14 @@ clone_repository() {
 }
 
 build_java_app() {
-    log_info "Building MCP Agent (Java)..."
+    log_info "Building MCP Agent..."
 
     cd "$INSTALL_DIR/src/mcpagent"
     mvn clean package spring-boot:repackage -DskipTests -q
 
     if [ $? -eq 0 ]; then
         log_success "MCP Agent built successfully"
+        echo ""
     else
         log_error "Failed to build MCP Agent"
         exit 1
@@ -188,6 +190,7 @@ build_typescript_runtime() {
     
     if [ $? -eq 0 ]; then
         log_success "TypeScript Runtime built successfully"
+        echo ""
     else
         log_error "Failed to build TypeScript Runtime"
         exit 1
@@ -195,7 +198,7 @@ build_typescript_runtime() {
 }
 
 build_mock_server() {
-    log_info "Building Mock Server (optional)..."
+    log_info "Building Mock Server..."
     
     cd "$INSTALL_DIR/src/acme-analytics-server/server"
     mvn clean package -DskipTests -q
@@ -209,37 +212,32 @@ build_mock_server() {
 
 install_cli() {
     log_info "Installing MCP Agent CLI..."
-    
+
     cd "$INSTALL_DIR/cli"
-    npm install --silent
+    # Clean build artifacts for fresh compilation
+    rm -rf dist node_modules package-lock.json
+    npm install --silent --no-cache
     npm run build
-    
-    # Always install to ~/.local/bin for consistency
+
+    # Verify build succeeded
+    if [ ! -f "$INSTALL_DIR/cli/dist/index.js" ] || [ ! -s "$INSTALL_DIR/cli/dist/index.js" ]; then
+        log_error "Build failed - dist/index.js not found or empty"
+        exit 1
+    fi
+
+    # Install symlink
     mkdir -p "$HOME/.local/bin"
-    
-    # Create symlink
+    rm -f "$HOME/.local/bin/mcpagent"
     ln -sf "$INSTALL_DIR/cli/dist/index.js" "$HOME/.local/bin/mcpagent"
     chmod +x "$HOME/.local/bin/mcpagent"
-    chmod +x "$INSTALL_DIR/cli/dist/index.js"
-    
+
     log_success "CLI installed to $HOME/.local/bin/mcpagent"
-    
-    # Check if ~/.local/bin is in PATH
+
+    # Check PATH configuration
     if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
         echo ""
         log_warning "$HOME/.local/bin is not in your PATH"
-        echo ""
-        echo "Add it to your PATH by running:"
-        echo ""
-        if [ -f "$HOME/.zshrc" ]; then
-            echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc"
-            echo "  source ~/.zshrc"
-        elif [ -f "$HOME/.bashrc" ]; then
-            echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc"
-            echo "  source ~/.bashrc"
-        else
-            echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
-        fi
+        echo "Add it with: export PATH=\"\$HOME/.local/bin:\$PATH\""
         echo ""
     fi
 }
@@ -300,7 +298,7 @@ post_install() {
     echo "   $ mcpagent --help"
     echo ""
     log_info "Documentation: https://github.com/Gentoro-HQ/mcpagent"
-    log_info "Issues: https://github.com/Gentoro-HQ/mcpagent/issues"
+    log_info "File and issue: https://github.com/Gentoro-HQ/mcpagent/issues"
     echo ""
 }
 

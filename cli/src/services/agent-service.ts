@@ -411,6 +411,90 @@ service:
 
     await fs.writeFile(otelConfigPath, defaultConfig, 'utf-8');
   }
+
+  /**
+   * Get current version/commit hash
+   */
+  async getCurrentVersion(): Promise<string | null> {
+    try {
+      const projectRoot = this.findProjectRoot();
+      const { execa } = await import('execa');
+      const { stdout } = await execa('git', ['rev-parse', 'HEAD'], { cwd: projectRoot });
+      return stdout.trim();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Update repository to latest version
+   */
+  async updateRepository(): Promise<void> {
+    const projectRoot = this.findProjectRoot();
+    const { execa } = await import('execa');
+
+    // Fetch latest changes
+    await execa('git', ['fetch', 'origin'], { cwd: projectRoot });
+
+    // Reset to remote main branch
+    await execa('git', ['reset', '--hard', 'origin/main'], { cwd: projectRoot });
+  }
+
+  /**
+   * Rebuild all components
+   */
+  async rebuildAll(): Promise<void> {
+    const projectRoot = this.findProjectRoot();
+    const { execa } = await import('execa');
+
+    // Build Java app
+    await execa('mvn', ['clean', 'package', 'spring-boot:repackage', '-DskipTests', '-q'], {
+      cwd: join(projectRoot, 'src/mcpagent')
+    });
+
+    // Build TypeScript runtime
+    await execa('npm', ['run', 'build'], {
+      cwd: join(projectRoot, 'src/typescript-runtime')
+    });
+
+    // Build mock server (optional)
+    try {
+      await execa('mvn', ['clean', 'package', '-DskipTests', '-q'], {
+        cwd: join(projectRoot, 'src/acme-analytics-server/server')
+      });
+    } catch {
+      // Mock server build is optional, ignore errors
+    }
+
+    // Build CLI
+    await execa('npm', ['run', 'build'], {
+      cwd: join(projectRoot, 'cli')
+    });
+  }
+
+  /**
+   * Update CLI symlink
+   */
+  async updateCliSymlink(): Promise<void> {
+    const projectRoot = this.findProjectRoot();
+    const cliDistPath = join(projectRoot, 'cli/dist/index.js');
+    const { homedir } = await import('os');
+    const symlinkPath = join(homedir(), '.local/bin/mcpagent');
+
+    // Ensure directory exists
+    await fs.ensureDir(dirname(symlinkPath));
+
+    // Remove existing symlink if it exists
+    try {
+      await fs.unlink(symlinkPath);
+    } catch {
+      // Ignore if symlink doesn't exist
+    }
+
+    // Create new symlink
+    await fs.symlink(cliDistPath, symlinkPath);
+    await fs.chmod(cliDistPath, 0o755);
+  }
 }
 
 export const agentService = new AgentService();

@@ -276,7 +276,7 @@ serviceCmd
         return;
       }
 
-      console.log(chalk.bold('Configured Services:'));
+      console.log(chalk.bold.cyan('📋 Configured Services:'));
       console.log();
 
       for (const service of services) {
@@ -378,7 +378,7 @@ handbookCmd
         return;
       }
 
-      console.log(chalk.bold('Available Handbooks:'));
+      console.log(chalk.bold.cyan('📚 Available Handbooks:'));
       console.log();
 
       for (const handbook of handbooks) {
@@ -460,6 +460,63 @@ providerCmd
       console.log(chalk.green(`✅  Switched to ${provider}`));
     } catch (error: any) {
       console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Update command
+ */
+program
+  .command('update')
+  .description('Update MCP Agent to the latest version')
+  .action(async () => {
+    const spinner = ora('Checking for updates...').start();
+
+    try {
+      // Check if we have a local installation
+      if (!paths.configRoot || !fs.existsSync(paths.configRoot)) {
+        spinner.fail('No MCP Agent installation found');
+        console.log(chalk.yellow('Please install MCP Agent first:'));
+        console.log(chalk.cyan('curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash'));
+        return;
+      }
+
+      // Check current version/commit
+      const currentCommit = await agentService.getCurrentVersion();
+
+      spinner.text = 'Fetching latest updates...';
+
+      // Update the repository
+      await agentService.updateRepository();
+
+      // Rebuild components
+      spinner.text = 'Rebuilding components...';
+      await agentService.rebuildAll();
+
+      // Update CLI symlink
+      spinner.text = 'Updating CLI...';
+      await agentService.updateCliSymlink();
+
+      const newCommit = await agentService.getCurrentVersion();
+
+      if (currentCommit === newCommit) {
+        spinner.succeed('Already up to date!');
+        console.log(chalk.dim(`Current version: ${currentCommit?.substring(0, 8) || 'unknown'}`));
+      } else {
+        spinner.succeed('MCP Agent updated successfully!');
+        console.log(chalk.dim(`Updated: ${currentCommit?.substring(0, 8) || 'unknown'} → ${newCommit?.substring(0, 8) || 'unknown'}`));
+      }
+
+      console.log();
+      console.log(chalk.green('✅  Update complete!'));
+
+    } catch (error: any) {
+      spinner.fail('Update failed');
+      console.error(chalk.red('Error:'), error.message);
+      console.log();
+      console.log(chalk.yellow('Manual update:'));
+      console.log(chalk.cyan('curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash'));
       process.exit(1);
     }
   });
@@ -558,9 +615,7 @@ async function showStatus(): Promise<void> {
     const status = await agentService.getStatus();
 
     console.log();
-    console.log(chalk.bold('MCP Agent Status'));
-    console.log(chalk.dim('━'.repeat(60)));
-    console.log();
+    console.log(chalk.bold.cyan('📊 MCP Agent Status\n'));
 
     if (status.running) {
       console.log(chalk.green('✅  Agent is running'));
@@ -572,7 +627,7 @@ async function showStatus(): Promise<void> {
     }
 
     console.log();
-    console.log(chalk.bold('Services:'));
+    console.log(chalk.bold.cyan('Services:'));
     console.log();
 
     for (const service of status.services) {
@@ -586,11 +641,12 @@ async function showStatus(): Promise<void> {
         if (service.pid) console.log(chalk.dim(`     PID: ${service.pid}`));
         if (service.uptime) console.log(chalk.dim(`     Uptime: ${service.uptime}`));
       }
-      console.log();
     }
 
+    console.log();
+
     if (status.handbookDir) {
-      console.log(chalk.bold('Configuration:'));
+      console.log(chalk.bold.cyan('Configuration:'));
       console.log(chalk.dim(`  Handbook: ${status.handbookDir}`));
       console.log();
     }
