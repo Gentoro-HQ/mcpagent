@@ -376,13 +376,10 @@ Add your API documentation and guides here.
 
     console.log(chalk.bold('Next Steps:'));
     console.log();
-    console.log(chalk.cyan('1. Start the agent:'));
-    console.log('   $ mcpagent start' + (mockMode ? ' --mock' : ''));
-    console.log();
-    console.log(chalk.cyan('2. Open chat mode:'));
+    console.log(chalk.cyan('1. Start chatting:'));
     console.log('   $ mcpagent chat');
     console.log();
-    console.log(chalk.cyan('3. Check status:'));
+    console.log(chalk.cyan('2. Check status:'));
     console.log('   $ mcpagent status');
     console.log();
   }

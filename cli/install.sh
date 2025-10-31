@@ -468,7 +468,7 @@ post_install() {
     echo "   $ mcpagent doctor"
     echo ""
     echo -e "${CYAN}3. Start with mock mode:${NC}"
-    echo "   $ mcpagent start --mock"
+    echo "   $ mcpagent chat"
     echo ""
     echo -e "${CYAN}4. View available commands:${NC}"
     echo "   $ mcpagent --help"

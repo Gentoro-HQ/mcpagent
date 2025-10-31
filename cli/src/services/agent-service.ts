@@ -3,6 +3,7 @@
  */
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import chalk from 'chalk';
 import { processManager } from './process-manager.js';
 import { configManager } from '../config/manager.js';
 import { paths } from '../config/paths.js';
@@ -181,33 +182,36 @@ export class AgentService {
 
     // Start services in order
     if (!disabledServices.includes('otel')) {
-      console.log('Starting OpenTelemetry Collector...');
+      console.log(chalk.dim('  • Starting OpenTelemetry Collector for observability...'));
       try {
         await processManager.start('otel');
-        console.log('  ✓ OTEL Collector started');
+        console.log(chalk.dim('    ✓ OTEL Collector ready'));
       } catch (error: any) {
-        console.log('  ⚠ OTEL Collector not available (optional) - skipping');
+        console.log(chalk.dim('    ⚠ OTEL Collector not available (optional) - continuing without'));
       }
     }
 
-    console.log('Starting TypeScript Runtime...');
+    console.log(chalk.dim('  • Starting TypeScript Runtime for tool execution...'));
     if (!disabledServices.includes('ts-runtime')) {
       await processManager.start('ts-runtime');
+      console.log(chalk.dim('    ✓ TypeScript Runtime ready'));
     }
 
-    console.log('Starting MCP Agent...');
+    console.log(chalk.dim('  • Starting MCP Agent core service...'));
     if (!disabledServices.includes('app')) {
       await processManager.start('app');
+      console.log(chalk.dim('    ✓ MCP Agent ready'));
     }
 
     if (options.mockMode) {
-      console.log('Starting Mock Server (ACME Analytics)...');
+      console.log(chalk.dim('  • Starting ACME Analytics mock server for testing...'));
       if (!disabledServices.includes('mock')) {
         await processManager.start('mock');
+        console.log(chalk.dim('    ✓ Mock server ready'));
       }
     }
 
-    console.log('All services started successfully!');
+    console.log(chalk.dim('  • All services started successfully!'));
   }
 
   /**

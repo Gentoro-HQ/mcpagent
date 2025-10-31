@@ -22,7 +22,7 @@ export class ChatMode {
     this.agentStatus = await agentService.getStatus();
     if (!this.agentStatus.running) {
       console.log(chalk.red('❌ MCP Agent is not running.'));
-      console.log(chalk.yellow('Start the agent first with: mcpagent start'));
+      console.log(chalk.yellow('Services should start automatically when you run: mcpagent chat'));
       return;
     }
 
@@ -107,7 +107,7 @@ export class ChatMode {
       // Send to MCP Agent and get response
       try {
         console.log(chalk.dim('\n⏳ Thinking...\n'));
-        const timeout = config.chatTimeout || 120000; // Use configured timeout or default to 2 minutes
+        const timeout = config.chatTimeout || 240000; // Use configured timeout or default to 4 minutes
         const response = await this.sendMessage(config.provider, userMessage, timeout);
         
         // Add assistant response to history
@@ -224,7 +224,7 @@ export class ChatMode {
     console.log();
 
     if (!isRunning) {
-      console.log(chalk.dim('💡 Tip: Start with "mcpagent start --mock" for live mock data'));
+      console.log(chalk.dim('💡 Tip: The agent will automatically start with mock data if no services are configured'));
       console.log();
     }
 

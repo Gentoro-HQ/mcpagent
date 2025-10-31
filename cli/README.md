@@ -248,17 +248,31 @@ Step 2 — Choose how to start:
 Select [1-2]: 1
 ```
 
-## Mock Mode (Default)
+## Getting Started
 
-Mock mode uses the built-in Acme Analytics service with a complete handbook pre-configured.
+The easiest way to get started is with mock mode, which uses the built-in Acme Analytics service with a complete handbook pre-configured.
 
 ```bash
-mcpagent start --mock
+mcpagent chat
 ```
 
+The first time you run this, it will automatically:
+1. Run the setup wizard if needed
+2. Start all required services
+3. Open the interactive chat interface
+
 ```
-✅  MCP Agent running at http://localhost:8080/mcp
-Mock Service: Acme Analytics Server
+✅ Services started successfully
+
+╔══════════════════════════════════════╗
+║    Gentoro MCP Agent - Chat Mode     ║
+╚══════════════════════════════════════╝
+
+Provider: gemini
+MCP URL: http://localhost:8080/mcp
+Type 'exit' to quit, 'clear' to clear history
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You:
 ```
 
 ### Acme Analytics
@@ -377,13 +391,8 @@ mcpagent service list
 ### Core Commands
 
 ```bash
-# Start the MCP Agent
-mcpagent start [options]
-  --port <port>           Port to run on (default: 8080)
-  --handbook <dir>        Handbook directory
-  --mock                  Start with mock server
-  --build                 Build project before starting
-  --disable <services>    Comma-separated services to disable
+# Start interactive chat (auto-starts services if needed)
+mcpagent chat
 
 # Stop the agent
 mcpagent stop
@@ -539,13 +548,10 @@ mcpagent doctor
 ### Mock Mode
 
 ```bash
-# Run setup wizard
+# Run setup wizard (chooses mock mode)
 mcpagent
 
-# Start in mock mode
-mcpagent start --mock
-
-# Open chat
+# Start chatting (services auto-start)
 mcpagent chat
 ```
 
@@ -558,8 +564,11 @@ mcpagent handbook init my-api
 # Configure service
 mcpagent service auth my-api
 
-# Start with handbook
-mcpagent start --handbook ~/handbooks/my-api
+# Set as default handbook
+mcpagent config set handbookDir ~/handbooks/my-api
+
+# Start chatting (services auto-start)
+mcpagent chat
 ```
 
 ### Development Workflow
@@ -568,8 +577,12 @@ mcpagent start --handbook ~/handbooks/my-api
 # Check requirements
 mcpagent doctor
 
-# Build and start
-mcpagent start --build --mock
+# Build project (if needed)
+# Services will auto-start when you run chat
+# Note: Build is handled automatically during first run
+
+# Start chatting (builds and starts services automatically)
+mcpagent chat
 
 # Check status
 mcpagent status
@@ -596,8 +609,9 @@ cd cli && npm run build
 ### Agent won't start
 
 ```bash
-# Build project
-mcpagent start --build
+# The build happens automatically when you run chat
+# If you need to rebuild manually, use the update command
+mcpagent update
 
 # Check logs
 mcpagent logs app
@@ -616,9 +630,9 @@ mcpagent status
 mcpagent logs ts-runtime
 mcpagent logs app
 
-# Restart
+# Restart (services will auto-start on next chat)
 mcpagent stop
-mcpagent start
+# Then run: mcpagent chat
 ```
 
 ### Token expired
