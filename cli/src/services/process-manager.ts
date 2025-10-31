@@ -46,14 +46,15 @@ export class ProcessManager extends EventEmitter {
     }
 
     // Check if already running
-    if (this.isRunning(name)) {
-      throw new Error(`Process ${name} is already running`);
+    if (await this.isRunning(name)) {
+      console.log(`Process ${name} is already running`);
+      return; // Don't throw error, just return
     }
 
     // Check dependencies
     if (config.dependsOn) {
       for (const dep of config.dependsOn) {
-        if (!this.isRunning(dep)) {
+        if (!(await this.isRunning(dep))) {
           throw new Error(`Dependency ${dep} is not running`);
         }
       }
@@ -217,44 +218,69 @@ export class ProcessManager extends EventEmitter {
   }
 
   /**
-   * Check if a process is running by checking PID file and validating process
+   * Check if a process is running by checking PID file, validating process, and checking port
    */
-  isRunning(name: string): boolean {
+  async isRunning(name: string): Promise<boolean> {
     // First check in-memory processes
     const proc = this.processes.get(name);
     if (proc !== undefined && proc.pid !== undefined && !proc.killed) {
       return true;
     }
-    
+
     // If not in memory, check PID file (for cross-process detection)
     try {
       const pidPath = paths.getPidFilePath(name);
-      if (!fs.existsSync(pidPath)) {
-        return false;
-      }
-      
-      const pidStr = fs.readFileSync(pidPath, 'utf-8').trim();
-      const pid = parseInt(pidStr, 10);
-      
-      if (isNaN(pid)) {
-        return false;
-      }
-      
-      // Check if process with this PID exists
-      try {
-        // Sending signal 0 checks if process exists without killing it
-        process.kill(pid, 0);
-        return true;
-      } catch (e: any) {
-        // ESRCH means process doesn't exist
-        if (e.code === 'ESRCH') {
-          // Clean up stale PID file
-          fs.removeSync(pidPath);
-          return false;
+      const config = this.configs.get(name);
+
+      // Check if PID file exists and process is running
+      if (fs.existsSync(pidPath)) {
+        const pidStr = fs.readFileSync(pidPath, 'utf-8').trim();
+        const pid = parseInt(pidStr, 10);
+
+        if (!isNaN(pid)) {
+          try {
+            // Sending signal 0 checks if process exists without killing it
+            process.kill(pid, 0);
+            return true;
+          } catch (e: any) {
+            // ESRCH means process doesn't exist
+            if (e.code === 'ESRCH') {
+              // Clean up stale PID file
+              fs.removeSync(pidPath);
+            }
+            // EPERM means process exists but we don't have permission (still running)
+            else if (e.code === 'EPERM') {
+              return true;
+            }
+          }
         }
-        // EPERM means process exists but we don't have permission (still running)
-        return e.code === 'EPERM';
       }
+
+      // If no valid PID file or process not found, check if port is listening
+      // This handles cases where process crashed but restarted or kept running
+      if (config?.port) {
+        try {
+          const { execa } = await import('execa');
+          const { stdout } = await execa('lsof', ['-i', `:${config.port}`, '-t'], {
+            timeout: 1000,
+            reject: false
+          });
+          if (stdout.trim()) {
+            // Port is listening, service is running
+            // Try to create/update PID file for future checks
+            const pids = stdout.trim().split('\n').map(p => parseInt(p, 10)).filter(p => !isNaN(p));
+            if (pids.length > 0) {
+              // Save the first PID we find
+              fs.writeFileSync(pidPath, pids[0].toString(), 'utf-8');
+            }
+            return true;
+          }
+        } catch {
+          // lsof failed or timed out, continue with other checks
+        }
+      }
+
+      return false;
     } catch (error) {
       return false;
     }
@@ -266,7 +292,7 @@ export class ProcessManager extends EventEmitter {
   async getStatus(name: string): Promise<ServiceStatus> {
     const config = this.configs.get(name);
     const proc = this.processes.get(name);
-    const running = this.isRunning(name);
+    const running = await this.isRunning(name);
     const startTime = this.startTimes.get(name);
 
     let uptime: string | undefined;
@@ -412,6 +438,7 @@ export class ProcessManager extends EventEmitter {
       return `Error reading logs: ${error}`;
     }
   }
+
 
   /**
    * Clear logs for a service

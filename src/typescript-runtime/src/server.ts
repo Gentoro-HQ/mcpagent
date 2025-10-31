@@ -154,7 +154,7 @@ export async function createServer(): Promise<FastifyInstance> {
                   "modelPackage=models",
                   "useTags=true",
                   "useOperationId=true",
-                  "useSingleRequestParameter=false"
+                  "useSingleRequestParameter=true"
               ].join(",")
           ];
           const { stdout, stderr } = await runOpenApiGenerator(args);
@@ -191,17 +191,17 @@ export async function createServer(): Promise<FastifyInstance> {
 
         cd ${absPath}
         echo "entered ${absPath}"
-        
+
         npm i axios@latest
-        npm i -D @types/node typedoc typedoc-plugin-markdown typescript @types/axios
+        npm i @types/node typedoc typedoc-plugin-markdown typescript @types/axios
         echo "executed npm install"
-        
-                        
-        npx -y typedoc@latest --plugin typedoc-plugin-markdown --tsconfig tsconfig.docs.json --entryPoints ./index.ts --out ./typedoc
+
+
+        npx typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.docs.json --entryPoints ./index.ts --out ./typedoc
         echo "executed npm typedoc"
-        
+
         echo "listing content"
-        ls -al typedoc         
+        ls -al typedoc
       `;
       const { stdout, stderr } = await runShell(shellContent);
       req.log.info({ stdout, stderr }, "doctype: typescript-axios");

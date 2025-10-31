@@ -97,18 +97,18 @@ describe('ProcessManager', () => {
   });
 
   describe('isRunning', () => {
-    it('should return false for unregistered process', () => {
-      expect(processManager.isRunning('non-existent')).toBe(false);
+    it('should return false for unregistered process', async () => {
+      expect(await processManager.isRunning('non-existent')).toBe(false);
     });
 
-    it('should return false for registered but not started process', () => {
+    it('should return false for registered but not started process', async () => {
       processManager.register({
         name: 'test',
         command: 'node',
         args: ['test.js'],
       });
-      
-      expect(processManager.isRunning('test')).toBe(false);
+
+      expect(await processManager.isRunning('test')).toBe(false);
     });
   });
 
@@ -129,7 +129,7 @@ describe('ProcessManager', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Verify the process is running
-      expect(processManager.isRunning('spawn-test-1')).toBe(true);
+      expect(await processManager.isRunning('spawn-test-1')).toBe(true);
     });
 
     it('should track running processes', async () => {
@@ -144,7 +144,7 @@ describe('ProcessManager', () => {
       // Wait a bit for process to be registered
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      expect(processManager.isRunning('spawn-test-2')).toBe(true);
+      expect(await processManager.isRunning('spawn-test-2')).toBe(true);
     });
 
     it('should emit start event with PID', async () => {

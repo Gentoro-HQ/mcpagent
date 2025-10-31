@@ -7,7 +7,7 @@ It removes the need to build custom adapters or middleware. You can start with a
 ## Features
 
 - 🚀 **Quick Start**: Interactive setup wizard for first-time users
-- 🔄 **Auto Updates**: `mcpagent update` command keeps you current
+- 🔄 **Auto Updates**: `onemcp update` command keeps you current
 - 🤖 **Multiple Providers**: Support for OpenAI, Google Gemini, and Anthropic Claude
 - 🔧 **Easy Configuration**: Local configuration management
 - 💬 **Interactive Chat**: Built-in chat mode with automatic example queries when using mock server
@@ -46,7 +46,7 @@ curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install
 
 This automatically:
 - Checks system requirements (Node.js 20+, Java 21, Maven)
-- Clones the repository to `~/.mcpagent-src`
+- Clones the repository to `~/.onemcp-src`
 - Builds the Java application and TypeScript runtime
 - Installs the CLI using the default method (npm global)
 - No PATH modifications needed with the default installation method
@@ -103,7 +103,7 @@ Creates a portable wrapper script that you can place anywhere:
 ```bash
 curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | \
   MCPAGENT_INSTALL_METHOD=wrapper \
-  MCPAGENT_WRAPPER_PATH=/path/to/your/mcpagent \
+  MCPAGENT_WRAPPER_PATH=/path/to/your/onemcp \
   bash
 ```
 
@@ -127,7 +127,7 @@ curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install
 **For local development:**
 
 ```bash
-git clone https://github.com/Gentoro-HQ/mcpagent.git && cd mcpagent/cli && npm install && npm run build && npm link
+git clone https://github.com/Gentoro-HQ/mcpagent.git && cd onemcp/cli && npm install && npm run build && npm link
 ```
 
 ## Uninstallation
@@ -141,7 +141,7 @@ curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninsta
 Or if you have the source:
 
 ```bash
-bash ~/.mcpagent-src/cli/uninstall.sh
+bash ~/.onemcp-src/cli/uninstall.sh
 ```
 
 The uninstall script automatically detects your installation method and removes the CLI accordingly.
@@ -156,7 +156,7 @@ The uninstall script supports all installation methods:
 curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | bash
 ```
 
-The script will auto-detect how mcpagent was installed and remove it appropriately.
+The script will auto-detect how onemcp was installed and remove it appropriately.
 
 #### Manual Method Specification
 
@@ -176,7 +176,7 @@ curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninsta
 # For wrapper script (specify the path)
 curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | \
   MCPAGENT_UNINSTALL_METHOD=wrapper \
-  MCPAGENT_WRAPPER_PATH=/path/to/mcpagent \
+  MCPAGENT_WRAPPER_PATH=/path/to/onemcp \
   bash
 ```
 
@@ -202,27 +202,29 @@ The uninstall script will:
 
 ```bash
 # Stop services
-mcpagent stop
+onemcp stop
 
 # Remove based on installation method:
-# npm global: npm uninstall -g @gentoro/mcpagent-cli
-# system-wide: sudo rm /usr/local/bin/mcpagent
-# local-bin: rm ~/.local/bin/mcpagent
+# npm global: npm uninstall -g @gentoro/onemcp-cli
+# system-wide: sudo rm /usr/local/bin/onemcp
+# local-bin: rm ~/.local/bin/onemcp
 # wrapper: rm /path/to/your/wrapper
 
 # Remove source and data
-rm -rf ~/.mcpagent-src
-rm -rf ~/.mcpagent      # Configuration and logs
+rm -rf ~/.onemcp-src
+rm -rf ~/.onemcp      # Configuration and logs
 rm -rf ~/handbooks      # Your handbooks (optional)
 ```
 
-## First Run
+## Getting Started
 
-When you run `mcpagent` for the first time, it launches an interactive setup wizard:
+The easiest way to get started is with mock mode, which uses the built-in Acme Analytics service with a complete handbook pre-configured.
 
 ```bash
-mcpagent
+onemcp chat
 ```
+
+The first time you run `onemcp chat`, it will automatically launch an interactive setup wizard:
 
 ```
 ╭──────────────────────────────────────╮
@@ -248,16 +250,8 @@ Step 2 — Choose how to start:
 Select [1-2]: 1
 ```
 
-## Getting Started
-
-The easiest way to get started is with mock mode, which uses the built-in Acme Analytics service with a complete handbook pre-configured.
-
-```bash
-mcpagent chat
-```
-
-The first time you run this, it will automatically:
-1. Run the setup wizard if needed
+This will:
+1. Run the setup wizard automatically if not configured
 2. Start all required services
 3. Open the interactive chat interface
 
@@ -342,13 +336,13 @@ handbook/
 
 ```bash
 # Initialize a new handbook
-mcpagent handbook init my-service
+onemcp handbook init my-service
 
 # Validate handbook structure
-mcpagent handbook validate ./my-service
+onemcp handbook validate ./my-service
 
 # List all handbooks
-mcpagent handbook list
+onemcp handbook list
 ```
 
 ### Example service.yaml
@@ -377,13 +371,13 @@ If a target service returns 401 Unauthorized, the CLI handles it automatically:
 
 ```bash
 # Manually configure authentication
-mcpagent service auth acme
+onemcp service auth acme
 
 # Renew token only
-mcpagent service renew acme
+onemcp service renew acme
 
 # List configured services
-mcpagent service list
+onemcp service list
 ```
 
 ## CLI Commands
@@ -392,29 +386,29 @@ mcpagent service list
 
 ```bash
 # Start interactive chat (auto-starts services if needed)
-mcpagent chat
+onemcp chat
 
 # Stop the agent
-mcpagent stop
+onemcp stop
 
 # Show status
-mcpagent status
+onemcp status
 
 # Update to latest version
-mcpagent update
+onemcp update
 
 # Open interactive chat (shows example queries automatically with mock server)
-mcpagent chat
+onemcp chat
 
 # View logs
-mcpagent logs [service]
+onemcp logs [service]
   -n, --lines <count>     Number of lines (default: 50)
   -f, --follow            Follow log output
 ```
 
 ### Update Command
 
-The `mcpagent update` command automatically updates your installation to the latest version:
+The `onemcp update` command automatically updates your installation to the latest version:
 
 - Fetches the latest changes from the repository
 - Rebuilds all components (Java app, TypeScript runtime, CLI)
@@ -423,7 +417,7 @@ The `mcpagent update` command automatically updates your installation to the lat
 
 ```bash
 # Update to latest version
-mcpagent update
+onemcp update
 
 # If update fails, manual fallback
 curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
@@ -433,69 +427,69 @@ curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install
 
 ```bash
 # Configure service authentication
-mcpagent service auth <service-name>
+onemcp service auth <service-name>
 
 # Renew service token
-mcpagent service renew <service-name>
+onemcp service renew <service-name>
 
 # List configured services
-mcpagent service list
+onemcp service list
 ```
 
 ### Handbook Management
 
 ```bash
 # Initialize new handbook
-mcpagent handbook init <name>
+onemcp handbook init <name>
   -d, --dir <directory>   Target directory
 
 # Validate handbook structure
-mcpagent handbook validate [directory]
+onemcp handbook validate [directory]
 
 # List all handbooks
-mcpagent handbook list
+onemcp handbook list
 ```
 
 ### Provider Management
 
 ```bash
 # Set model provider
-mcpagent provider set
+onemcp provider set
 
 # Switch between providers
-mcpagent provider switch
+onemcp provider switch
 ```
 
 ### Diagnostics
 
 ```bash
 # Check system requirements
-mcpagent doctor
+onemcp doctor
 
 # Show version
-mcpagent --version
+onemcp --version
 
 # Show help
-mcpagent --help
+onemcp --help
 ```
 
 ## Configuration Files
 
 ### Global Configuration
 
-Location: `~/.mcpagent/config.yaml`
+Location: `~/.onemcp/config.yaml`
 
 ```yaml
 provider: openai
 apiKey: sk-...
 defaultPort: 8080
 handbookDir: ~/handbooks
-logDir: ~/.mcpagent/logs
+logDir: ~/.onemcp/logs
 ```
 
 ### Service Configuration
 
-Location: `~/.mcpagent/services/acme.yaml`
+Location: `~/.onemcp/services/acme.yaml`
 
 ```yaml
 service: acme-analytics
@@ -519,10 +513,10 @@ This ensures predictable startup behavior for both new and returning users.
 
 ## Logs and Diagnostics
 
-Logs are stored in `~/.mcpagent/logs/`:
+Logs are stored in `~/.onemcp/logs/`:
 
 ```
-~/.mcpagent/logs/
+~/.onemcp/logs/
 ├── app.log
 ├── ts-runtime.log
 ├── otel.log
@@ -534,13 +528,13 @@ View logs:
 
 ```bash
 # Tail logs for specific service
-mcpagent logs app -n 100
+onemcp logs app -n 100
 
 # View all logs
-mcpagent logs
+onemcp logs
 
 # Check system health
-mcpagent doctor
+onemcp doctor
 ```
 
 ## Example Workflows
@@ -548,50 +542,50 @@ mcpagent doctor
 ### Mock Mode
 
 ```bash
-# Run setup wizard (chooses mock mode)
-mcpagent
+# Check status or run setup if needed
+onemcp
 
-# Start chatting (services auto-start)
-mcpagent chat
+# Start chatting (setup and services auto-start if needed)
+onemcp chat
 ```
 
 ### Connect Real API
 
 ```bash
 # Create handbook
-mcpagent handbook init my-api
+onemcp handbook init my-api
 
 # Configure service
-mcpagent service auth my-api
+onemcp service auth my-api
 
 # Set as default handbook
-mcpagent config set handbookDir ~/handbooks/my-api
+onemcp config set handbookDir ~/handbooks/my-api
 
 # Start chatting (services auto-start)
-mcpagent chat
+onemcp chat
 ```
 
 ### Development Workflow
 
 ```bash
 # Check requirements
-mcpagent doctor
+onemcp doctor
 
 # Build project (if needed)
 # Services will auto-start when you run chat
 # Note: Build is handled automatically during first run
 
 # Start chatting (builds and starts services automatically)
-mcpagent chat
+onemcp chat
 
 # Check status
-mcpagent status
+onemcp status
 
 # View logs
-mcpagent logs app -f
+onemcp logs app -f
 
 # Stop
-mcpagent stop
+onemcp stop
 ```
 
 ## Troubleshooting
@@ -600,7 +594,7 @@ mcpagent stop
 
 ```bash
 # Check requirements
-mcpagent doctor
+onemcp doctor
 
 # Rebuild
 cd cli && npm run build
@@ -611,35 +605,35 @@ cd cli && npm run build
 ```bash
 # The build happens automatically when you run chat
 # If you need to rebuild manually, use the update command
-mcpagent update
+onemcp update
 
 # Check logs
-mcpagent logs app
+onemcp logs app
 
 # Validate handbook
-mcpagent handbook validate
+onemcp handbook validate
 ```
 
 ### Services not healthy
 
 ```bash
 # Check status
-mcpagent status
+onemcp status
 
 # View service logs
-mcpagent logs ts-runtime
-mcpagent logs app
+onemcp logs ts-runtime
+onemcp logs app
 
 # Restart (services will auto-start on next chat)
-mcpagent stop
-# Then run: mcpagent chat
+onemcp stop
+# Then run: onemcp chat
 ```
 
 ### Token expired
 
 ```bash
 # Renew token
-mcpagent service renew <service-name>
+onemcp service renew <service-name>
 ```
 
 ## Development
@@ -649,7 +643,7 @@ mcpagent service renew <service-name>
 ```bash
 # Clone repository
 git clone https://github.com/Gentoro-HQ/mcpagent.git
-cd mcpagent
+cd onemcp
 
 # Install dependencies
 cd cli

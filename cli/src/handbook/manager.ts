@@ -55,7 +55,7 @@ This handbook contains the configuration and documentation for your MCP Agent.
 1. Add your OpenAPI specifications to the \`apis/\` directory
 2. Add documentation to the \`docs/\` directory
 3. Update \`Agent.md\` with your agent's instructions
-4. Configure service authentication with \`mcpagent service auth <service-name>\`
+4. Configure service authentication with \`onemcp service auth <service-name>\`
 `;
     await fs.writeFile(`${dir}/docs/getting-started.md`, exampleDoc, 'utf-8');
 
@@ -214,9 +214,9 @@ Start chatting with this handbook by setting it as your default or using the han
 
 \`\`\`bash
 # Set as default handbook
-mcpagent
+onemcp
 # Then run chat
-mcpagent chat
+onemcp chat
 
 # Or specify handbook directly (future feature)
 \`\`\`
@@ -224,7 +224,7 @@ mcpagent chat
 For now, set this as your default handbook:
 
 \`\`\`bash
-mcpagent config set handbookDir ~/handbooks/${name}
+onemcp config set handbookDir ~/handbooks/${name}
 \`\`\`
 
 ## Testing
@@ -232,7 +232,7 @@ mcpagent config set handbookDir ~/handbooks/${name}
 Run validation:
 
 \`\`\`bash
-mcpagent handbook validate ./${name}
+onemcp handbook validate ./${name}
 \`\`\`
 
 ## Documentation
@@ -245,10 +245,9 @@ See the \`docs/\` directory for additional documentation.
    * Copy example handbook
    */
   async copyExample(targetDir: string): Promise<void> {
-    // Copy the ACME Analytics example
-    const exampleSource = 'src/acme-analytics-server/mcpagent-handbook';
+    // Copy the ACME Analytics example from the dist directory
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const resolvedSource = resolve(__dirname, '../../..', exampleSource);
+    const resolvedSource = resolve(__dirname, '../example-handbook');
 
     if (!(await fs.pathExists(resolvedSource))) {
       throw new Error('Example handbook not found');

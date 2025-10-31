@@ -3,6 +3,7 @@
  */
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { homedir } from 'os';
 import chalk from 'chalk';
 import { processManager } from './process-manager.js';
 import { configManager } from '../config/manager.js';
@@ -36,6 +37,7 @@ export class AgentService {
     const possibleRoots = [
       cwd, // Current directory (when running from repo root)
       join(cwd, '..'), // Parent directory (if running from cli/)
+      join(homedir(), '.onemcp-src'), // Install script location
     ];
 
     // Add installed path derived from this module location (works for install.sh)
@@ -169,7 +171,7 @@ export class AgentService {
         '  - Java 21+: https://adoptium.net/\n' +
         '  - Node.js 20+: https://nodejs.org/\n' +
         '  - Maven: https://maven.apache.org/install.html\n' +
-        'Then run "mcpagent doctor" to verify your installation.'
+        'Then run "onemcp doctor" to verify your installation.'
       );
     }
 
@@ -185,7 +187,14 @@ export class AgentService {
       console.log(chalk.dim('  • Starting OpenTelemetry Collector for observability...'));
       try {
         await processManager.start('otel');
-        console.log(chalk.dim('    ✓ OTEL Collector ready'));
+        // Wait a bit for the process to either start or fail
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Check if the service is actually running
+        if (await processManager.isRunning('otel')) {
+          console.log(chalk.dim('    ✓ OTEL Collector ready'));
+        } else {
+          console.log(chalk.dim('    ⚠ OTEL Collector not available (optional) - continuing without'));
+        }
       } catch (error: any) {
         console.log(chalk.dim('    ⚠ OTEL Collector not available (optional) - continuing without'));
       }
@@ -482,8 +491,7 @@ service:
   async updateCliSymlink(): Promise<void> {
     const projectRoot = this.findProjectRoot();
     const cliDistPath = join(projectRoot, 'cli/dist/index.js');
-    const { homedir } = await import('os');
-    const symlinkPath = join(homedir(), '.local/bin/mcpagent');
+    const symlinkPath = join(homedir(), '.local/bin/onemcp');
 
     // Ensure directory exists
     await fs.ensureDir(dirname(symlinkPath));

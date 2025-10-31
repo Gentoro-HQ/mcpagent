@@ -56,7 +56,7 @@ export class SetupWizard {
       defaultPort: 8080,
       handbookDir,
       logDir: paths.logDir,
-      chatTimeout: 120000, // 2 minutes default timeout for chat requests
+      chatTimeout: 240000, // 4 minutes default timeout for chat requests
     };
 
     await configManager.saveGlobalConfig(config);
@@ -377,10 +377,10 @@ Add your API documentation and guides here.
     console.log(chalk.bold('Next Steps:'));
     console.log();
     console.log(chalk.cyan('1. Start chatting:'));
-    console.log('   $ mcpagent chat');
+    console.log('   $ onemcp chat');
     console.log();
     console.log(chalk.cyan('2. Check status:'));
-    console.log('   $ mcpagent status');
+    console.log('   $ onemcp status');
     console.log();
   }
 

@@ -20,15 +20,15 @@ describe('PathManager', () => {
 
   describe('path properties', () => {
     it('should have correct configRoot path', () => {
-      expect(pathManager.configRoot).toBe(join(homedir(), '.mcpagent'));
+      expect(pathManager.configRoot).toBe(join(homedir(), '.onemcp'));
     });
 
     it('should have correct configFile path', () => {
-      expect(pathManager.configFile).toBe(join(homedir(), '.mcpagent', 'config.yaml'));
+      expect(pathManager.configFile).toBe(join(homedir(), '.onemcp', 'config.yaml'));
     });
 
     it('should have correct servicesDir path', () => {
-      expect(pathManager.servicesDir).toBe(join(homedir(), '.mcpagent', 'services'));
+      expect(pathManager.servicesDir).toBe(join(homedir(), '.onemcp', 'services'));
     });
 
     it('should have correct handbooksDir path', () => {
@@ -36,22 +36,22 @@ describe('PathManager', () => {
     });
 
     it('should have correct logDir path', () => {
-      expect(pathManager.logDir).toBe(join(homedir(), '.mcpagent', 'logs'));
+      expect(pathManager.logDir).toBe(join(homedir(), '.onemcp', 'logs'));
     });
 
     it('should have correct stateDir path', () => {
-      expect(pathManager.stateDir).toBe(join(homedir(), '.mcpagent', 'state'));
+      expect(pathManager.stateDir).toBe(join(homedir(), '.onemcp', 'state'));
     });
 
     it('should have correct cacheDir path', () => {
-      expect(pathManager.cacheDir).toBe(join(homedir(), '.mcpagent', 'cache'));
+      expect(pathManager.cacheDir).toBe(join(homedir(), '.onemcp', 'cache'));
     });
   });
 
   describe('getServiceConfigPath', () => {
     it('should return correct service config path', () => {
       const serviceName = 'test-service';
-      const expected = join(homedir(), '.mcpagent', 'services', `${serviceName}.yaml`);
+      const expected = join(homedir(), '.onemcp', 'services', `${serviceName}.yaml`);
       expect(pathManager.getServiceConfigPath(serviceName)).toBe(expected);
     });
   });
@@ -67,14 +67,14 @@ describe('PathManager', () => {
   describe('getLogPath', () => {
     it('should return correct log file path', () => {
       const serviceName = 'app';
-      const expected = join(homedir(), '.mcpagent', 'logs', `${serviceName}.log`);
+      const expected = join(homedir(), '.onemcp', 'logs', `${serviceName}.log`);
       expect(pathManager.getLogPath(serviceName)).toBe(expected);
     });
   });
 
   describe('getLogArchivePath', () => {
     it('should return correct log archive path', () => {
-      const expected = join(homedir(), '.mcpagent', 'logs', 'archive');
+      const expected = join(homedir(), '.onemcp', 'logs', 'archive');
       expect(pathManager.getLogArchivePath()).toBe(expected);
     });
   });
@@ -82,7 +82,7 @@ describe('PathManager', () => {
   describe('getPidFilePath', () => {
     it('should return correct PID file path', () => {
       const serviceName = 'app';
-      const expected = join(homedir(), '.mcpagent', 'state', `${serviceName}.pid`);
+      const expected = join(homedir(), '.onemcp', 'state', `${serviceName}.pid`);
       expect(pathManager.getPidFilePath(serviceName)).toBe(expected);
     });
   });
@@ -90,7 +90,7 @@ describe('PathManager', () => {
   describe('getSocketPath', () => {
     it('should return correct socket file path', () => {
       const serviceName = 'app';
-      const expected = join(homedir(), '.mcpagent', 'state', `${serviceName}.sock`);
+      const expected = join(homedir(), '.onemcp', 'state', `${serviceName}.sock`);
       expect(pathManager.getSocketPath(serviceName)).toBe(expected);
     });
   });
