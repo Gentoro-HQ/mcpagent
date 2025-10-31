@@ -4,6 +4,13 @@ set -euo pipefail
 # Uninstallation script for Gentoro MCP Agent CLI
 # Usage: bash ~/.mcpagent-src/cli/uninstall.sh
 # Or: curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | bash
+#
+# Environment variables:
+#   MCPAGENT_UNINSTALL_METHOD - Specify uninstall method (auto-detect if not set)
+#   MCPAGENT_WRAPPER_PATH     - Path to wrapper script (only for wrapper method)
+#   MCPAGENT_YES              - Auto-confirm prompts
+#   MCPAGENT_REMOVE_CONFIG    - Auto-remove config directory
+#   MCPAGENT_REMOVE_HANDBOOKS - Auto-remove handbooks directory
 
 # Colors
 RED='\033[0;31m'
@@ -21,9 +28,11 @@ LOCAL_BIN="$HOME/.local/bin/mcpagent"
 # - MCPAGENT_YES=1                     → auto-confirm prompts
 # - MCPAGENT_REMOVE_CONFIG=1           → remove ~/.mcpagent without prompting
 # - MCPAGENT_REMOVE_HANDBOOKS=1        → remove ~/handbooks without prompting
+# - MCPAGENT_UNINSTALL_METHOD          → specify uninstall method (auto-detect if not set)
 AUTO_YES="${MCPAGENT_YES:-}"
 REMOVE_CONFIG_FLAG="${MCPAGENT_REMOVE_CONFIG:-}"
 REMOVE_HANDBOOKS_FLAG="${MCPAGENT_REMOVE_HANDBOOKS:-}"
+UNINSTALL_METHOD="${MCPAGENT_UNINSTALL_METHOD:-}"
 
 log_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
@@ -85,29 +94,189 @@ stop_services() {
     log_success "All services stopped"
 }
 
-unlink_cli() {
-    log_info "Removing CLI command..."
-    
-    # Check if installed via npm link
-    if npm list -g @gentoro/mcpagent-cli &> /dev/null; then
+detect_installation_method() {
+    # Auto-detect installation method if not specified
+    if [ -n "$UNINSTALL_METHOD" ]; then
+        return
+    fi
+
+    log_info "Detecting installation method..."
+
+    # Check for npm global installation
+    if npm list -g @gentoro/mcpagent-cli &> /dev/null 2>&1; then
+        UNINSTALL_METHOD="npm-global"
+        log_info "Detected: npm global installation"
+        return
+    fi
+
+    # Check for system-wide installation
+    if [ -f "/usr/local/bin/mcpagent" ]; then
+        UNINSTALL_METHOD="system-wide"
+        log_info "Detected: system-wide installation (/usr/local/bin)"
+        return
+    fi
+
+    # Check for local bin installation
+    if [ -f "$LOCAL_BIN" ] || [ -L "$LOCAL_BIN" ]; then
+        UNINSTALL_METHOD="local-bin"
+        log_info "Detected: local bin installation (~/.local/bin)"
+        return
+    fi
+
+    # Check for npm link (development)
+    if npm list -g | grep -q "@gentoro/mcpagent-cli"; then
+        UNINSTALL_METHOD="npm-link"
+        log_info "Detected: npm link (development)"
+        return
+    fi
+
+    # Check other common locations
+    for bin_dir in ~/.nvm/versions/node/*/bin /opt/homebrew/bin; do
+        if [ -f "$bin_dir/mcpagent" ] || [ -L "$bin_dir/mcpagent" ]; then
+            UNINSTALL_METHOD="other"
+            log_info "Detected: installation at $bin_dir"
+            return
+        fi
+    done
+
+    log_warning "Could not auto-detect installation method"
+    log_info "You may need to specify MCPAGENT_UNINSTALL_METHOD"
+}
+
+uninstall_npm_global() {
+    log_info "Uninstalling from npm global..."
+
+    if npm list -g @gentoro/mcpagent-cli &> /dev/null 2>&1; then
+        npm uninstall -g @gentoro/mcpagent-cli
+        log_success "Removed from npm global"
+    else
+        log_info "Not found in npm global packages"
+    fi
+}
+
+uninstall_npm_link() {
+    log_info "Unlinking npm development link..."
+
+    if npm list -g | grep -q "@gentoro/mcpagent-cli"; then
         npm unlink -g @gentoro/mcpagent-cli 2>/dev/null || true
         log_success "Unlinked from npm global"
+    else
+        log_info "No npm link found"
     fi
-    
-    # Remove from .local/bin if it exists
+}
+
+uninstall_system_wide() {
+    log_info "Uninstalling system-wide installation..."
+
+    if [ -f "/usr/local/bin/mcpagent" ]; then
+        if [ "$EUID" -eq 0 ]; then
+            rm -f "/usr/local/bin/mcpagent"
+            log_success "Removed from /usr/local/bin"
+        else
+            log_info "System-wide installation requires sudo for removal"
+            sudo rm -f "/usr/local/bin/mcpagent"
+            log_success "Removed from /usr/local/bin (with sudo)"
+        fi
+    else
+        log_info "Not found in /usr/local/bin"
+    fi
+}
+
+uninstall_local_bin() {
+    log_info "Uninstalling local bin installation..."
+
     if [ -f "$LOCAL_BIN" ] || [ -L "$LOCAL_BIN" ]; then
         rm -f "$LOCAL_BIN"
         log_success "Removed from $LOCAL_BIN"
+    else
+        log_info "Not found in ~/.local/bin"
     fi
-    
-    # Check other common locations
-    for bin_dir in /usr/local/bin ~/.nvm/versions/node/*/bin; do
+}
+
+uninstall_other_locations() {
+    log_info "Checking other common locations..."
+
+    local found=false
+
+    # Check various bin directories
+    for bin_dir in ~/.nvm/versions/node/*/bin /opt/homebrew/bin /usr/local/bin; do
         if [ -f "$bin_dir/mcpagent" ] || [ -L "$bin_dir/mcpagent" ]; then
             rm -f "$bin_dir/mcpagent" 2>/dev/null || {
                 log_warning "Could not remove $bin_dir/mcpagent (may require sudo)"
+                sudo rm -f "$bin_dir/mcpagent" 2>/dev/null || {
+                    log_warning "Failed to remove $bin_dir/mcpagent"
+                }
             }
+            found=true
         fi
     done
+
+    if [ "$found" = true ]; then
+        log_success "Removed from detected locations"
+    else
+        log_info "No installations found in common locations"
+    fi
+}
+
+uninstall_wrapper_script() {
+    log_info "Wrapper script uninstallation..."
+
+    # For wrapper scripts, we can't auto-detect the location
+    # The user needs to specify MCPAGENT_WRAPPER_PATH or remove manually
+    if [ -n "${MCPAGENT_WRAPPER_PATH:-}" ]; then
+        if [ -f "$MCPAGENT_WRAPPER_PATH" ]; then
+            rm -f "$MCPAGENT_WRAPPER_PATH"
+            log_success "Removed wrapper script from $MCPAGENT_WRAPPER_PATH"
+        else
+            log_info "Wrapper script not found at $MCPAGENT_WRAPPER_PATH"
+        fi
+    else
+        log_warning "Cannot auto-detect wrapper script location"
+        log_info "Specify MCPAGENT_WRAPPER_PATH or remove manually"
+        log_info "Example: MCPAGENT_WRAPPER_PATH=/path/to/mcpagent ./uninstall.sh"
+    fi
+}
+
+unlink_cli() {
+    log_info "Removing CLI command..."
+
+    # Detect installation method if not specified
+    detect_installation_method
+
+    # Uninstall based on detected or specified method
+    case "$UNINSTALL_METHOD" in
+        "npm-global")
+            uninstall_npm_global
+            ;;
+        "system-wide")
+            uninstall_system_wide
+            ;;
+        "local-bin")
+            uninstall_local_bin
+            ;;
+        "npm-link")
+            uninstall_npm_link
+            ;;
+        "wrapper")
+            uninstall_wrapper_script
+            ;;
+        "other"|*)
+            # Fallback: check all locations
+            uninstall_npm_global
+            uninstall_npm_link
+            uninstall_system_wide
+            uninstall_local_bin
+            uninstall_other_locations
+            ;;
+    esac
+
+    # Final verification
+    if command -v mcpagent &> /dev/null; then
+        log_warning "mcpagent command still found in PATH"
+        log_info "You may need to restart your shell or check your PATH"
+    else
+        log_success "CLI command successfully removed"
+    fi
 }
 
 remove_source() {
