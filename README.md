@@ -25,7 +25,7 @@ You can provide your own foundation folder (see [Using Docker with Custom Founda
 
 ## Quick Start
 
-### CLI Tool (recommended)
+### CLI Tool
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
