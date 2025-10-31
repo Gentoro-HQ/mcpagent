@@ -7,13 +7,34 @@ It removes the need to build custom adapters or middleware. You can start with a
 ## Features
 
 - 🚀 **Quick Start**: Interactive setup wizard for first-time users
+- 🔄 **Auto Updates**: `mcpagent update` command keeps you current
 - 🤖 **Multiple Providers**: Support for OpenAI, Google Gemini, and Anthropic Claude
 - 🔧 **Easy Configuration**: Local configuration management
-- 💬 **Interactive Chat**: Built-in chat mode for testing your agent
+- 💬 **Interactive Chat**: Built-in chat mode with automatic example queries when using mock server
 - 📚 **Handbook Management**: Create and manage agent handbooks
 - 🔐 **Auth Management**: Handle service authentication and token renewal
 - 📊 **Mock Mode**: Test with built-in Acme Analytics service
 - 🔍 **Diagnostics**: Built-in doctor command for troubleshooting
+
+## Requirements
+
+- **Node.js** >= 20
+- **Java** 21 (for running the agent)
+- **Maven** (for building the agent)
+
+Optional:
+- **OpenTelemetry Collector** (for telemetry)
+
+## Architecture
+
+The CLI manages multiple services:
+
+1. **OpenTelemetry Collector** (port 4317) - Telemetry collection
+2. **TypeScript Runtime** (port 7070) - Executes TypeScript snippets
+3. **MCP Agent** (port 8080) - Main Spring Boot application
+4. **Mock Server** (port 8082) - Acme Analytics (optional)
+
+All services are managed as child processes with automatic health checks and log management.
 
 ## Installation
 
@@ -146,12 +167,16 @@ Acme Analytics provides four data entities:
 - **Customers** — segments and lifetime value
 - **Regions** — geographic performance
 
-Example queries:
+**Example queries** (shown automatically when you start chat with mock server):
 ```
 > Show me electronics sales in California last quarter.
 > List top customers by revenue.
 > Compare revenue trends by region.
+> What are the top-selling products this month?
+> Show me sales data for New York vs Texas.
 ```
+
+Type `help` in chat mode for additional commands.
 
 ## Connecting Your Own API
 
@@ -253,13 +278,33 @@ mcpagent stop
 # Show status
 mcpagent status
 
-# Open interactive chat
+# Update to latest version
+mcpagent update
+
+# Open interactive chat (shows example queries automatically with mock server)
 mcpagent chat
 
 # View logs
 mcpagent logs [service]
   -n, --lines <count>     Number of lines (default: 50)
   -f, --follow            Follow log output
+```
+
+### Update Command
+
+The `mcpagent update` command automatically updates your installation to the latest version:
+
+- Fetches the latest changes from the repository
+- Rebuilds all components (Java app, TypeScript runtime, CLI)
+- Updates the CLI symlink
+- Shows version changes and handles errors gracefully
+
+```bash
+# Update to latest version
+mcpagent update
+
+# If update fails, manual fallback
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
 ```
 
 ### Service Management
@@ -423,26 +468,6 @@ mcpagent logs app -f
 mcpagent stop
 ```
 
-## Requirements
-
-- **Node.js** >= 20
-- **Java** 21 (for running the agent)
-- **Maven** (for building the agent)
-
-Optional:
-- **OpenTelemetry Collector** (for telemetry)
-
-## Architecture
-
-The CLI manages multiple services:
-
-1. **OpenTelemetry Collector** (port 4317) - Telemetry collection
-2. **TypeScript Runtime** (port 7070) - Executes TypeScript snippets
-3. **MCP Agent** (port 8080) - Main Spring Boot application
-4. **Mock Server** (port 8082) - Acme Analytics (optional)
-
-All services are managed as child processes with automatic health checks and log management.
-
 ## Troubleshooting
 
 ### CLI won't start
@@ -511,30 +536,6 @@ npm link
 
 # Run in dev mode
 npm run dev
-```
-
-### Project Structure
-
-```
-cli/
-├── src/
-│   ├── index.ts              # Main entry point
-│   ├── types.ts              # Type definitions
-│   ├── config/               # Configuration management
-│   │   ├── manager.ts
-│   │   └── paths.ts
-│   ├── services/             # Service management
-│   │   ├── process-manager.ts
-│   │   └── agent-service.ts
-│   ├── wizard/               # Setup wizard
-│   │   └── setup.ts
-│   ├── chat/                 # Chat mode
-│   │   └── chat-mode.ts
-│   └── handbook/             # Handbook management
-│       └── manager.ts
-├── package.json
-├── tsconfig.json
-└── README.md
 ```
 
 ## Contributing
