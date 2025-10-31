@@ -11,20 +11,21 @@ import { ChatMessage, ModelProvider } from '../types.js';
 export class ChatMode {
   private messages: ChatMessage[] = [];
   private mcpUrl: string = '';
+  private agentStatus: any = null;
 
   /**
    * Start interactive chat session
    */
   async start(): Promise<void> {
     // Check if agent is running
-    const status = await agentService.getStatus();
-    if (!status.running) {
+    this.agentStatus = await agentService.getStatus();
+    if (!this.agentStatus.running) {
       console.log(chalk.red('❌ MCP Agent is not running.'));
       console.log(chalk.yellow('Start the agent first with: mcpagent start'));
       return;
     }
 
-    this.mcpUrl = status.mcpUrl || 'http://localhost:8080/mcp';
+    this.mcpUrl = this.agentStatus.mcpUrl || 'http://localhost:8080/mcp';
 
     // Get provider info
     const config = await configManager.getGlobalConfig();
@@ -35,7 +36,7 @@ export class ChatMode {
 
     console.log();
     console.log(chalk.bold.cyan('╔══════════════════════════════════════╗'));
-    console.log(chalk.bold.cyan('║   Gentoro MCP Agent - Chat Mode     ║'));
+    console.log(chalk.bold.cyan('║    Gentoro MCP Agent - Chat Mode     ║'));
     console.log(chalk.bold.cyan('╚══════════════════════════════════════╝'));
     console.log();
     console.log(chalk.dim(`Provider: ${config.provider}`));
@@ -43,6 +44,14 @@ export class ChatMode {
     console.log(chalk.dim(`Type 'exit' to quit, 'clear' to clear history`));
     console.log(chalk.dim('━'.repeat(60)));
     console.log();
+
+    // Show example queries if mock server is running OR if user has mock mode configured
+    const hasMockServer = this.agentStatus.services.some((service: any) => service.name === 'mock' && service.running);
+    const hasMockConfigured = await this.isMockModeConfigured();
+
+    if (hasMockServer || hasMockConfigured) {
+      this.showMockExamples();
+    }
 
     // Main chat loop
     await this.chatLoop(config.provider);
@@ -148,6 +157,44 @@ export class ChatMode {
       }
       throw new Error(`Failed to communicate with agent: ${error.message}`);
     }
+  }
+
+  /**
+   * Check if mock mode is configured (no real services configured)
+   */
+  private async isMockModeConfigured(): Promise<boolean> {
+    try {
+      const services = await configManager.listServices();
+      // If no services are configured, user likely wants mock mode
+      return services.length === 0;
+    } catch {
+      return true; // Default to showing examples if we can't check
+    }
+  }
+
+  /**
+   * Show example queries for mock server
+   */
+  private showMockExamples(): void {
+    const isRunning = this.agentStatus.services.some((service: any) => service.name === 'mock' && service.running);
+
+    console.log(chalk.bold.yellow(`${isRunning ? '💡' : '💭'} ${isRunning ? 'Mock Server Active' : 'Mock Mode Available'} - Try These Example Queries:`));
+    console.log();
+    console.log(chalk.cyan('  > Show me electronics sales in California last quarter.'));
+    console.log(chalk.cyan('  > List top customers by revenue.'));
+    console.log(chalk.cyan('  > Compare revenue trends by region.'));
+    console.log(chalk.cyan('  > What are the top-selling products this month?'));
+    console.log(chalk.cyan('  > Show me sales data for New York vs Texas.'));
+    console.log();
+
+    if (!isRunning) {
+      console.log(chalk.dim('💡 Tip: Start with "mcpagent start --mock" for live mock data'));
+      console.log();
+    }
+
+    console.log(chalk.dim('Type "help" anytime for more commands.'));
+    console.log(chalk.dim('━'.repeat(60)));
+    console.log();
   }
 
   /**
