@@ -12,6 +12,7 @@ export interface GlobalConfig {
   logDir: string;
   baseUrl?: string;
   modelName?: string;
+  chatTimeout?: number; // Timeout in milliseconds for chat requests
 }
 
 export interface ServiceConfig {

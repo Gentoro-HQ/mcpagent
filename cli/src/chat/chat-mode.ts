@@ -7,7 +7,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { configManager } from '../config/manager.js';
 import { agentService } from '../services/agent-service.js';
-import { ChatMessage, ModelProvider } from '../types.js';
+import { ChatMessage, ModelProvider, GlobalConfig } from '../types.js';
 
 export class ChatMode {
   private messages: ChatMessage[] = [];
@@ -55,13 +55,13 @@ export class ChatMode {
     }
 
     // Main chat loop
-    await this.chatLoop(config.provider);
+    await this.chatLoop(config);
   }
 
   /**
    * Main chat interaction loop
    */
-  private async chatLoop(provider: ModelProvider): Promise<void> {
+  private async chatLoop(config: GlobalConfig): Promise<void> {
     // eslint-disable-next-line no-constant-condition
     while (true) {
       const { message } = await inquirer.prompt([
@@ -107,7 +107,8 @@ export class ChatMode {
       // Send to MCP Agent and get response
       try {
         console.log(chalk.dim('\n⏳ Thinking...\n'));
-        const response = await this.sendMessage(provider, userMessage);
+        const timeout = config.chatTimeout || 120000; // Use configured timeout or default to 2 minutes
+        const response = await this.sendMessage(config.provider, userMessage, timeout);
         
         // Add assistant response to history
         this.messages.push({
@@ -129,12 +130,12 @@ export class ChatMode {
   /**
    * Send message to MCP Agent via MCP protocol
    */
-  private async sendMessage(provider: ModelProvider, userMessage: string): Promise<string> {
+  private async sendMessage(provider: ModelProvider, userMessage: string, timeout: number): Promise<string> {
     try {
-      // Create MCP transport and client with increased timeout
+      // Create MCP transport and client with configured timeout
       const transport = new StreamableHTTPClientTransport(new URL(this.mcpUrl), {
         requestInit: {
-          signal: AbortSignal.timeout(120000), // 120 second timeout
+          signal: AbortSignal.timeout(timeout),
         },
         reconnectionOptions: {
           maxReconnectionDelay: 30000,
@@ -167,7 +168,7 @@ export class ChatMode {
             },
           },
           undefined, // resultSchema
-          { timeout: 120000 } // request options with 120 second timeout
+          { timeout } // request options with configured timeout
         );
 
         // Parse the response content
