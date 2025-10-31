@@ -3,7 +3,8 @@
  */
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import axios from 'axios';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { configManager } from '../config/manager.js';
 import { agentService } from '../services/agent-service.js';
 import { ChatMessage, ModelProvider } from '../types.js';
@@ -126,36 +127,70 @@ export class ChatMode {
   }
 
   /**
-   * Send message to MCP Agent via the chat API
+   * Send message to MCP Agent via MCP protocol
    */
   private async sendMessage(provider: ModelProvider, userMessage: string): Promise<string> {
     try {
-      // Use the simple REST API endpoint instead of MCP
-      const chatUrl = this.mcpUrl.replace('/mcp', '/api/chat');
-      
-      const response = await axios.post(
-        chatUrl,
+      // Create MCP transport and client with increased timeout
+      const transport = new StreamableHTTPClientTransport(new URL(this.mcpUrl), {
+        requestInit: {
+          signal: AbortSignal.timeout(120000), // 120 second timeout
+        },
+        reconnectionOptions: {
+          maxReconnectionDelay: 30000,
+          initialReconnectionDelay: 1000,
+          reconnectionDelayGrowFactor: 1.5,
+          maxRetries: 3,
+        },
+      });
+      const client = new Client(
         {
-          message: userMessage,
-          options: {},
+          name: 'mcpagent-cli',
+          version: '0.1.0',
         },
         {
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          capabilities: {},
         }
       );
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
+      // Connect to the MCP server
+      await client.connect(transport);
 
-      return response.data.content || 'No response from agent';
-    } catch (error: any) {
-      if (error.response) {
-        throw new Error(`Agent error: ${error.response.status} - ${error.response.statusText}`);
+      try {
+        // Call the gentoro.run tool with timeout
+        const result: any = await client.callTool(
+          {
+            name: 'gentoro.run',
+            arguments: {
+              prompt: userMessage,
+              options: {},
+            },
+          },
+          undefined, // resultSchema
+          { timeout: 120000 } // request options with 120 second timeout
+        );
+
+        // Parse the response content
+        if (result.content && result.content.length > 0) {
+          const content = result.content[0];
+          if (content && typeof content === 'object' && 'type' in content && 'text' in content && content.type === 'text') {
+            // Try to parse the JSON response from the tool
+            try {
+              const parsed = JSON.parse(content.text);
+              return parsed.content || content.text;
+            } catch {
+              return content.text;
+            }
+          }
+        }
+
+        return 'No response from agent';
+      } finally {
+        // Always close the connection
+        await client.close();
       }
-      throw new Error(`Failed to communicate with agent: ${error.message}`);
+    } catch (error: any) {
+      throw new Error(`Failed to communicate with MCP agent: ${error.message}`);
     }
   }
 
