@@ -182,6 +182,11 @@ export class AgentService {
 
     const disabledServices = options.disableServices || [];
 
+    // Validate handbook configuration before starting services
+    if (!disabledServices.includes('app') && !options.mockMode) {
+      await this.validateHandbookConfiguration(config || undefined);
+    }
+
     // Clean up any stale processes that might be using our ports
     await this.cleanupStaleProcesses();
 
@@ -211,8 +216,28 @@ export class AgentService {
 
     console.log(chalk.dim('  • Starting MCP Agent core service...'));
     if (!disabledServices.includes('app')) {
-      await processManager.start('app');
-      console.log(chalk.dim('    ✓ MCP Agent ready'));
+      try {
+        await processManager.start('app');
+        console.log(chalk.dim('    ✓ MCP Agent ready'));
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // Check if this is a handbook-related error
+        if (errorMessage.includes('Foundation dir not found') ||
+            errorMessage.includes('Agent.md') ||
+            errorMessage.includes('handbook')) {
+          console.log(chalk.red('    ❌ MCP Agent failed to start - handbook configuration issue'));
+          console.log(chalk.dim('      This usually happens when the handbook directory or Agent.md file is missing.'));
+          console.log(chalk.dim('      Try running the setup wizard again or check your handbook directory.'));
+          console.log(chalk.dim(`      Handbook directory: ${config?.handbookDir || 'not configured'}`));
+        } else {
+          console.log(chalk.red('    ❌ MCP Agent failed to start'));
+          console.log(chalk.dim(`      Error: ${errorMessage}`));
+        }
+
+        // Re-throw the error to fail the entire startup
+        throw error;
+      }
     }
 
     if (options.mockMode) {
@@ -371,6 +396,36 @@ export class AgentService {
         };
       }
     }
+  }
+
+  /**
+   * Validate handbook configuration before starting services
+   */
+  private async validateHandbookConfiguration(config?: { handbookDir?: string }): Promise<void> {
+    if (!config?.handbookDir) {
+      throw new Error('No handbook directory configured. Please run setup first.');
+    }
+
+    // Check if handbook directory exists
+    if (!fs.existsSync(config.handbookDir)) {
+      throw new Error(
+        `Handbook directory not found: ${config.handbookDir}\n` +
+        'Please ensure the handbook directory exists and contains the required Agent.md file.\n' +
+        'Try running the setup wizard again: onemcp setup'
+      );
+    }
+
+    // Check for required Agent.md file
+    const agentMdPath = `${config.handbookDir}/Agent.md`;
+    if (!fs.existsSync(agentMdPath)) {
+      throw new Error(
+        `Required Agent.md file not found in handbook directory: ${config.handbookDir}\n` +
+        'The handbook must contain an Agent.md file with agent instructions.\n' +
+        'Try running the setup wizard again: onemcp setup'
+      );
+    }
+
+    // Additional validation could be added here for other required files/directories
   }
 
   /**

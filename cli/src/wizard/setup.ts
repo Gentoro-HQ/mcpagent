@@ -49,6 +49,16 @@ export class SetupWizard {
       handbookDir = paths.getHandbookPath('acme-analytics');
     }
 
+    // Validate handbook before saving configuration
+    console.log();
+    console.log(chalk.bold('Validating handbook configuration...'));
+    const isValidHandbook = await this.validateHandbookStructure(handbookDir);
+    if (!isValidHandbook) {
+      console.log(chalk.red('❌  Handbook validation failed. Configuration not saved.'));
+      console.log(chalk.dim('Please ensure the handbook directory exists and contains the required Agent.md file.'));
+      return; // Exit without saving configuration
+    }
+
     // Save global configuration
     const config: GlobalConfig = {
       provider,
@@ -258,10 +268,55 @@ Add your API documentation and guides here.
 
     try {
       await handbookManager.copyExample(acmeHandbookDir);
+
+      // Validate that the handbook was created successfully
+      const isValid = await this.validateHandbookStructure(acmeHandbookDir);
+      if (!isValid) {
+        throw new Error('Handbook structure validation failed - required files are missing');
+      }
+
       console.log(chalk.green(`✅  ACME Analytics handbook copied to ${acmeHandbookDir}`));
     } catch (error) {
-      console.log(chalk.yellow(`⚠️  Could not copy ACME Analytics handbook: ${error instanceof Error ? error.message : String(error)}`));
-      console.log(chalk.dim('The agent will work but may have limited knowledge about the API.'));
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log(chalk.red(`❌  Failed to setup ACME Analytics handbook: ${errorMessage}`));
+      console.log(chalk.dim('The agent cannot start without a valid handbook. Please try again or set up manually.'));
+      throw error; // Re-throw to prevent configuration from being saved
+    }
+  }
+
+  /**
+   * Validate handbook directory structure
+   */
+  private async validateHandbookStructure(handbookDir: string): Promise<boolean> {
+    try {
+      // Check if directory exists
+      if (!(await fs.pathExists(handbookDir))) {
+        console.log(chalk.red(`❌  Handbook directory does not exist: ${handbookDir}`));
+        return false;
+      }
+
+      // Check for required Agent.md file
+      const agentMdPath = `${handbookDir}/Agent.md`;
+      if (!(await fs.pathExists(agentMdPath))) {
+        console.log(chalk.red(`❌  Required Agent.md file not found in handbook directory`));
+        return false;
+      }
+
+      // Check for basic directory structure
+      const requiredDirs = ['apis', 'docs', 'state'];
+      for (const dir of requiredDirs) {
+        const dirPath = `${handbookDir}/${dir}`;
+        if (!(await fs.pathExists(dirPath))) {
+          console.log(chalk.yellow(`⚠️  Recommended directory '${dir}' not found in handbook`));
+          // Don't fail validation for missing recommended dirs, just warn
+        }
+      }
+
+      console.log(chalk.green(`✅  Handbook structure validated successfully`));
+      return true;
+    } catch (error) {
+      console.log(chalk.red(`❌  Error validating handbook structure: ${error instanceof Error ? error.message : String(error)}`));
+      return false;
     }
   }
 

@@ -409,14 +409,39 @@ export class ProcessManager extends EventEmitter {
       return;
     }
 
+    let lastError: string = '';
     for (let i = 0; i < maxAttempts; i++) {
-      if (await this.checkHealth(config)) {
-        return;
+      try {
+        if (await this.checkHealth(config)) {
+          return;
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
       }
       await new Promise((resolve) => setTimeout(resolve, interval));
     }
 
-    throw new Error(`Service ${config.name} failed to become healthy`);
+    // Provide more specific error messages based on service type
+    let errorMessage = `Service ${config.name} failed to become healthy after ${maxAttempts * interval / 1000} seconds`;
+
+    if (config.name === 'app') {
+      errorMessage += '\n\nPossible causes:';
+      errorMessage += '\n  • Handbook directory or Agent.md file missing';
+      errorMessage += '\n  • Java application failed to start due to configuration issues';
+      errorMessage += '\n  • Required dependencies (ts-runtime) not available';
+      errorMessage += '\n\nCheck the app service logs with: onemcp logs app';
+      if (lastError) {
+        errorMessage += `\n\nLast health check error: ${lastError}`;
+      }
+    } else if (config.name === 'ts-runtime') {
+      errorMessage += '\n\nPossible causes:';
+      errorMessage += '\n  • Node.js runtime issues';
+      errorMessage += '\n  • Port 7070 already in use';
+      errorMessage += '\n  • Missing dependencies in TypeScript runtime';
+      errorMessage += '\n\nCheck the ts-runtime service logs with: onemcp logs ts-runtime';
+    }
+
+    throw new Error(errorMessage);
   }
 
   /**
