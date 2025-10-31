@@ -44,13 +44,68 @@ All services are managed as child processes with automatic health checks and log
 curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
 ```
 
-
 This automatically:
 - Checks system requirements (Node.js 20+, Java 21, Maven)
 - Clones the repository to `~/.mcpagent-src`
 - Builds the Java application and TypeScript runtime
-- Installs the CLI to `~/.local/bin/mcpagent`
-- Provides instructions to add to PATH if needed
+- Installs the CLI using the default method (npm global)
+- No PATH modifications needed with the default installation method
+
+### Installation Methods
+
+The installer supports multiple installation methods:
+
+#### 1. npm Global (Recommended - Default)
+
+Installs via npm globally - **no PATH changes needed**:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
+# or explicitly:
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | \
+  MCPAGENT_INSTALL_METHOD=npm-global \
+  bash
+```
+
+#### 2. System-wide Installation
+
+Installs to `/usr/local/bin` (available to all users, requires sudo):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | \
+  MCPAGENT_INSTALL_METHOD=system-wide \
+  bash
+```
+
+#### 3. Local Bin Installation
+
+Installs to `~/.local/bin` (original behavior):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | \
+  MCPAGENT_INSTALL_METHOD=local-bin \
+  bash
+```
+
+**Note:** If `~/.local/bin` is not in your PATH, add it:
+```bash
+# For zsh
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+
+# For bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+```
+
+#### 4. Wrapper Script
+
+Creates a portable wrapper script that you can place anywhere:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | \
+  MCPAGENT_INSTALL_METHOD=wrapper \
+  MCPAGENT_WRAPPER_PATH=/path/to/your/mcpagent \
+  bash
+```
 
 **For testing with a specific branch:**
 ```bash
@@ -62,15 +117,12 @@ curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install
 **Environment variables:**
 - `MCPAGENT_REPO_URL` - Git repository URL (default: https://github.com/Gentoro-HQ/mcpagent.git)
 - `MCPAGENT_REPO_BRANCH` - Branch name (default: main)
-
-**Note:** If `~/.local/bin` is not in your PATH, add it:
-```bash
-# For zsh
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
-
-# For bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
-```
+- `MCPAGENT_INSTALL_METHOD` - Installation method (default: npm-global)
+  - `npm-global`: Install via npm globally (recommended)
+  - `system-wide`: Install to /usr/local/bin
+  - `local-bin`: Install to ~/.local/bin
+  - `wrapper`: Create wrapper script (requires MCPAGENT_WRAPPER_PATH)
+- `MCPAGENT_WRAPPER_PATH` - Path for wrapper script (only used with wrapper method)
 
 **For local development:**
 
@@ -92,21 +144,71 @@ Or if you have the source:
 bash ~/.mcpagent-src/cli/uninstall.sh
 ```
 
+The uninstall script automatically detects your installation method and removes the CLI accordingly.
+
+### Uninstall Methods
+
+The uninstall script supports all installation methods:
+
+#### Automatic Detection (Recommended)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | bash
+```
+
+The script will auto-detect how mcpagent was installed and remove it appropriately.
+
+#### Manual Method Specification
+
+If auto-detection fails, you can specify the uninstall method:
+
+```bash
+# For npm global installation
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | \
+  MCPAGENT_UNINSTALL_METHOD=npm-global \
+  bash
+
+# For system-wide installation
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | \
+  MCPAGENT_UNINSTALL_METHOD=system-wide \
+  bash
+
+# For wrapper script (specify the path)
+curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | \
+  MCPAGENT_UNINSTALL_METHOD=wrapper \
+  MCPAGENT_WRAPPER_PATH=/path/to/mcpagent \
+  bash
+```
+
+**Environment variables:**
+- `MCPAGENT_UNINSTALL_METHOD` - Specify uninstall method (auto-detect if not set)
+  - `npm-global`: Remove from npm global packages
+  - `system-wide`: Remove from /usr/local/bin (may require sudo)
+  - `local-bin`: Remove from ~/.local/bin
+  - `wrapper`: Remove wrapper script (requires MCPAGENT_WRAPPER_PATH)
+- `MCPAGENT_WRAPPER_PATH` - Path to wrapper script (only needed for wrapper method)
+- `MCPAGENT_YES=1` - Auto-confirm all prompts
+- `MCPAGENT_REMOVE_CONFIG=1` - Auto-remove configuration directory
+- `MCPAGENT_REMOVE_HANDBOOKS=1` - Auto-remove handbooks directory
+
 The uninstall script will:
 - Stop all running services
-- Remove the CLI command
+- Remove the CLI command (using appropriate method)
 - Remove source code and binaries (~500MB)
-- Prompt before removing configuration and handbooks
+- Prompt before removing configuration and handbooks (unless auto-confirmed)
 - Clean up temporary files
 
-**Manual uninstallation:**
+**Manual uninstallation (if script fails):**
 
 ```bash
 # Stop services
 mcpagent stop
 
-# Remove CLI
-rm ~/.local/bin/mcpagent
+# Remove based on installation method:
+# npm global: npm uninstall -g @gentoro/mcpagent-cli
+# system-wide: sudo rm /usr/local/bin/mcpagent
+# local-bin: rm ~/.local/bin/mcpagent
+# wrapper: rm /path/to/your/wrapper
 
 # Remove source and data
 rm -rf ~/.mcpagent-src

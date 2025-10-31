@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Installation script for Gentoro MCP Agent CLI
-# 
+#
 # Usage:
 #   # Default (main branch from official repo):
 #   curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
@@ -15,9 +15,18 @@ set -euo pipefail
 #     MCPAGENT_REPO_BRANCH=your-branch-name \
 #     bash
 #
+# Installation methods:
+#   MCPAGENT_INSTALL_METHOD - Installation method: npm-global, system-wide, local-bin, wrapper
+#                           - npm-global: Install via npm globally (recommended, no PATH changes needed)
+#                           - system-wide: Install to /usr/local/bin (requires sudo)
+#                           - local-bin: Install to ~/.local/bin (current behavior)
+#                           - wrapper: Create a wrapper script (specify path with MCPAGENT_WRAPPER_PATH)
+#
 # Environment variables:
-#   MCPAGENT_REPO_URL    - Git repository URL (default: https://github.com/Gentoro-HQ/mcpagent.git)
-#   MCPAGENT_REPO_BRANCH - Git branch name (default: main)
+#   MCPAGENT_REPO_URL       - Git repository URL (default: https://github.com/Gentoro-HQ/mcpagent.git)
+#   MCPAGENT_REPO_BRANCH    - Git branch name (default: main)
+#   MCPAGENT_INSTALL_METHOD - Installation method (default: npm-global)
+#   MCPAGENT_WRAPPER_PATH   - Path for wrapper script (only used with wrapper method)
 
 # Colors
 RED='\033[0;31m'
@@ -30,6 +39,8 @@ NC='\033[0m' # No Color
 INSTALL_DIR="$HOME/.mcpagent-src"
 REPO_URL="${MCPAGENT_REPO_URL:-https://github.com/Gentoro-HQ/mcpagent.git}"
 REPO_BRANCH="${MCPAGENT_REPO_BRANCH:-main}"
+INSTALL_METHOD="${MCPAGENT_INSTALL_METHOD:-npm-global}"
+WRAPPER_PATH="${MCPAGENT_WRAPPER_PATH:-}"
 
 log_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
@@ -50,21 +61,40 @@ log_error() {
 banner() {
     echo -e "${CYAN}"
     cat << "EOF"
-   ____            _                    __  __  ____ ____  
-  / ___| ___ _ __ | |_ ___  _ __ ___   |  \/  |/ ___|  _ \ 
+   ____            _                    __  __  ____ ____
+  / ___| ___ _ __ | |_ ___  _ __ ___   |  \/  |/ ___|  _ \
  | |  _ / __| '_ \| __/ _ \| '__/ _ \  | |\/| | |   | |_) |
- | |_| \__ \ | | | || (_) | | | (_) | | |  | | |___|  __/ 
-  \____|___/_| |_|\__\___/|_|  \___/  |_|  |_|\____|_|    
-                                                            
-   _                    _   
-  / \   __ _  ___ _ __ | |_ 
+ | |_| \__ \ | | | || (_) | | | (_) | | |  | | |___|  __/
+  \____|___/_| |_|\__\___/|_|  \___/  |_|  |_|\____|_|
+
+   _                    _
+  / \   __ _  ___ _ __ | |_
  / _ \ / _` |/ _ \ '_ \| __|
-/ ___ \ (_| |  __/ | | | |_ 
+/ ___ \ (_| |  __/ | | | |_
 \_/   \_\__, |\___|_| |_|\__|
-        |___/                
+        |___/
 EOF
     echo -e "${NC}"
     echo -e "${CYAN}Complete Installation - CLI, Agent, and Runtime${NC}"
+
+    # Show installation method
+    case "$INSTALL_METHOD" in
+        "npm-global")
+            echo -e "${GREEN}Installation Method: npm global (recommended - no PATH changes needed)${NC}"
+            ;;
+        "system-wide")
+            echo -e "${GREEN}Installation Method: System-wide (/usr/local/bin)${NC}"
+            ;;
+        "local-bin")
+            echo -e "${YELLOW}Installation Method: Local bin (~/.local/bin)${NC}"
+            ;;
+        "wrapper")
+            echo -e "${BLUE}Installation Method: Wrapper script${NC}"
+            ;;
+        *)
+            echo -e "${YELLOW}Installation Method: $INSTALL_METHOD${NC}"
+            ;;
+    esac
     echo ""
 }
 
@@ -225,6 +255,79 @@ install_cli() {
         exit 1
     fi
 
+    case "$INSTALL_METHOD" in
+        "npm-global")
+            install_via_npm_global
+            ;;
+        "system-wide")
+            install_system_wide
+            ;;
+        "local-bin")
+            install_local_bin
+            ;;
+        "wrapper")
+            install_wrapper_script
+            ;;
+        *)
+            log_error "Unknown installation method: $INSTALL_METHOD"
+            log_info "Available methods: npm-global, system-wide, local-bin, wrapper"
+            exit 1
+            ;;
+    esac
+}
+
+install_via_npm_global() {
+    log_info "Installing via npm global (recommended)..."
+
+    cd "$INSTALL_DIR/cli"
+
+    # Create a tarball and install it globally
+    npm pack
+    PACKAGE_FILE=$(ls -t *.tgz | head -1)
+
+    if [ -z "$PACKAGE_FILE" ]; then
+        log_error "Failed to create package tarball"
+        log_info "Falling back to local installation..."
+        install_local_bin
+        return
+    fi
+
+    npm install -g "$PACKAGE_FILE"
+
+    # Clean up the tarball
+    rm -f "$PACKAGE_FILE"
+
+    # Verify installation
+    if command -v mcpagent &> /dev/null; then
+        MCPAGENT_PATH=$(which mcpagent)
+        log_success "CLI installed globally via npm: $MCPAGENT_PATH"
+        log_success "No PATH modifications needed!"
+    else
+        log_error "npm global installation failed"
+        log_info "Falling back to local installation..."
+        install_local_bin
+    fi
+}
+
+install_system_wide() {
+    log_info "Installing system-wide to /usr/local/bin (requires sudo)..."
+
+    if [ "$EUID" -eq 0 ]; then
+        log_error "Please run as regular user, sudo will be requested when needed"
+        exit 1
+    fi
+
+    sudo mkdir -p "/usr/local/bin"
+    sudo cp "$INSTALL_DIR/cli/dist/index.js" "/usr/local/bin/mcpagent"
+    sudo chmod +x "/usr/local/bin/mcpagent"
+
+    log_success "CLI installed to /usr/local/bin/mcpagent"
+    log_success "Available system-wide, no PATH changes needed"
+}
+
+install_local_bin() {
+    log_info "Installing to ~/.local/bin..."
+
     # Install symlink
     mkdir -p "$HOME/.local/bin"
     rm -f "$HOME/.local/bin/mcpagent"
@@ -239,7 +342,41 @@ install_cli() {
         log_warning "$HOME/.local/bin is not in your PATH"
         echo "Add it with: export PATH=\"\$HOME/.local/bin:\$PATH\""
         echo ""
+        echo "Or use the full path: $HOME/.local/bin/mcpagent"
     fi
+}
+
+install_wrapper_script() {
+    log_info "Creating wrapper script..."
+
+    if [ -z "$WRAPPER_PATH" ]; then
+        log_error "MCPAGENT_WRAPPER_PATH must be specified for wrapper installation method"
+        log_info "Example: MCPAGENT_WRAPPER_PATH=/usr/local/bin/mcpagent ./install.sh"
+        exit 1
+    fi
+
+    # Create wrapper script
+    cat > "$WRAPPER_PATH" << 'EOF'
+#!/bin/bash
+# MCP Agent CLI Wrapper
+# This script calls the actual MCP Agent binary
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MCPAGENT_DIR="$HOME/.mcpagent-src/cli"
+
+if [ ! -f "$MCPAGENT_DIR/dist/index.js" ]; then
+    echo "Error: MCP Agent not found at $MCPAGENT_DIR"
+    echo "Please reinstall using the installation script"
+    exit 1
+fi
+
+exec node "$MCPAGENT_DIR/dist/index.js" "$@"
+EOF
+
+    chmod +x "$WRAPPER_PATH"
+
+    log_success "Wrapper script created at $WRAPPER_PATH"
+    log_success "You can move this script anywhere or create additional copies"
 }
 
 check_otel_collector() {
@@ -260,28 +397,67 @@ post_install() {
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     log_info "Installation location: $INSTALL_DIR"
+    log_info "Installation method: $INSTALL_METHOD"
     echo ""
-    
-    # Check if mcpagent is in PATH
+
+    # Check if mcpagent is in PATH and provide appropriate guidance
     if command -v mcpagent &> /dev/null; then
         MCPAGENT_PATH=$(which mcpagent)
         log_success "CLI command available: $MCPAGENT_PATH"
+
+        case "$INSTALL_METHOD" in
+            "npm-global")
+                log_success "npm global installation successful - no PATH changes needed!"
+                ;;
+            "system-wide")
+                log_success "System-wide installation successful - available to all users!"
+                ;;
+            "local-bin")
+                if [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
+                    log_success "~/.local/bin is in your PATH"
+                else
+                    log_info "~/.local/bin was added to PATH during installation"
+                fi
+                ;;
+            "wrapper")
+                log_success "Wrapper script created and functional"
+                ;;
+        esac
     else
-        log_warning "mcpagent command not found in current PATH"
-        echo ""
-        echo "To use the CLI, add ~/.local/bin to your PATH:"
-        echo ""
-        if [ -f "$HOME/.zshrc" ]; then
-            echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc"
-            echo "  source ~/.zshrc"
-        elif [ -f "$HOME/.bashrc" ]; then
-            echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc"
-            echo "  source ~/.bashrc"
-        fi
-        echo ""
-        echo "Or use the full path: $HOME/.local/bin/mcpagent"
+        case "$INSTALL_METHOD" in
+            "local-bin")
+                log_warning "mcpagent command not found in current PATH"
+                echo ""
+                echo "To use the CLI, add ~/.local/bin to your PATH:"
+                echo ""
+                if [ -f "$HOME/.zshrc" ]; then
+                    echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc"
+                    echo "  source ~/.zshrc"
+                elif [ -f "$HOME/.bashrc" ]; then
+                    echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc"
+                    echo "  source ~/.bashrc"
+                fi
+                echo ""
+                echo "Or use the full path: $HOME/.local/bin/mcpagent"
+                ;;
+            *)
+                log_error "Installation method '$INSTALL_METHOD' did not make mcpagent available in PATH"
+                log_info "Please check the installation and try again"
+                ;;
+        esac
     fi
-    
+
+    echo ""
+    log_info "Installation methods available:"
+    echo ""
+    echo -e "${CYAN}• npm-global${NC} (recommended): No PATH changes needed"
+    echo -e "${CYAN}• system-wide${NC}: Available to all users (requires sudo)"
+    echo -e "${CYAN}• local-bin${NC}: Install to ~/.local/bin (may need PATH setup)"
+    echo -e "${CYAN}• wrapper${NC}: Create portable wrapper script"
+    echo ""
+    echo "To use a different method: MCPAGENT_INSTALL_METHOD=<method> ./install.sh"
+    echo ""
+
     echo ""
     log_info "Next steps:"
     echo ""
