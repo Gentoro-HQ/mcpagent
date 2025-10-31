@@ -3,6 +3,7 @@
  */
 import inquirer from 'inquirer';
 import chalk from 'chalk';
+import ora from 'ora';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { configManager } from '../config/manager.js';
@@ -105,10 +106,16 @@ export class ChatMode {
       });
 
       // Send to MCP Agent and get response
+      const spinner = ora({
+        text: 'Thinking...',
+        spinner: 'dots',
+        color: 'cyan'
+      }).start();
+
       try {
-        console.log(chalk.dim('\n⏳ Thinking...\n'));
         const timeout = config.chatTimeout || 240000; // Use configured timeout or default to 4 minutes
         const response = await this.sendMessage(config.provider, userMessage, timeout);
+        spinner.succeed('Response received');
         
         // Add assistant response to history
         this.messages.push({
@@ -121,7 +128,7 @@ export class ChatMode {
         console.log(response);
         console.log();
       } catch (error: any) {
-        console.log(chalk.red('\n❌ Error:'), error.message);
+        spinner.fail(`Error: ${error.message}`);
         console.log();
       }
     }
