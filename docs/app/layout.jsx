@@ -12,13 +12,13 @@ export const metadata = {
 
 const banner = (
 	<Banner storageKey="gentoro-mcp-agent-banner">
-		🚀 Gentoro MCP Agent is now open source!
+		🚀 Gentoro OneMCP is open source!
 	</Banner>
 );
 const navbar = (
 	<Navbar
-		logo={<b>MCP Agent</b>}
-		projectLink="https://github.com/gentoro-GT/mcpagent"
+		logo={<b>OneMCP</b>}
+		projectLink="https://github.com/Gentoro-HQ/mcpagent"
 	// ... Your additional navbar options
 	/>
 );
