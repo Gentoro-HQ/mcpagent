@@ -4,6 +4,8 @@
     <encoder>
       <pattern>%d{ISO8601} %-5level [%thread] %logger - %msg trace_id=%X{trace_id} span_id=%X{span_id} session_id=%X{sessionId}%n</pattern>
     </encoder>
+    <!-- Flush immediately to ensure logs appear in real-time -->
+    <immediateFlush>true</immediateFlush>
   </appender>
 
   <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">

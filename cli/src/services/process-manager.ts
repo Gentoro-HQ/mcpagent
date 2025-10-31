@@ -80,9 +80,12 @@ export class ProcessManager extends EventEmitter {
     // Unref so parent process can exit
     proc.unref();
 
-    // Setup logging
+    // Setup logging with unbuffered writes
     const logPath = paths.getLogPath(name);
-    const logStream = fs.createWriteStream(logPath, { flags: 'a' });
+    const logStream = fs.createWriteStream(logPath, {
+      flags: 'a',
+      highWaterMark: 0 // Disable buffering
+    });
 
     proc.stdout?.pipe(logStream);
     proc.stderr?.pipe(logStream);

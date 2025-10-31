@@ -155,6 +155,7 @@ public class McpServerConfig {
             .build(),
         null,
         (exchange, request) -> {
+          LOG.info("Received MCP tool call: {}", request.name());
           try {
             final Map<String, Object> args = request.arguments();
             if (args == null) {
@@ -172,8 +173,10 @@ public class McpServerConfig {
             final Object optionsObj = args.get("options");
             final Map<String, Object> options = asObjectMap(optionsObj); // may be null
 
+            LOG.info("Calling orchestrator with prompt: {}", prompt);
             InferenceResponse resp = orchestrator.run(List.of(new InferenceRequest.Message("user", prompt)), options == null ? Map.of() : options);
             Assert.notNull(resp, "Orchestrator response must not be null");
+            LOG.info("Orchestrator returned response with traceId: {}", resp.providerTraceId());
 
             return Mono.just(
                 new McpSchema.CallToolResult(
