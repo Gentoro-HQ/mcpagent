@@ -5,7 +5,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir } from 'os';
 import chalk from 'chalk';
-import { processManager } from './process-manager.js';
+import { processManager, ProcessConfig } from './process-manager.js';
 import { configManager } from '../config/manager.js';
 import { paths } from '../config/paths.js';
 import { AgentStatus } from '../types.js';
@@ -182,6 +182,9 @@ export class AgentService {
 
     const disabledServices = options.disableServices || [];
 
+    // Clean up any stale processes that might be using our ports
+    await this.cleanupStaleProcesses();
+
     // Start services in order
     if (!disabledServices.includes('otel')) {
       console.log(chalk.dim('  • Starting OpenTelemetry Collector for observability...'));
@@ -272,6 +275,55 @@ export class AgentService {
    */
   async getLogs(serviceName: string, lines = 50): Promise<string> {
     return processManager.getLogs(serviceName, lines);
+  }
+
+  /**
+   * Clean up any stale processes that might be using our ports
+   */
+  private async cleanupStaleProcesses(): Promise<void> {
+    const { execa } = await import('execa');
+
+    // Get the expected ports from registered configs
+    const portsToCheck: Array<{ name: string; port: number }> = [];
+    const configs = (processManager as any)['configs'] as Map<string, ProcessConfig>;
+    for (const [name, config] of configs.entries()) {
+      if (config.port && !['otel'].includes(name)) { // Skip otel as it's optional
+        portsToCheck.push({ name, port: config.port });
+      }
+    }
+
+    // Check each port and kill any processes using them
+    for (const { name, port } of portsToCheck) {
+      try {
+        const { stdout } = await execa('lsof', ['-i', `:${port}`, '-t'], {
+          reject: false,
+          timeout: 1000,
+        });
+
+        if (stdout.trim()) {
+          const pids = stdout.trim().split('\n').map(p => parseInt(p, 10)).filter(p => !isNaN(p));
+          for (const pid of pids) {
+            try {
+              // Check if this is our own service
+              if (await processManager.isRunning(name)) {
+                continue; // Don't kill our own running service
+              }
+
+              // Kill the stale process
+              console.log(chalk.dim(`    • Cleaning up stale process on port ${port} (PID: ${pid})`));
+              process.kill(pid, 'SIGTERM');
+
+              // Wait a bit for it to die
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } catch (error) {
+              // Process might have already died or we don't have permission
+            }
+          }
+        }
+      } catch (error) {
+        // lsof failed, continue
+      }
+    }
   }
 
   /**
