@@ -45,6 +45,8 @@ export class SetupWizard {
     } else if (mode === 'mock') {
       // Copy ACME Analytics example handbook for mock mode
       await this.setupMockHandbook();
+      // Set handbook directory to the copied ACME Analytics handbook
+      handbookDir = paths.getHandbookPath('acme-analytics');
     }
 
     // Save global configuration
@@ -54,6 +56,7 @@ export class SetupWizard {
       defaultPort: 8080,
       handbookDir,
       logDir: paths.logDir,
+      chatTimeout: 120000, // 2 minutes default timeout for chat requests
     };
 
     await configManager.saveGlobalConfig(config);
