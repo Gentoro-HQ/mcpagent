@@ -298,7 +298,7 @@ post_install() {
     echo "   $ mcpagent --help"
     echo ""
     log_info "Documentation: https://github.com/Gentoro-HQ/mcpagent"
-    log_info "File and issue: https://github.com/Gentoro-HQ/mcpagent/issues"
+    log_info "File an issue: https://github.com/Gentoro-HQ/mcpagent/issues"
     echo ""
 }
 
