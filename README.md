@@ -2,15 +2,6 @@
 
 A production-ready MCP (Model Context Protocol) server that connects AI models to your applications and data sources. Built with Spring Boot and Java 21, it provides a unified HTTP endpoint for OpenAI, Google Gemini, and Anthropic models with built-in knowledge base management and tool integration.
 
-## Prerequisites
-
-- **Docker** (for recommended setup) or **Java 21** and **Maven** (for local development)
-- **Node.js** and **npm** (for MCP Inspector)
-- **API Keys** for at least one of the supported providers:
-  - OpenAI API key
-  - Google Gemini API key  
-  - Anthropic API key
-
 ## Foundation
 
 The MCP Agent uses a **foundation folder** containing your agent's knowledge base:
@@ -19,7 +10,9 @@ The MCP Agent uses a **foundation folder** containing your agent's knowledge bas
 - `apis/` - OpenAPI specifications
 - `state/` - Knowledge base state (auto-generated)
 
-The Docker image includes default ACME Analytics Server content, if you simply run with [Using Docker](#using-docker), it will mount the sample ACME porject to play around with.
+The Docker image includes default ACME Analytics Server content, if you simply run with [Using Docker](#using-docker), it will mount the sample ACME project to play around with.
+
+For the CLI tool, when you select "Start with mock Acme Analytics" during setup, it automatically copies the complete ACME Analytics handbook with pre-populated knowledge base.
 
 You can provide your own foundation folder (see [Using Docker with Custom Foundation Folder](#using-docker-with-custom-foundation-folder) below).
 
@@ -27,13 +20,38 @@ You can provide your own foundation folder (see [Using Docker with Custom Founda
 
 ### CLI Tool
 
+**Prerequisites:**
+- **Node.js** >= 20
+- **Java** >= 21
+- **Maven** (for building the agent)
+- **Git** (for cloning the repository)
+- **API Keys** for at least one of the supported providers:
+  - OpenAI API key
+  - Google Gemini API key
+  - Anthropic API key
+
+**Installation:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
 ```
 
+The installer automatically:
+- Checks system requirements and installs missing dependencies
+- Clones the MCP Agent repository to `~/.mcpagent-src`
+- Builds the Java application, TypeScript runtime, and mock server
+- Installs the CLI to `~/.local/bin/mcpagent`
+- Provides setup instructions for first use
+
 For detailed CLI documentation, all commands, and advanced features, see the [CLI README](cli/README.md).
 
 ### Using Docker
+
+**Prerequisites:**
+- **Docker**
+- **API Keys** for at least one of the supported providers:
+  - OpenAI API key
+  - Google Gemini API key
+  - Anthropic API key
 
 ```bash
 # Pull latest image

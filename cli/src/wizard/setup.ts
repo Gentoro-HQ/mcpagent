@@ -42,6 +42,9 @@ export class SetupWizard {
 
       // Step 4: Service authentication
       serviceConfig = await this.configureService();
+    } else if (mode === 'mock') {
+      // Copy ACME Analytics example handbook for mock mode
+      await this.setupMockHandbook();
     }
 
     // Save global configuration
@@ -236,9 +239,39 @@ Add your API documentation and guides here.
   }
 
   /**
+   * Setup ACME Analytics handbook for mock mode
+   */
+  private async setupMockHandbook(): Promise<void> {
+    console.log();
+    console.log(chalk.bold('Setting up ACME Analytics handbook...'));
+    console.log();
+
+    // Ensure handbooks directory exists
+    await paths.ensureDirectories();
+
+    // Copy the ACME Analytics example handbook
+    const handbookManager = (await import('../handbook/manager.js')).handbookManager;
+    const acmeHandbookDir = paths.getHandbookPath('acme-analytics');
+
+    try {
+      await handbookManager.copyExample(acmeHandbookDir);
+      console.log(chalk.green(`✅  ACME Analytics handbook copied to ${acmeHandbookDir}`));
+    } catch (error) {
+      console.log(chalk.yellow(`⚠️  Could not copy ACME Analytics handbook: ${error instanceof Error ? error.message : String(error)}`));
+      console.log(chalk.dim('The agent will work but may have limited knowledge about the API.'));
+    }
+  }
+
+  /**
    * Configure service authentication
    */
-  private async configureService(): Promise<any> {
+  private async configureService(): Promise<{
+    service: string;
+    baseUrl: string;
+    header: string;
+    pattern: string;
+    token: string;
+  }> {
     console.log();
     console.log(chalk.bold('Step 4 — Configure service authentication'));
     console.log();

@@ -124,7 +124,7 @@ mcpagent
 
 ```
 ╭──────────────────────────────────────╮
-│   Gentoro MCP Agent Setup           │
+│      Gentoro MCP Agent Setup         │
 ╰──────────────────────────────────────╯
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -148,7 +148,7 @@ Select [1-2]: 1
 
 ## Mock Mode (Default)
 
-Mock mode starts immediately with no authentication or configuration required.
+Mock mode uses the built-in Acme Analytics service with a complete handbook pre-configured.
 
 ```bash
 mcpagent start --mock
@@ -161,11 +161,21 @@ Mock Service: Acme Analytics Server
 
 ### Acme Analytics
 
+When you select "Start with mock Acme Analytics" during setup, the CLI automatically:
+- Copies the ACME Analytics handbook to `~/handbooks/acme-analytics/`
+- Populates the knowledge base with comprehensive API documentation
+- Configures the agent to use the mock service
+
 Acme Analytics provides four data entities:
 - **Sales** — transactions and totals
 - **Products** — categories and pricing
 - **Customers** — segments and lifetime value
 - **Regions** — geographic performance
+
+The knowledge base includes:
+- API documentation and data model
+- Query examples and best practices
+- OpenAPI specification for the analytics API
 
 **Example queries** (shown automatically when you start chat with mock server):
 ```
@@ -204,11 +214,12 @@ Each MCP Agent runs from a handbook directory, which defines everything the agen
 
 ```
 handbook/
-├── Agent.md          # Instructions and behavior
-├── apis/             # OpenAPI specifications
-├── docs/             # Supplementary markdown docs
-├── regression/       # Optional test definitions
-└── state/            # Auto-generated runtime data
+├── Agent.md                    # Instructions and behavior
+├── apis/                       # OpenAPI specifications
+├── docs/                       # Supplementary markdown docs
+├── regression/                 # Optional test definitions
+└── state/                      # Auto-generated runtime data
+    └── knowledge-base-state.json  # Indexed knowledge base with docs and APIs
 ```
 
 ### Creating a Handbook

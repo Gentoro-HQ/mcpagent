@@ -3,6 +3,8 @@
  */
 import fs from 'fs-extra';
 import chalk from 'chalk';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { paths } from '../config/paths.js';
 
 export class HandbookManager {
@@ -239,8 +241,9 @@ See the \`docs/\` directory for additional documentation.
    */
   async copyExample(targetDir: string): Promise<void> {
     // Copy the ACME Analytics example
-    const exampleSource = '../src/acme-analytics-server/mcpagent-handbook';
-    const resolvedSource = require('path').resolve(__dirname, '../../..', exampleSource);
+    const exampleSource = 'src/acme-analytics-server/mcpagent-handbook';
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const resolvedSource = resolve(__dirname, '../../..', exampleSource);
 
     if (!(await fs.pathExists(resolvedSource))) {
       throw new Error('Example handbook not found');
