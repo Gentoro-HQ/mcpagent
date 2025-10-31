@@ -16,7 +16,7 @@ set -euo pipefail
 #     bash
 #
 # Installation methods:
-#   MCPAGENT_INSTALL_METHOD - Installation method: npm-global, system-wide, local-bin, wrapper
+#   ONEMCP_INSTALL_METHOD - Installation method: npm-global, system-wide, local-bin, wrapper
 #                           - npm-global: Install via npm globally (recommended, no PATH changes needed)
 #                           - system-wide: Install to /usr/local/bin (requires sudo)
 #                           - local-bin: Install to ~/.local/bin (current behavior)
@@ -25,7 +25,7 @@ set -euo pipefail
 # Environment variables:
 #   MCPAGENT_REPO_URL       - Git repository URL (default: https://github.com/Gentoro-HQ/mcpagent.git)
 #   MCPAGENT_REPO_BRANCH    - Git branch name (default: main)
-#   MCPAGENT_INSTALL_METHOD - Installation method (default: npm-global)
+#   ONEMCP_INSTALL_METHOD - Installation method (default: npm-global)
 #   MCPAGENT_WRAPPER_PATH   - Path for wrapper script (only used with wrapper method)
 
 # Colors
@@ -34,12 +34,13 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;34m'
 CYAN='\033[0;36m'
+DIM='\033[2m' # Dim
 NC='\033[0m' # No Color
 
-INSTALL_DIR="$HOME/.mcpagent-src"
+INSTALL_DIR="$HOME/.onemcp-src"
 REPO_URL="${MCPAGENT_REPO_URL:-https://github.com/Gentoro-HQ/mcpagent.git}"
 REPO_BRANCH="${MCPAGENT_REPO_BRANCH:-main}"
-INSTALL_METHOD="${MCPAGENT_INSTALL_METHOD:-npm-global}"
+INSTALL_METHOD="${ONEMCP_INSTALL_METHOD:-npm-global}"
 WRAPPER_PATH="${MCPAGENT_WRAPPER_PATH:-}"
 
 log_info() {
@@ -61,18 +62,17 @@ log_error() {
 banner() {
     echo -e "${CYAN}"
     cat << "EOF"
-   ____            _                    __  __  ____ ____
-  / ___| ___ _ __ | |_ ___  _ __ ___   |  \/  |/ ___|  _ \
- | |  _ / __| '_ \| __/ _ \| '__/ _ \  | |\/| | |   | |_) |
- | |_| \__ \ | | | || (_) | | | (_) | | |  | | |___|  __/
-  \____|___/_| |_|\__\___/|_|  \___/  |_|  |_|\____|_|
-
-   _                    _
-  / \   __ _  ___ _ __ | |_
- / _ \ / _` |/ _ \ '_ \| __|
-/ ___ \ (_| |  __/ | | | |_
-\_/   \_\__, |\___|_| |_|\__|
-        |___/
+   ____            _                  
+  / ___| ___ _ __ | |_ ___  _ __ ___  
+ | |  _ / __| '_ \| __/ _ \| '__/ _ \  
+ | |_| \__ \ | | | || (_) | | | (_) | 
+  \____|___/_| |_|\__\___/|_|  \___/  
+   ___             __  __  ____ ____
+  / _ \ _ __   ___|  \/  |/ ___|  _ \
+ | | | | '_ \ / _ \ |\/| | |   | |_) |
+ | |_| | | | |  __/ |  | | |___|  __/
+  \___/|_| |_|\___|_|  |_|\____|_|
+  
 EOF
     echo -e "${NC}"
     echo -e "${CYAN}Complete Installation - CLI, Agent, and Runtime${NC}"
@@ -241,7 +241,7 @@ build_mock_server() {
 }
 
 install_cli() {
-    log_info "Installing MCP Agent CLI..."
+    log_info "Installing One MCP CLI..."
 
     cd "$INSTALL_DIR/cli"
     # Clean build artifacts for fresh compilation
@@ -298,8 +298,8 @@ install_via_npm_global() {
     rm -f "$PACKAGE_FILE"
 
     # Verify installation
-    if command -v mcpagent &> /dev/null; then
-        MCPAGENT_PATH=$(which mcpagent)
+    if command -v onemcp &> /dev/null; then
+        MCPAGENT_PATH=$(which onemcp)
         log_success "CLI installed globally via npm: $MCPAGENT_PATH"
         log_success "No PATH modifications needed!"
     else
@@ -318,10 +318,10 @@ install_system_wide() {
     fi
 
     sudo mkdir -p "/usr/local/bin"
-    sudo cp "$INSTALL_DIR/cli/dist/index.js" "/usr/local/bin/mcpagent"
-    sudo chmod +x "/usr/local/bin/mcpagent"
+    sudo cp "$INSTALL_DIR/cli/dist/index.js" "/usr/local/bin/onemcp"
+    sudo chmod +x "/usr/local/bin/onemcp"
 
-    log_success "CLI installed to /usr/local/bin/mcpagent"
+    log_success "CLI installed to /usr/local/bin/onemcp"
     log_success "Available system-wide, no PATH changes needed"
 }
 
@@ -330,11 +330,11 @@ install_local_bin() {
 
     # Install symlink
     mkdir -p "$HOME/.local/bin"
-    rm -f "$HOME/.local/bin/mcpagent"
-    ln -sf "$INSTALL_DIR/cli/dist/index.js" "$HOME/.local/bin/mcpagent"
-    chmod +x "$HOME/.local/bin/mcpagent"
+    rm -f "$HOME/.local/bin/onemcp"
+    ln -sf "$INSTALL_DIR/cli/dist/index.js" "$HOME/.local/bin/onemcp"
+    chmod +x "$HOME/.local/bin/onemcp"
 
-    log_success "CLI installed to $HOME/.local/bin/mcpagent"
+    log_success "CLI installed to $HOME/.local/bin/onemcp"
 
     # Check PATH configuration
     if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
@@ -342,7 +342,7 @@ install_local_bin() {
         log_warning "$HOME/.local/bin is not in your PATH"
         echo "Add it with: export PATH=\"\$HOME/.local/bin:\$PATH\""
         echo ""
-        echo "Or use the full path: $HOME/.local/bin/mcpagent"
+        echo "Or use the full path: $HOME/.local/bin/onemcp"
     fi
 }
 
@@ -358,14 +358,14 @@ install_wrapper_script() {
     # Create wrapper script
     cat > "$WRAPPER_PATH" << 'EOF'
 #!/bin/bash
-# MCP Agent CLI Wrapper
-# This script calls the actual MCP Agent binary
+# One MCP CLI Wrapper
+# This script calls the actual One MCP binary
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MCPAGENT_DIR="$HOME/.mcpagent-src/cli"
+MCPAGENT_DIR="$HOME/.onemcp-src/cli"
 
 if [ ! -f "$MCPAGENT_DIR/dist/index.js" ]; then
-    echo "Error: MCP Agent not found at $MCPAGENT_DIR"
+    echo "Error: One MCP not found at $MCPAGENT_DIR"
     echo "Please reinstall using the installation script"
     exit 1
 fi
@@ -400,17 +400,19 @@ post_install() {
     log_info "Installation method: $INSTALL_METHOD"
     echo ""
 
-    # Check if mcpagent is in PATH and provide appropriate guidance
-    if command -v mcpagent &> /dev/null; then
-        MCPAGENT_PATH=$(which mcpagent)
+    # Check if onemcp is in PATH and provide appropriate guidance
+    if command -v onemcp &> /dev/null; then
+        MCPAGENT_PATH=$(which onemcp)
         log_success "CLI command available: $MCPAGENT_PATH"
 
         case "$INSTALL_METHOD" in
             "npm-global")
                 log_success "npm global installation successful - no PATH changes needed!"
+                echo ""
                 ;;
             "system-wide")
                 log_success "System-wide installation successful - available to all users!"
+                echo ""
                 ;;
             "local-bin")
                 if [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
@@ -418,15 +420,17 @@ post_install() {
                 else
                     log_info "~/.local/bin was added to PATH during installation"
                 fi
+                echo ""
                 ;;
             "wrapper")
                 log_success "Wrapper script created and functional"
+                echo ""
                 ;;
         esac
     else
         case "$INSTALL_METHOD" in
             "local-bin")
-                log_warning "mcpagent command not found in current PATH"
+                log_warning "onemcp command not found in current PATH"
                 echo ""
                 echo "To use the CLI, add ~/.local/bin to your PATH:"
                 echo ""
@@ -438,40 +442,24 @@ post_install() {
                     echo "  source ~/.bashrc"
                 fi
                 echo ""
-                echo "Or use the full path: $HOME/.local/bin/mcpagent"
+                echo "Or use the full path: $HOME/.local/bin/onemcp"
                 ;;
             *)
-                log_error "Installation method '$INSTALL_METHOD' did not make mcpagent available in PATH"
+                log_error "Installation method '$INSTALL_METHOD' did not make onemcp available in PATH"
                 log_info "Please check the installation and try again"
                 ;;
         esac
     fi
 
-    echo ""
-    log_info "Installation methods available:"
-    echo ""
-    echo -e "${CYAN}• npm-global${NC} (recommended): No PATH changes needed"
-    echo -e "${CYAN}• system-wide${NC}: Available to all users (requires sudo)"
-    echo -e "${CYAN}• local-bin${NC}: Install to ~/.local/bin (may need PATH setup)"
-    echo -e "${CYAN}• wrapper${NC}: Create portable wrapper script"
-    echo ""
-    echo "To use a different method: MCPAGENT_INSTALL_METHOD=<method> ./install.sh"
-    echo ""
-
-    echo ""
     log_info "Next steps:"
     echo ""
-    echo -e "${CYAN}1. Run the setup wizard:${NC}"
-    echo "   $ mcpagent"
+    echo -e "${CYAN}Start chatting:${NC}"
+    echo "   $ onemcp chat"
     echo ""
-    echo -e "${CYAN}2. Or check system requirements:${NC}"
-    echo "   $ mcpagent doctor"
-    echo ""
-    echo -e "${CYAN}3. Start with mock mode:${NC}"
-    echo "   $ mcpagent chat"
+    echo -e "${DIM}This will automatically run the setup wizard if needed.${NC}"
     echo ""
     echo -e "${CYAN}4. View available commands:${NC}"
-    echo "   $ mcpagent --help"
+    echo "   $ onemcp --help"
     echo ""
     log_info "Documentation: https://github.com/Gentoro-HQ/mcpagent"
     log_info "File an issue: https://github.com/Gentoro-HQ/mcpagent/issues"

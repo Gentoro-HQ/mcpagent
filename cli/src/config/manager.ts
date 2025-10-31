@@ -137,7 +137,7 @@ export class ConfigManager {
       defaultPort: 8080,
       handbookDir: paths.handbooksDir,
       logDir: paths.logDir,
-      chatTimeout: 120000, // 2 minutes default timeout for chat requests
+      chatTimeout: 240000, // 4 minutes default timeout for chat requests
     };
   }
 

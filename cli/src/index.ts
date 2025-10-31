@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * MCP Agent CLI - Main entry point
+ * One MCP CLI - Main entry point
  */
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -10,6 +10,7 @@ import logSymbols from 'log-symbols';
 import { setupWizard, SetupWizard } from './wizard/setup.js';
 import { configManager } from './config/manager.js';
 import { agentService } from './services/agent-service.js';
+import { processManager } from './services/process-manager.js';
 import { chatMode } from './chat/chat-mode.js';
 import { handbookManager } from './handbook/manager.js';
 import { paths } from './config/paths.js';
@@ -19,8 +20,8 @@ import fs from 'fs-extra';
 const program = new Command();
 
 program
-  .name('mcpagent')
-  .description('CLI for Gentoro MCP Agent - Connect APIs to AI models')
+  .name('onemcp')
+  .description('CLI for Gentoro One MCP - Connect APIs to AI models')
   .version('0.1.0');
 
 /**
@@ -45,15 +46,15 @@ program
  */
 program
   .command('stop')
-  .description('Stop the MCP Agent')
+  .description('Stop the One MCP')
   .action(async () => {
-    const spinner = ora('Stopping MCP Agent...').start();
+    const spinner = ora('Stopping One MCP...').start();
 
     try {
       await agentService.stop();
-      spinner.succeed('MCP Agent stopped successfully');
+      spinner.succeed('One MCP stopped successfully');
     } catch (error: any) {
-      spinner.fail('Failed to stop MCP Agent');
+      spinner.fail('Failed to stop One MCP');
       console.error(chalk.red(error.message));
       process.exit(1);
     }
@@ -64,7 +65,7 @@ program
  */
 program
   .command('status')
-  .description('Show MCP Agent status')
+  .description('Show One MCP status')
   .action(async () => {
     await showStatus();
   });
@@ -87,7 +88,7 @@ program
       // Check if agent is running
       const agentStatus = await agentService.getStatus();
       if (!agentStatus.running) {
-        console.log(chalk.dim('Starting MCP Agent services...'));
+        console.log(chalk.dim('Starting One MCP services...'));
         console.log();
 
         // Ensure OTEL config
@@ -111,8 +112,25 @@ program
         } catch (error: any) {
           console.error(chalk.red('❌ Failed to start services:'), error.message);
           console.log();
-          console.log(chalk.yellow('Try running "mcpagent doctor" to check your environment'));
+          console.log(chalk.yellow('Try running "onemcp doctor" to check your environment'));
           process.exit(1);
+        }
+      } else {
+        // Agent is running, but check if we need to start mock server
+        const config = await configManager.getGlobalConfig();
+        const shouldHaveMock = !config?.handbookDir || config.handbookDir.includes('acme-analytics');
+        const mockService = agentStatus.services.find(s => s.name === 'mock');
+
+        if (shouldHaveMock && mockService && !mockService.running) {
+          console.log(chalk.dim('Starting mock server for testing...'));
+          try {
+            await processManager.start('mock');
+            console.log(chalk.dim('✅ Mock server started successfully'));
+            console.log();
+          } catch (error: any) {
+            console.log(chalk.dim('⚠ Mock server not available (optional) - continuing without'));
+            console.log();
+          }
         }
       }
 
@@ -293,8 +311,8 @@ handbookCmd
       console.log(chalk.cyan(`  1. Add OpenAPI specs to ${dir}/apis/`));
       console.log(chalk.cyan(`  2. Add documentation to ${dir}/docs/`));
       console.log(chalk.cyan(`  3. Update ${dir}/Agent.md`));
-      console.log(chalk.cyan(`  4. Set as default: mcpagent config set handbookDir ${dir}`));
-      console.log(chalk.cyan(`  5. Start chatting: mcpagent chat`));
+      console.log(chalk.cyan(`  4. Set as default: onemcp config set handbookDir ${dir}`));
+      console.log(chalk.cyan(`  5. Start chatting: onemcp chat`));
     } catch (error: any) {
       console.error(chalk.red('Error:'), error.message);
       process.exit(1);
@@ -354,7 +372,7 @@ handbookCmd
 
       if (handbooks.length === 0) {
         console.log(chalk.yellow('No handbooks found'));
-        console.log(chalk.dim('Create one with: mcpagent handbook init <name>'));
+        console.log(chalk.dim('Create one with: onemcp handbook init <name>'));
         return;
       }
 
@@ -449,16 +467,16 @@ providerCmd
  */
 program
   .command('update')
-  .description('Update MCP Agent to the latest version')
+  .description('Update One MCP to the latest version')
   .action(async () => {
     const spinner = ora('Checking for updates...').start();
 
     try {
       // Check if we have a local installation
       if (!paths.configRoot || !fs.existsSync(paths.configRoot)) {
-        spinner.fail('No MCP Agent installation found');
-        console.log(chalk.yellow('Please install MCP Agent first:'));
-        console.log(chalk.cyan('curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash'));
+        spinner.fail('No One MCP installation found');
+        console.log(chalk.yellow('Please install One MCP first:'));
+        console.log(chalk.cyan('curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/onemcp/main/cli/install.sh | bash'));
         return;
       }
 
@@ -484,7 +502,7 @@ program
         spinner.succeed('Already up to date!');
         console.log(chalk.dim(`Current version: ${currentCommit?.substring(0, 8) || 'unknown'}`));
       } else {
-        spinner.succeed('MCP Agent updated successfully!');
+        spinner.succeed('One MCP updated successfully!');
         console.log(chalk.dim(`Updated: ${currentCommit?.substring(0, 8) || 'unknown'} → ${newCommit?.substring(0, 8) || 'unknown'}`));
       }
 
@@ -508,7 +526,7 @@ program
   .command('doctor')
   .description('Check system requirements and configuration')
   .action(async () => {
-    console.log(chalk.bold.cyan('🔍 MCP Agent Doctor\n'));
+    console.log(chalk.bold.cyan('🔍 One MCP Doctor\n'));
 
     const checks = [];
 
@@ -578,7 +596,7 @@ program
         console.log(chalk.dim('  - Maven: https://maven.apache.org/install.html'));
       }
       if (!hasConfig) {
-        console.log(chalk.dim('  - Run: mcpagent (to start setup wizard)'));
+        console.log(chalk.dim('  - Run: onemcp (to start setup wizard)'));
       }
     }
   });
@@ -595,7 +613,7 @@ async function showStatus(): Promise<void> {
     const status = await agentService.getStatus();
 
     console.log();
-    console.log(chalk.bold.cyan('📊 MCP Agent Status\n'));
+    console.log(chalk.bold.cyan('📊 One MCP Status\n'));
 
     if (status.running) {
       console.log(chalk.green('✅  Agent is running'));

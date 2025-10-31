@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Uninstallation script for Gentoro MCP Agent CLI
-# Usage: bash ~/.mcpagent-src/cli/uninstall.sh
+# Uninstallation script for Gentoro One MCP CLI
+# Usage: bash ~/.onemcp-src/cli/uninstall.sh
 # Or: curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | bash
 #
 # Environment variables:
-#   MCPAGENT_UNINSTALL_METHOD - Specify uninstall method (auto-detect if not set)
-#   MCPAGENT_WRAPPER_PATH     - Path to wrapper script (only for wrapper method)
-#   MCPAGENT_YES              - Auto-confirm prompts
-#   MCPAGENT_REMOVE_CONFIG    - Auto-remove config directory
-#   MCPAGENT_REMOVE_HANDBOOKS - Auto-remove handbooks directory
+#   ONEMCP_UNINSTALL_METHOD - Specify uninstall method (auto-detect if not set)
+#   ONEMCP_WRAPPER_PATH     - Path to wrapper script (only for wrapper method)
+#   ONEMCP_YES              - Auto-confirm prompts
+#   ONEMCP_REMOVE_CONFIG    - Auto-remove config directory
+#   ONEMCP_REMOVE_HANDBOOKS - Auto-remove handbooks directory
 
 # Colors
 RED='\033[0;31m'
@@ -20,19 +20,19 @@ BLUE='\033[1;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-INSTALL_DIR="$HOME/.mcpagent-src"
-CONFIG_DIR="$HOME/.mcpagent"
-LOCAL_BIN="$HOME/.local/bin/mcpagent"
+INSTALL_DIR="$HOME/.onemcp-src"
+CONFIG_DIR="$HOME/.onemcp"
+LOCAL_BIN="$HOME/.local/bin/onemcp"
 
 # Non-interactive controls (env overrides)
-# - MCPAGENT_YES=1                     → auto-confirm prompts
-# - MCPAGENT_REMOVE_CONFIG=1           → remove ~/.mcpagent without prompting
-# - MCPAGENT_REMOVE_HANDBOOKS=1        → remove ~/handbooks without prompting
-# - MCPAGENT_UNINSTALL_METHOD          → specify uninstall method (auto-detect if not set)
-AUTO_YES="${MCPAGENT_YES:-}"
-REMOVE_CONFIG_FLAG="${MCPAGENT_REMOVE_CONFIG:-}"
-REMOVE_HANDBOOKS_FLAG="${MCPAGENT_REMOVE_HANDBOOKS:-}"
-UNINSTALL_METHOD="${MCPAGENT_UNINSTALL_METHOD:-}"
+# - ONEMCP_YES=1                     → auto-confirm prompts
+# - ONEMCP_REMOVE_CONFIG=1           → remove ~/.onemcp without prompting
+# - ONEMCP_REMOVE_HANDBOOKS=1        → remove ~/handbooks without prompting
+# - ONEMCP_UNINSTALL_METHOD          → specify uninstall method (auto-detect if not set)
+AUTO_YES="${ONEMCP_YES:-}"
+REMOVE_CONFIG_FLAG="${ONEMCP_REMOVE_CONFIG:-}"
+REMOVE_HANDBOOKS_FLAG="${ONEMCP_REMOVE_HANDBOOKS:-}"
+UNINSTALL_METHOD="${ONEMCP_UNINSTALL_METHOD:-}"
 
 log_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
@@ -53,28 +53,27 @@ log_error() {
 banner() {
     echo -e "${CYAN}"
     cat << "EOF"
-   ____            _                    __  __  ____ ____  
-  / ___| ___ _ __ | |_ ___  _ __ ___   |  \/  |/ ___|  _ \ 
- | |  _ / __| '_ \| __/ _ \| '__/ _ \  | |\/| | |   | |_) |
- | |_| \__ \ | | | || (_) | | | (_) | | |  | | |___|  __/ 
-  \____|___/_| |_|\__\___/|_|  \___/  |_|  |_|\____|_|    
-                                                            
- _   _       _           _        _ _ 
-| | | |_ __ (_)_ __  ___| |_ __ _| | |
-| | | | '_ \| | '_ \/ __| __/ _` | | |
-| |_| | | | | | | | \__ \ || (_| | | |
- \___/|_| |_|_|_| |_|___/\__\__,_|_|_|
-                                       
+   ____            _                  
+  / ___| ___ _ __ | |_ ___  _ __ ___  
+ | |  _ / __| '_ \| __/ _ \| '__/ _ \  
+ | |_| \__ \ | | | || (_) | | | (_) | 
+  \____|___/_| |_|\__\___/|_|  \___/  
+   ___             __  __  ____ ____
+  / _ \ _ __   ___|  \/  |/ ___|  _ \
+ | | | | '_ \ / _ \ |\/| | |   | |_) |
+ | |_| | | | |  __/ |  | | |___|  __/
+  \___/|_| |_|\___|_|  |_|\____|_|
+                                  
 EOF
     echo -e "${NC}"
 }
 
 stop_services() {
-    log_info "Stopping any running MCP Agent services..."
+    log_info "Stopping any running One MCP services..."
     
     # Try to stop via CLI if available
-    if command -v mcpagent &> /dev/null; then
-        mcpagent stop 2>/dev/null || true
+    if command -v onemcp &> /dev/null; then
+        onemcp stop 2>/dev/null || true
         log_success "Services stopped via CLI"
     fi
     
@@ -103,14 +102,14 @@ detect_installation_method() {
     log_info "Detecting installation method..."
 
     # Check for npm global installation
-    if npm list -g @gentoro/mcpagent-cli &> /dev/null 2>&1; then
+    if npm list -g @gentoro/onemcp-cli &> /dev/null 2>&1; then
         UNINSTALL_METHOD="npm-global"
         log_info "Detected: npm global installation"
         return
     fi
 
     # Check for system-wide installation
-    if [ -f "/usr/local/bin/mcpagent" ]; then
+    if [ -f "/usr/local/bin/onemcp" ]; then
         UNINSTALL_METHOD="system-wide"
         log_info "Detected: system-wide installation (/usr/local/bin)"
         return
@@ -124,7 +123,7 @@ detect_installation_method() {
     fi
 
     # Check for npm link (development)
-    if npm list -g | grep -q "@gentoro/mcpagent-cli"; then
+    if npm list -g | grep -q "@gentoro/onemcp-cli"; then
         UNINSTALL_METHOD="npm-link"
         log_info "Detected: npm link (development)"
         return
@@ -132,7 +131,7 @@ detect_installation_method() {
 
     # Check other common locations
     for bin_dir in ~/.nvm/versions/node/*/bin /opt/homebrew/bin; do
-        if [ -f "$bin_dir/mcpagent" ] || [ -L "$bin_dir/mcpagent" ]; then
+        if [ -f "$bin_dir/onemcp" ] || [ -L "$bin_dir/onemcp" ]; then
             UNINSTALL_METHOD="other"
             log_info "Detected: installation at $bin_dir"
             return
@@ -140,14 +139,14 @@ detect_installation_method() {
     done
 
     log_warning "Could not auto-detect installation method"
-    log_info "You may need to specify MCPAGENT_UNINSTALL_METHOD"
+    log_info "You may need to specify ONEMCP_UNINSTALL_METHOD"
 }
 
 uninstall_npm_global() {
     log_info "Uninstalling from npm global..."
 
-    if npm list -g @gentoro/mcpagent-cli &> /dev/null 2>&1; then
-        npm uninstall -g @gentoro/mcpagent-cli
+    if npm list -g @gentoro/onemcp-cli &> /dev/null 2>&1; then
+        npm uninstall -g @gentoro/onemcp-cli
         log_success "Removed from npm global"
     else
         log_info "Not found in npm global packages"
@@ -157,8 +156,8 @@ uninstall_npm_global() {
 uninstall_npm_link() {
     log_info "Unlinking npm development link..."
 
-    if npm list -g | grep -q "@gentoro/mcpagent-cli"; then
-        npm unlink -g @gentoro/mcpagent-cli 2>/dev/null || true
+    if npm list -g | grep -q "@gentoro/onemcp-cli"; then
+        npm unlink -g @gentoro/onemcp-cli 2>/dev/null || true
         log_success "Unlinked from npm global"
     else
         log_info "No npm link found"
@@ -168,13 +167,13 @@ uninstall_npm_link() {
 uninstall_system_wide() {
     log_info "Uninstalling system-wide installation..."
 
-    if [ -f "/usr/local/bin/mcpagent" ]; then
+    if [ -f "/usr/local/bin/onemcp" ]; then
         if [ "$EUID" -eq 0 ]; then
-            rm -f "/usr/local/bin/mcpagent"
+            rm -f "/usr/local/bin/onemcp"
             log_success "Removed from /usr/local/bin"
         else
             log_info "System-wide installation requires sudo for removal"
-            sudo rm -f "/usr/local/bin/mcpagent"
+            sudo rm -f "/usr/local/bin/onemcp"
             log_success "Removed from /usr/local/bin (with sudo)"
         fi
     else
@@ -200,11 +199,11 @@ uninstall_other_locations() {
 
     # Check various bin directories
     for bin_dir in ~/.nvm/versions/node/*/bin /opt/homebrew/bin /usr/local/bin; do
-        if [ -f "$bin_dir/mcpagent" ] || [ -L "$bin_dir/mcpagent" ]; then
-            rm -f "$bin_dir/mcpagent" 2>/dev/null || {
-                log_warning "Could not remove $bin_dir/mcpagent (may require sudo)"
-                sudo rm -f "$bin_dir/mcpagent" 2>/dev/null || {
-                    log_warning "Failed to remove $bin_dir/mcpagent"
+        if [ -f "$bin_dir/onemcp" ] || [ -L "$bin_dir/onemcp" ]; then
+            rm -f "$bin_dir/onemcp" 2>/dev/null || {
+                log_warning "Could not remove $bin_dir/onemcp (may require sudo)"
+                sudo rm -f "$bin_dir/onemcp" 2>/dev/null || {
+                    log_warning "Failed to remove $bin_dir/onemcp"
                 }
             }
             found=true
@@ -222,18 +221,18 @@ uninstall_wrapper_script() {
     log_info "Wrapper script uninstallation..."
 
     # For wrapper scripts, we can't auto-detect the location
-    # The user needs to specify MCPAGENT_WRAPPER_PATH or remove manually
-    if [ -n "${MCPAGENT_WRAPPER_PATH:-}" ]; then
-        if [ -f "$MCPAGENT_WRAPPER_PATH" ]; then
-            rm -f "$MCPAGENT_WRAPPER_PATH"
-            log_success "Removed wrapper script from $MCPAGENT_WRAPPER_PATH"
+    # The user needs to specify ONEMCP_WRAPPER_PATH or remove manually
+    if [ -n "${ONEMCP_WRAPPER_PATH:-}" ]; then
+        if [ -f "$ONEMCP_WRAPPER_PATH" ]; then
+            rm -f "$ONEMCP_WRAPPER_PATH"
+            log_success "Removed wrapper script from $ONEMCP_WRAPPER_PATH"
         else
-            log_info "Wrapper script not found at $MCPAGENT_WRAPPER_PATH"
+            log_info "Wrapper script not found at $ONEMCP_WRAPPER_PATH"
         fi
     else
         log_warning "Cannot auto-detect wrapper script location"
-        log_info "Specify MCPAGENT_WRAPPER_PATH or remove manually"
-        log_info "Example: MCPAGENT_WRAPPER_PATH=/path/to/mcpagent ./uninstall.sh"
+        log_info "Specify ONEMCP_WRAPPER_PATH or remove manually"
+        log_info "Example: ONEMCP_WRAPPER_PATH=/path/to/onemcp ./uninstall.sh"
     fi
 }
 
@@ -271,9 +270,16 @@ unlink_cli() {
     esac
 
     # Final verification
-    if command -v mcpagent &> /dev/null; then
-        log_warning "mcpagent command still found in PATH"
-        log_info "You may need to restart your shell or check your PATH"
+    if command -v onemcp &> /dev/null; then
+        case "$UNINSTALL_METHOD" in
+            "npm-global")
+                log_info "Note: You may need to restart your shell for PATH changes to take effect"
+                ;;
+            *)
+                log_warning "onemcp command still found in PATH"
+                log_info "You may need to restart your shell or check your PATH"
+                ;;
+        esac
     else
         log_success "CLI command successfully removed"
     fi
@@ -351,7 +357,7 @@ remove_handbooks() {
     
     if [ -d "$handbooks_dir" ]; then
         local size=$(du -sh "$handbooks_dir" 2>/dev/null | cut -f1)
-        echo -e "${YELLOW}  $handbooks_dir${NC} ($size)"
+        echo -e "${YELLOW}  $handbooks_dir${NC} $size"
         echo "  Your agent handbooks and configurations"
     else
         echo -e "${YELLOW}  $handbooks_dir${NC} (not found)"
@@ -408,30 +414,43 @@ show_summary() {
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     log_info "What was removed:"
-    echo "  ✓ MCP Agent CLI command"
+    echo "  ✓ One MCP CLI command"
     echo "  ✓ Source code and built binaries"
     echo "  ✓ Running services"
     echo "  ✓ Temporary files"
     echo ""
     
+    local has_preserved=false
+
     if [ -d "$CONFIG_DIR" ]; then
-        log_info "Preserved (remove manually if needed):"
+        if [ "$has_preserved" = false ]; then
+            log_info "Preserved (remove manually if needed):"
+            has_preserved=true
+        fi
         echo "  • Configuration: $CONFIG_DIR"
     fi
-    
+
     if [ -d "$HOME/handbooks" ]; then
+        if [ "$has_preserved" = false ]; then
+            log_info "Preserved (remove manually if needed):"
+            has_preserved=true
+        fi
         echo "  • Handbooks: $HOME/handbooks"
+    fi
+
+    if [ "$has_preserved" = false ]; then
+        log_info "All optional data has been removed"
     fi
     
     echo ""
-    log_info "Thank you for trying Gentoro MCP Agent!"
+    log_info "Thank you for trying Gentoro One MCP!"
     echo ""
 }
 
 confirm_uninstall() {
     echo ""
-    log_warning "This will uninstall Gentoro MCP Agent CLI and remove:"
-    echo "  • CLI command (mcpagent)"
+    log_warning "This will uninstall Gentoro One MCP CLI and remove:"
+    echo "  • CLI command (onemcp)"
     echo "  • Source code (~500MB)"
     echo "  • Built binaries"
     echo "  • Running services"

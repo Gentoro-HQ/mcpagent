@@ -23,7 +23,7 @@ export class ChatMode {
     this.agentStatus = await agentService.getStatus();
     if (!this.agentStatus.running) {
       console.log(chalk.red('❌ MCP Agent is not running.'));
-      console.log(chalk.yellow('Services should start automatically when you run: mcpagent chat'));
+      console.log(chalk.yellow('Services should start automatically when you run: onemcp chat'));
       return;
     }
 

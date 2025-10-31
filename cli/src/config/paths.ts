@@ -17,7 +17,7 @@ export class PathManager {
   readonly cacheDir: string;
 
   private constructor() {
-    this.configRoot = join(homedir(), '.mcpagent');
+    this.configRoot = join(homedir(), '.onemcp');
     this.configFile = join(this.configRoot, 'config.yaml');
     this.servicesDir = join(this.configRoot, 'services');
     this.handbooksDir = join(homedir(), 'handbooks');

@@ -21,6 +21,15 @@ A production-ready MCP (Model Context Protocol) server that connects AI models t
 curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
 ```
 
+**Quick Try with `onemcp chat`:**
+```bash
+# This single command will:
+# - Run setup wizard if not configured (prompts for API keys)
+# - Start MCP Agent services automatically (with mock data for testing)
+# - Open interactive chat interface
+onemcp chat
+```
+
 For detailed CLI documentation, all commands, and advanced features, see the [CLI README](cli/README.md).
 
 ### Using Docker
