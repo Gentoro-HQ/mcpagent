@@ -25,13 +25,19 @@ Write-Host "Platforms: $Platforms"
 # Build Docker image
 try {
     $buildCmd = "docker"
+    $isPrerelease = $Version -like "*-*"
+    $tagArgs = @("-t", "admingentoro/gentoro:base-$Version")
+    if (-not $isPrerelease) {
+        $tagArgs += @("-t", "admingentoro/gentoro:base-latest")
+    } else {
+        Write-Host "INFO: Pre-release build detected; skipping base-latest tag"
+    }
     $buildArgs = @(
         "buildx", "build",
         "-f", "$Dockerfile",
-        "--platform", "$Platforms",
-        "-t", "admingentoro/gentoro:base-$Version",
-        "-t", "admingentoro/gentoro:base-latest"
+        "--platform", "$Platforms"
     )
+    $buildArgs += $tagArgs
 
     if ($Push) {
         Write-Host "Will push images to registry"
@@ -46,11 +52,10 @@ try {
         $buildArgs = @(
             "buildx", "build",
             "-f", "$Dockerfile",
-            "--platform", "$Platforms",
-            "-t", "admingentoro/gentoro:base-$Version",
-            "-t", "admingentoro/gentoro:base-latest",
-            "--load"
+            "--platform", "$Platforms"
         )
+        $buildArgs += $tagArgs
+        $buildArgs += "--load"
     }
 
     $buildArgs += "$ROOT"

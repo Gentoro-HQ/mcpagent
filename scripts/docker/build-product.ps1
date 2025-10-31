@@ -53,6 +53,14 @@ Write-Host "Building product image with version: $Version"
 Write-Host "JAR: $JarName"
 Write-Host "Platforms: $Platforms"
 
+$isPrerelease = $Version -like "*-*"
+$tagArgs = @("-t", "admingentoro/gentoro:$Version")
+if (-not $isPrerelease) {
+    $tagArgs += @("-t", "admingentoro/gentoro:latest")
+} else {
+    Write-Host "INFO: Pre-release build detected; skipping latest tag"
+}
+
 # Check if base image exists locally - try both versioned and latest
 $baseImageName = "admingentoro/gentoro:base-$Version"
 try {
@@ -81,11 +89,10 @@ try {
             "-f", "$ROOT\Dockerfile",
             "--platform", "$Platforms",
             "--build-arg", "APP_JAR=src/mcpagent/target/$JarName",
-            "--build-arg", "BASE_IMAGE=$baseImageName",
-            "-t", "admingentoro/gentoro:$Version",
-            "-t", "admingentoro/gentoro:latest",
-            "--push"
+            "--build-arg", "BASE_IMAGE=$baseImageName"
         )
+        $buildArgs += $tagArgs
+        $buildArgs += "--push"
     } else {
         Write-Host "Building for local use (docker buildx with --load)"
         # For local builds, use docker buildx with --load to access local images
@@ -97,11 +104,10 @@ try {
             "build",
             "-f", "$ROOT\Dockerfile",
             "--build-arg", "APP_JAR=src/mcpagent/target/$JarName",
-            "--build-arg", "BASE_IMAGE=$baseImageName",
-            "-t", "admingentoro/gentoro:$Version",
-            "-t", "admingentoro/gentoro:latest",
-            "--platform", "$Platforms"
+            "--build-arg", "BASE_IMAGE=$baseImageName"
         )
+        $buildArgs += $tagArgs
+        $buildArgs += @("--platform", "$Platforms")
     }
 
     $buildArgs += "$ROOT"

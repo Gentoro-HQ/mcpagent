@@ -8,6 +8,11 @@ PLATFORM_FLAG="${4:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 POM="$ROOT_DIR/src/mcpagent/pom.xml"
 
+IS_PRERELEASE=0
+if [[ "$VERSION" == *"-"* ]]; then
+  IS_PRERELEASE=1
+fi
+
 # Default platforms for multi-arch builds
 PLATFORMS="${DOCKER_PLATFORMS:-linux/amd64,linux/arm64}"
 
@@ -63,13 +68,20 @@ echo "Platforms: $PLATFORMS"
 if [[ "$PUSH_FLAG" == "--push" ]]; then
   echo "Will push images to registry"
   BUILD_CMD="docker buildx build"
+  TAG_ARGS=(
+    -t "admingentoro/gentoro:$VERSION"
+  )
+  if [[ $IS_PRERELEASE -eq 0 ]]; then
+    TAG_ARGS+=( -t "admingentoro/gentoro:latest" )
+  else
+    echo "INFO: Pre-release build detected; skipping latest tag"
+  fi
   BUILD_ARGS=(
     -f "$ROOT_DIR/Dockerfile"
     --platform "$PLATFORMS"
     --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
     --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
-    -t "admingentoro/gentoro:$VERSION"
-    -t "admingentoro/gentoro:latest"
+    "${TAG_ARGS[@]}"
     --push
   )
 else
@@ -96,12 +108,19 @@ else
   fi
   
   BUILD_CMD="docker build"
+  TAG_ARGS=(
+    -t "admingentoro/gentoro:$VERSION"
+  )
+  if [[ $IS_PRERELEASE -eq 0 ]]; then
+    TAG_ARGS+=( -t "admingentoro/gentoro:latest" )
+  else
+    echo "INFO: Pre-release build detected; skipping latest tag"
+  fi
   BUILD_ARGS=(
     -f "$ROOT_DIR/Dockerfile"
     --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
     --build-arg "BASE_IMAGE=$BASE_IMAGE_NAME"
-    -t "admingentoro/gentoro:$VERSION"
-    -t "admingentoro/gentoro:latest"
+    "${TAG_ARGS[@]}"
     --platform "$PLATFORMS"
   )
 fi

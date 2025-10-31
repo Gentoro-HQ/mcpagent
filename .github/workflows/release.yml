@@ -20,6 +20,11 @@ on:
         required: false
         default: false
         type: boolean
+      beta:
+        description: 'Mark release as beta pre-release'
+        required: false
+        default: false
+        type: boolean
 
 env:
   REGISTRY: docker.io
@@ -63,6 +68,10 @@ jobs:
       contents: write
       packages: write
       pull-requests: write
+    outputs:
+      version: ${{ steps.extract_version.outputs.version || steps.calculate_version.outputs.version }}
+      is_prerelease: ${{ steps.extract_version.outputs.is_prerelease || steps.calculate_version.outputs.is_prerelease }}
+      base_tag: ${{ steps.extract_version.outputs.base_tag || steps.calculate_version.outputs.base_tag }}
     
     steps:
     - name: Check dry run mode
@@ -132,6 +141,13 @@ jobs:
         VERSION=${GITHUB_REF#refs/tags/}
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
+        BASE_VERSION=${VERSION%%-*}
+        if [[ "$VERSION" == *-* ]]; then
+          echo "is_prerelease=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_prerelease=false" >> $GITHUB_OUTPUT
+        fi
+        echo "base_tag=$BASE_VERSION" >> $GITHUB_OUTPUT
         echo "Released version: $VERSION"
     
     - name: Calculate version for manual release
@@ -141,22 +157,19 @@ jobs:
         POM_FILE="src/mcpagent/pom.xml"
         CURRENT_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" "$POM_FILE")
         echo "Current POM version: $CURRENT_VERSION"
-        
-        # Get the latest tag (excluding pre-release tags)
+
+        # Get the latest stable tag (exclude pre-release tags)
         LATEST_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
-        
+
         if [[ -z "$LATEST_TAG" ]]; then
-          echo "No existing version tags found, using POM version as base"
-          # Parse POM version
+          echo "No existing stable tags found, using POM version as base"
           IFS='.-' read -r MAJ MIN PAT SNAP <<<"$CURRENT_VERSION"
         else
-          echo "Latest tag: $LATEST_TAG"
-          # Parse latest tag (remove 'v' prefix)
+          echo "Latest stable tag: $LATEST_TAG"
           VERSION_PART=${LATEST_TAG#v}
           IFS='.' read -r MAJ MIN PAT <<<"$VERSION_PART"
         fi
-        
-        # Calculate new version based on input
+
         BUMP="${{ github.event.inputs.version_type }}"
         if [[ "$BUMP" == "major" ]]; then
           MAJ=$((MAJ+1)); MIN=0; PAT=0
@@ -165,18 +178,46 @@ jobs:
         else
           PAT=$((PAT+1))
         fi
-        
-        NEW_VERSION="${MAJ}.${MIN}.${PAT}-SNAPSHOT"
-        TAG="v${MAJ}.${MIN}.${PAT}"
-        
-        echo "version=$TAG" >> $GITHUB_OUTPUT
-        echo "version_number=${MAJ}.${MIN}.${PAT}" >> $GITHUB_OUTPUT
-        echo "new_snapshot=$NEW_VERSION" >> $GITHUB_OUTPUT
-        echo "✅ Calculated version: $TAG (next snapshot: $NEW_VERSION)"
-        echo "📋 Version calculation:"
-        echo "  - Base: ${LATEST_TAG:-"POM version $CURRENT_VERSION"}"
-        echo "  - Bump type: $BUMP"
-        echo "  - New tag: $TAG"
+
+        BASE_TAG="v${MAJ}.${MIN}.${PAT}"
+        NEW_SNAPSHOT="${MAJ}.${MIN}.${PAT}-SNAPSHOT"
+
+        if [[ "${{ github.event.inputs.beta }}" == "true" ]]; then
+          echo "🔧 Beta mode enabled"
+          HIGHEST_BETA=0
+          while IFS= read -r TAG_VALUE; do
+            [[ -z "$TAG_VALUE" ]] && continue
+            NUM=${TAG_VALUE##*-beta.}
+            if [[ "$NUM" =~ ^[0-9]+$ ]] && (( NUM > HIGHEST_BETA )); then
+              HIGHEST_BETA=$NUM
+            fi
+          done < <(git tag -l "${BASE_TAG}-beta.*")
+          NEXT_BETA=$((HIGHEST_BETA+1))
+          TAG="${BASE_TAG}-beta.${NEXT_BETA}"
+          VERSION_NUMBER="${MAJ}.${MIN}.${PAT}-beta.${NEXT_BETA}"
+          echo "version=$TAG" >> $GITHUB_OUTPUT
+          echo "version_number=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+          echo "new_snapshot=$NEW_SNAPSHOT" >> $GITHUB_OUTPUT
+          echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          echo "base_tag=$BASE_TAG" >> $GITHUB_OUTPUT
+          echo "✅ Calculated beta tag: $TAG (base release: $BASE_TAG)"
+          echo "📋 Version calculation:"
+          echo "  - Base: ${LATEST_TAG:-"POM version $CURRENT_VERSION"}"
+          echo "  - Bump type: $BUMP"
+          echo "  - New beta tag: $TAG"
+        else
+          TAG="$BASE_TAG"
+          echo "version=$TAG" >> $GITHUB_OUTPUT
+          echo "version_number=${MAJ}.${MIN}.${PAT}" >> $GITHUB_OUTPUT
+          echo "new_snapshot=$NEW_SNAPSHOT" >> $GITHUB_OUTPUT
+          echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          echo "base_tag=$BASE_TAG" >> $GITHUB_OUTPUT
+          echo "✅ Calculated version: $TAG (next snapshot: $NEW_SNAPSHOT)"
+          echo "📋 Version calculation:"
+          echo "  - Base: ${LATEST_TAG:-"POM version $CURRENT_VERSION"}"
+          echo "  - Bump type: $BUMP"
+          echo "  - New tag: $TAG"
+        fi
     
     - name: Create tag for manual release
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
@@ -257,7 +298,75 @@ jobs:
         fi
         
         echo "✅ All images verified successfully"
-    
+
+    - name: Generate release notes
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      id: release_notes
+      env:
+        VERSION: ${{ steps.extract_version.outputs.version }}
+        BASE_TAG: ${{ steps.extract_version.outputs.base_tag }}
+        IS_PRERELEASE: ${{ steps.extract_version.outputs.is_prerelease }}
+      run: |
+        echo "Generating release notes for $VERSION (is_prerelease=$IS_PRERELEASE)"
+        BASE_IMAGE_TAG="${IMAGE_NAME_BASE}:base-${VERSION}"
+        PRODUCT_IMAGE_TAG="${IMAGE_NAME_PRODUCT}:${VERSION}"
+        {
+          printf '## Changes in this Release\n\n'
+          printf 'This release includes:\n'
+          printf '- Updated base image: `%s`\n' "$BASE_IMAGE_TAG"
+          printf '- Updated product image: `%s`\n' "$PRODUCT_IMAGE_TAG"
+          printf '\n## Service Validation ✅\n\n'
+          printf 'All services have been validated and are confirmed working:\n'
+          printf '- **MCP Agent** (port 8080) - Main Spring Boot application\n'
+          printf '- **OpenTelemetry Collector** (port 4317) - Telemetry data collection\n'
+          printf '- **Mock Server** (port 8082, optional) - External mock server\n'
+          printf '- **TypeScript Runtime** (port 7070, optional) - Node.js runtime\n'
+          printf '\n**Platform Support**: Both linux/amd64 and linux/arm64 architectures tested and validated.\n'
+        } > release_notes.md
+
+        if [[ "$IS_PRERELEASE" == "true" ]]; then
+          {
+            printf '\n## Release Channel\n\n'
+            printf 'This is a **beta pre-release** based on %s.\n' "$BASE_TAG"
+            printf 'Use it to validate upcoming changes before the stable %s release.\n\n' "$BASE_TAG"
+            printf '## Docker Images\n\n'
+            printf '```bash\n'
+            printf '# Base image (beta)\n'
+            printf 'docker pull "%s"\n\n' "$BASE_IMAGE_TAG"
+            printf '# Product image (beta)\n'
+            printf 'docker pull "%s"\n' "$PRODUCT_IMAGE_TAG"
+            printf '```\n'
+          } >> release_notes.md
+        else
+          BASE_IMAGE_LATEST="${IMAGE_NAME_BASE}:base-latest"
+          PRODUCT_IMAGE_LATEST="${IMAGE_NAME_PRODUCT}:latest"
+          {
+            printf '\n## Docker Images\n\n'
+            printf '```bash\n'
+            printf '# Base image\n'
+            printf 'docker pull "%s"\n' "$BASE_IMAGE_TAG"
+            printf 'docker pull "%s"\n\n' "$BASE_IMAGE_LATEST"
+            printf '# Product image\n'
+            printf 'docker pull "%s"\n' "$PRODUCT_IMAGE_TAG"
+            printf 'docker pull "%s"\n' "$PRODUCT_IMAGE_LATEST"
+            printf '```\n'
+          } >> release_notes.md
+        fi
+
+        {
+          printf '\n## Quick Start\n\n'
+          printf '```bash\n'
+          printf '# Run the validated image\n'
+          printf 'docker run -p 8080:8080 \\\n'
+          printf '  -e OPENAI_API_KEY=your-key \\\n'
+          printf '  %s\n\n' "$PRODUCT_IMAGE_TAG"
+          printf '# Test health endpoint\n'
+          printf 'curl http://localhost:8080/actuator/health\n'
+          printf '```\n'
+        } >> release_notes.md
+
+        echo "release_notes=release_notes.md" >> $GITHUB_OUTPUT
+
     - name: Create GitHub Release
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
       uses: actions/create-release@v1
@@ -266,55 +375,21 @@ jobs:
       with:
         tag_name: ${{ steps.extract_version.outputs.version }}
         release_name: Release ${{ steps.extract_version.outputs.version }}
-        body: |
-          ## Changes in this Release
-          
-          This release includes:
-          - Updated base image: `${{ env.IMAGE_NAME_BASE }}:base-${{ steps.extract_version.outputs.version }}`
-          - Updated product image: `${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}`
-          
-          ## Service Validation ✅
-          
-          All services have been validated and are confirmed working:
-          - **MCP Agent** (port 8080) - Main Spring Boot application
-          - **OpenTelemetry Collector** (port 4317) - Telemetry data collection
-          - **Mock Server** (port 8082, optional) - External mock server
-          - **TypeScript Runtime** (port 7070, optional) - Node.js runtime
-          
-          **Platform Support**: Both `linux/amd64` and `linux/arm64` architectures tested and validated.
-          
-          ## Docker Images
-          
-          ```bash
-          # Base image
-          docker pull ${{ env.IMAGE_NAME_BASE }}:base-${{ steps.extract_version.outputs.version }}
-          docker pull ${{ env.IMAGE_NAME_BASE }}:base-latest
-          
-          # Product image
-          docker pull ${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}
-          docker pull ${{ env.IMAGE_NAME_PRODUCT }}:latest
-          ```
-          
-          ## Quick Start
-          
-          ```bash
-          # Run the validated image
-          docker run -p 8080:8080 \
-            -e OPENAI_API_KEY=your-key \
-            ${{ env.IMAGE_NAME_PRODUCT }}:${{ steps.extract_version.outputs.version }}
-          
-          # Test health endpoint
-          curl http://localhost:8080/actuator/health
-          ```
+        body_path: release_notes.md
         draft: false
-        prerelease: false
-    
+        prerelease: ${{ steps.extract_version.outputs.is_prerelease == 'true' }}
+
     - name: Dry run summary
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
       run: |
         echo "## Dry Run Summary"
         echo "Version: ${{ steps.calculate_version.outputs.version }}"
         echo "Next snapshot: ${{ steps.calculate_version.outputs.new_snapshot }}"
+        if [ "${{ steps.calculate_version.outputs.is_prerelease }}" = "true" ]; then
+          echo "Channel: Beta (base release: ${{ steps.calculate_version.outputs.base_tag }})"
+        else
+          echo "Channel: Stable"
+        fi
         echo ""
         echo "This would have:"
         echo "- Created and pushed tag ${{ steps.calculate_version.outputs.version }}"
@@ -330,7 +405,8 @@ jobs:
   deploy-docs:
     name: Deploy Documentation
     needs: release
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true')
+    if: (((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'))
+      && needs.release.outputs.is_prerelease != 'true')
     permissions:
       id-token: write
       contents: read

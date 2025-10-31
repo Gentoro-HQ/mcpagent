@@ -7,6 +7,11 @@ PLATFORM_FLAG="${3:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DOCKERFILE="$ROOT_DIR/Dockerfile.base"
 
+IS_PRERELEASE=0
+if [[ "$VERSION" == *"-"* ]]; then
+  IS_PRERELEASE=1
+fi
+
 # Default platforms for multi-arch builds
 PLATFORMS="${DOCKER_PLATFORMS:-linux/amd64,linux/arm64}"
 
@@ -25,13 +30,23 @@ echo "Building base image with version: $VERSION"
 echo "Dockerfile: $DOCKERFILE"
 echo "Platforms: $PLATFORMS"
 
+# Determine tag arguments
+TAG_ARGS=(
+  -t "admingentoro/gentoro:base-$VERSION"
+)
+
+if [[ $IS_PRERELEASE -eq 0 ]]; then
+  TAG_ARGS+=( -t "admingentoro/gentoro:base-latest" )
+else
+  echo "INFO: Pre-release build detected; skipping base-latest tag"
+fi
+
 # Determine build command based on whether we're pushing
 BUILD_CMD="docker buildx build"
 BUILD_ARGS=(
   -f "$DOCKERFILE"
   --platform "$PLATFORMS"
-  -t "admingentoro/gentoro:base-$VERSION"
-  -t "admingentoro/gentoro:base-latest"
+  "${TAG_ARGS[@]}"
 )
 
 if [[ "$PUSH_FLAG" == "--push" ]]; then
@@ -47,8 +62,7 @@ else
   BUILD_ARGS=(
     -f "$DOCKERFILE"
     --platform "$PLATFORMS"
-    -t "admingentoro/gentoro:base-$VERSION"
-    -t "admingentoro/gentoro:base-latest"
+    "${TAG_ARGS[@]}"
     --load
   )
 fi
