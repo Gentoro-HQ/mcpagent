@@ -263,6 +263,14 @@ See the \`docs/\` directory for additional documentation.
       await fs.move(instructionsPath, agentPath, { overwrite: true });
     }
 
+    // Rename openapi/ to apis/ to match expected directory structure
+    const openapiPath = `${targetDir}/openapi`;
+    const apisPath = `${targetDir}/apis`;
+
+    if (await fs.pathExists(openapiPath)) {
+      await fs.move(openapiPath, apisPath, { overwrite: true });
+    }
+
     console.log(chalk.green(`✅  Example handbook copied to ${targetDir}`));
   }
 }
