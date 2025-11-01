@@ -16,6 +16,8 @@ curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install
 onemcp chat
 ```
 
+**Try the ACME Analytics Sample**: During setup, we recommend you to select the included ACME Analytics Server mode to explore a complete example with documentation, API specs, and sample queries.
+
 That's it! The CLI will automatically:
 - Run the setup wizard (choose your AI provider) - for the first time
 - Start all required services

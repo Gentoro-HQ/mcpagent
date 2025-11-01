@@ -54,6 +54,8 @@ Start chatting with the built-in Acme Analytics mock service:
 onemcp chat
 ```
 
+**Choose your starting point**: During setup, you can either select the included ACME Analytics Server sample mode to explore a complete example with documentation, API specs, and sample queries, or set up your own API service from scratch.
+
 The first time you run this, it will:
 1. Launch an interactive setup wizard to choose your AI provider
 2. Start all required services automatically
