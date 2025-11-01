@@ -6,29 +6,24 @@ A production-ready MCP (Model Context Protocol) server that connects AI models t
 
 ### CLI Tool
 
-**Prerequisites:**
-- **Node.js** >= 20
-- **Java** >= 21
-- **Maven** (for building the agent)
-- **Git** (for cloning the repository)
-- **API Keys** for at least one of the supported providers:
-  - OpenAI API key
-  - Google Gemini API key
-  - Anthropic API key
+Get started in minutes with the built-in mock environment:
 
-**Installation:**
 ```bash
+# Install
 curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/install.sh | bash
-```
 
-**Quick Try with `onemcp chat`:**
-```bash
-# This single command will:
-# - Run setup wizard if not configured (prompts for API keys)
-# - Start MCP Agent services automatically (with mock data for testing)
-# - Open interactive chat interface
+# Start chatting (auto-setup wizard launches on first run)
 onemcp chat
 ```
+
+That's it! The CLI will automatically:
+- Run the setup wizard (choose your AI provider) - for the first time
+- Start all required services
+- Launch interactive chat with example queries
+
+**Requirements:** Node.js ≥20, Java ≥21, Maven, Git, and API keys for OpenAI/Google Gemini/Anthropic.
+
+**To uninstall CLI:** `curl -sSL https://raw.githubusercontent.com/Gentoro-HQ/mcpagent/main/cli/uninstall.sh | bash`
 
 For detailed CLI documentation, all commands, and advanced features, see the [CLI README](cli/README.md).
 

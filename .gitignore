@@ -8,6 +8,7 @@ src/acme-analytics-server/mcpagent-handbook/state
 # IDEs and editors
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 
