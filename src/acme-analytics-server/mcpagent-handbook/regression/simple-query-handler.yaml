@@ -260,7 +260,7 @@ tests:
 
   - display-name: order gap analysis 2024
     prompt: |
-      For each customer active in 2024, compute the average number of days between their consecutive orders during 2024. Return columns: customer_name, avg_days_between_orders.
+      Find all customers that placed at least two orders in 2024, and compute the average number of days between their consecutive orders during 2024. Return columns: customer_name, avg_days_between_orders.
     assert: |
       Check if a table with columns 'customer_name' and 'avg_days_between_orders' is produced; values are non-negative.
 
